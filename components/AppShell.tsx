@@ -1,15 +1,19 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
 const nav = [
   ["Dashboard", "/dashboard"],
   ["Connect League", "/connect"],
   ["Trade Lab", "/trade-lab"],
-  ["Record Book", "/record-book"],
-  ["Pricing", "/pricing"]
+  ["Record Book", "/record-book"]
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -17,18 +21,24 @@ export function AppShell({ children }: { children: ReactNode }) {
           <span className="brand-mark">FNM</span>
           <span>FantasyNextMove</span>
         </Link>
-        <nav>
+        <nav aria-label="Primary navigation">
           {nav.map(([label, href]) => (
-            <Link key={href} href={href}>{label}</Link>
+            <Link className={pathname === href ? "active" : ""} key={href} href={href}>{label}</Link>
           ))}
         </nav>
         <div className="sidebar-card">
-          <strong>Sleeper + Yahoo</strong>
-          <p>One normalized command center for every connected league.</p>
+          <strong>Private beta</strong>
+          <p>Connect a league, review the sample experience, and help shape the first public release.</p>
           <Link className="button small" href="/connect">Connect league</Link>
         </div>
       </aside>
-      <main className="app-content">{children}</main>
+      <main className="app-content">
+        {children}
+        <footer className="app-footer">
+          <span>FantasyNextMove private beta</span>
+          <span>Read-only league analysis. No lineup, waiver, or trade actions are submitted.</span>
+        </footer>
+      </main>
     </div>
   );
 }

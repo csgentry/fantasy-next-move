@@ -2,26 +2,26 @@ import type { ImportedLeague } from "./types";
 
 export const demoLeague: ImportedLeague = {
   provider: "demo",
-  leagueId: "demo-mfl-2026",
-  name: "Midwest Fantasy League",
+  leagueId: "sample-league-2026",
+  name: "Sunday League Sample",
   season: "2026",
   status: "pre_draft",
   totalRosters: 10,
   scoringSettings: { rec: 0.5, pass_td: 4, rush_td: 6, rec_td: 6 },
   rosterPositions: ["QB", "RB", "RB", "WR", "WR", "TE", "FLEX", "K", "DEF", "BN", "BN", "BN", "BN", "BN", "IR"],
-  previousLeagueId: "demo-mfl-2025",
+  previousLeagueId: "sample-league-2025",
   userRosterId: 1,
   teams: [
-    { rosterId: 1, ownerId: "cody", ownerName: "Cody Gentry", teamName: "Multiple Scorgasms", wins: 10, losses: 4, ties: 0, pointsFor: 1587.4, pointsAgainst: 1430.1, players: ["Josh Allen", "Bijan Robinson", "Breece Hall", "Amon-Ra St. Brown", "Puka Nacua", "Trey McBride", "De'Von Achane"], starters: ["Josh Allen", "Bijan Robinson", "Breece Hall", "Amon-Ra St. Brown", "Puka Nacua", "Trey McBride"] },
-    { rosterId: 2, ownerId: "brittany", ownerName: "Brittany Gentry", teamName: "Tuaside Squad", wins: 9, losses: 5, ties: 0, pointsFor: 1512.8, pointsAgainst: 1468.9, players: ["Jalen Hurts", "Jahmyr Gibbs", "Jonathan Taylor", "CeeDee Lamb", "Drake London", "Sam LaPorta"], starters: ["Jalen Hurts", "Jahmyr Gibbs", "Jonathan Taylor", "CeeDee Lamb", "Drake London", "Sam LaPorta"] },
-    { rosterId: 3, ownerId: "drew", ownerName: "Andrew Scott", teamName: "This Team Stinks", wins: 8, losses: 6, ties: 0, pointsFor: 1489.6, pointsAgainst: 1450.7, players: ["Lamar Jackson", "Saquon Barkley", "Kyren Williams", "Justin Jefferson", "Nico Collins", "George Kittle"], starters: ["Lamar Jackson", "Saquon Barkley", "Kyren Williams", "Justin Jefferson", "Nico Collins", "George Kittle"] },
-    { rosterId: 4, ownerId: "brian", ownerName: "Brian Hardy", teamName: "Infinite Void", wins: 7, losses: 7, ties: 0, pointsFor: 1458.3, pointsAgainst: 1461.2, players: ["Joe Burrow", "Christian McCaffrey", "James Cook", "Ja'Marr Chase", "Tee Higgins", "Brock Bowers"], starters: ["Joe Burrow", "Christian McCaffrey", "James Cook", "Ja'Marr Chase", "Tee Higgins", "Brock Bowers"] },
-    { rosterId: 5, ownerId: "eric", ownerName: "Eric Hernandez", teamName: "Romophobic", wins: 7, losses: 7, ties: 0, pointsFor: 1436.1, pointsAgainst: 1448.5, players: ["Jayden Daniels", "Derrick Henry", "Kenneth Walker", "Malik Nabers", "Mike Evans", "Mark Andrews"], starters: ["Jayden Daniels", "Derrick Henry", "Kenneth Walker", "Malik Nabers", "Mike Evans", "Mark Andrews"] },
-    { rosterId: 6, ownerId: "jason", ownerName: "Jason Sorrells", teamName: "Footballer..I hardly know her", wins: 6, losses: 8, ties: 0, pointsFor: 1399.4, pointsAgainst: 1480.2, players: ["Patrick Mahomes", "Josh Jacobs", "David Montgomery", "A.J. Brown", "DK Metcalf", "T.J. Hockenson"], starters: ["Patrick Mahomes", "Josh Jacobs", "David Montgomery", "A.J. Brown", "DK Metcalf", "T.J. Hockenson"] },
-    { rosterId: 7, ownerId: "tyler", ownerName: "Tyler Drake", teamName: "Show Me Your TD's", wins: 6, losses: 8, ties: 0, pointsFor: 1375.7, pointsAgainst: 1501.4, players: ["C.J. Stroud", "Alvin Kamara", "Rachaad White", "Garrett Wilson", "Marvin Harrison Jr.", "Dalton Kincaid"], starters: ["C.J. Stroud", "Alvin Kamara", "Rachaad White", "Garrett Wilson", "Marvin Harrison Jr.", "Dalton Kincaid"] },
-    { rosterId: 8, ownerId: "chuck", ownerName: "Chuck Sasser", teamName: "Fourth and Regret", wins: 5, losses: 9, ties: 0, pointsFor: 1328.2, pointsAgainst: 1510.6, players: ["Brock Purdy", "Tony Pollard", "D'Andre Swift", "Tyreek Hill", "Deebo Samuel", "Kyle Pitts"], starters: ["Brock Purdy", "Tony Pollard", "D'Andre Swift", "Tyreek Hill", "Deebo Samuel", "Kyle Pitts"] },
-    { rosterId: 9, ownerId: "manager9", ownerName: "Jordan Arnold", teamName: "Victory Screech!!!", wins: 4, losses: 10, ties: 0, pointsFor: 1288.9, pointsAgainst: 1522.3, players: ["Dak Prescott", "Aaron Jones", "Najee Harris", "Davante Adams", "Chris Olave", "Evan Engram"], starters: ["Dak Prescott", "Aaron Jones", "Najee Harris", "Davante Adams", "Chris Olave", "Evan Engram"] },
-    { rosterId: 10, ownerId: "manager10", ownerName: "Caleb Eckart", teamName: "Only Slants", wins: 4, losses: 10, ties: 0, pointsFor: 1256.5, pointsAgainst: 1518.2, players: ["Jordan Love", "Isiah Pacheco", "Brian Robinson", "Zay Flowers", "Xavier Worthy", "David Njoku"], starters: ["Jordan Love", "Isiah Pacheco", "Brian Robinson", "Zay Flowers", "Xavier Worthy", "David Njoku"] }
+    { rosterId: 1, ownerId: "sample-1", ownerName: "Alex Carter", teamName: "Fourth & Goal", wins: 10, losses: 4, ties: 0, pointsFor: 1587.4, pointsAgainst: 1430.1, players: ["Josh Allen", "Bijan Robinson", "Breece Hall", "Amon-Ra St. Brown", "Puka Nacua", "Trey McBride", "De'Von Achane"], starters: ["Josh Allen", "Bijan Robinson", "Breece Hall", "Amon-Ra St. Brown", "Puka Nacua", "Trey McBride"] },
+    { rosterId: 2, ownerId: "sample-2", ownerName: "Jordan Lee", teamName: "Gridiron Atlas", wins: 9, losses: 5, ties: 0, pointsFor: 1512.8, pointsAgainst: 1468.9, players: ["Jalen Hurts", "Jahmyr Gibbs", "Jonathan Taylor", "CeeDee Lamb", "Drake London", "Sam LaPorta"], starters: ["Jalen Hurts", "Jahmyr Gibbs", "Jonathan Taylor", "CeeDee Lamb", "Drake London", "Sam LaPorta"] },
+    { rosterId: 3, ownerId: "sample-3", ownerName: "Taylor Brooks", teamName: "Red Zone Rally", wins: 8, losses: 6, ties: 0, pointsFor: 1489.6, pointsAgainst: 1450.7, players: ["Lamar Jackson", "Saquon Barkley", "Kyren Williams", "Justin Jefferson", "Nico Collins", "George Kittle"], starters: ["Lamar Jackson", "Saquon Barkley", "Kyren Williams", "Justin Jefferson", "Nico Collins", "George Kittle"] },
+    { rosterId: 4, ownerId: "sample-4", ownerName: "Morgan Reed", teamName: "Two-Minute Drill", wins: 7, losses: 7, ties: 0, pointsFor: 1458.3, pointsAgainst: 1461.2, players: ["Joe Burrow", "Christian McCaffrey", "James Cook", "Ja'Marr Chase", "Tee Higgins", "Brock Bowers"], starters: ["Joe Burrow", "Christian McCaffrey", "James Cook", "Ja'Marr Chase", "Tee Higgins", "Brock Bowers"] },
+    { rosterId: 5, ownerId: "sample-5", ownerName: "Casey Parker", teamName: "Goal Line Stand", wins: 7, losses: 7, ties: 0, pointsFor: 1436.1, pointsAgainst: 1448.5, players: ["Jayden Daniels", "Derrick Henry", "Kenneth Walker", "Malik Nabers", "Mike Evans", "Mark Andrews"], starters: ["Jayden Daniels", "Derrick Henry", "Kenneth Walker", "Malik Nabers", "Mike Evans", "Mark Andrews"] },
+    { rosterId: 6, ownerId: "sample-6", ownerName: "Riley Bennett", teamName: "Sunday Surge", wins: 6, losses: 8, ties: 0, pointsFor: 1399.4, pointsAgainst: 1480.2, players: ["Patrick Mahomes", "Josh Jacobs", "David Montgomery", "A.J. Brown", "DK Metcalf", "T.J. Hockenson"], starters: ["Patrick Mahomes", "Josh Jacobs", "David Montgomery", "A.J. Brown", "DK Metcalf", "T.J. Hockenson"] },
+    { rosterId: 7, ownerId: "sample-7", ownerName: "Drew Collins", teamName: "End Zone Echo", wins: 6, losses: 8, ties: 0, pointsFor: 1375.7, pointsAgainst: 1501.4, players: ["C.J. Stroud", "Alvin Kamara", "Rachaad White", "Garrett Wilson", "Marvin Harrison Jr.", "Dalton Kincaid"], starters: ["C.J. Stroud", "Alvin Kamara", "Rachaad White", "Garrett Wilson", "Marvin Harrison Jr.", "Dalton Kincaid"] },
+    { rosterId: 8, ownerId: "sample-8", ownerName: "Sam Rivera", teamName: "Waiver Wire", wins: 5, losses: 9, ties: 0, pointsFor: 1328.2, pointsAgainst: 1510.6, players: ["Brock Purdy", "Tony Pollard", "D'Andre Swift", "Tyreek Hill", "Deebo Samuel", "Kyle Pitts"], starters: ["Brock Purdy", "Tony Pollard", "D'Andre Swift", "Tyreek Hill", "Deebo Samuel", "Kyle Pitts"] },
+    { rosterId: 9, ownerId: "sample-9", ownerName: "Jamie Foster", teamName: "Hail Mary Club", wins: 4, losses: 10, ties: 0, pointsFor: 1288.9, pointsAgainst: 1522.3, players: ["Dak Prescott", "Aaron Jones", "Najee Harris", "Davante Adams", "Chris Olave", "Evan Engram"], starters: ["Dak Prescott", "Aaron Jones", "Najee Harris", "Davante Adams", "Chris Olave", "Evan Engram"] },
+    { rosterId: 10, ownerId: "sample-10", ownerName: "Avery Grant", teamName: "Clock Managers", wins: 4, losses: 10, ties: 0, pointsFor: 1256.5, pointsAgainst: 1518.2, players: ["Jordan Love", "Isiah Pacheco", "Brian Robinson", "Zay Flowers", "Xavier Worthy", "David Njoku"], starters: ["Jordan Love", "Isiah Pacheco", "Brian Robinson", "Zay Flowers", "Xavier Worthy", "David Njoku"] }
   ]
 };
 
@@ -44,12 +44,11 @@ export const tradePlayers = [
 ];
 
 export const historicalSeasons = [
-  { season: 2025, champion: "Cody Gentry", team: "Multiple Scorgasms", runnerUp: "Brittany Gentry", points: 164.7 },
-  { season: 2024, champion: "Tyler Rooks", team: "Cleveland Steamers", runnerUp: "Jason Sorrells", points: 151.2 },
-  { season: 2023, champion: "Eric Hernandez", team: "Romophobic", runnerUp: "Andrew Scott", points: 168.6 },
-  { season: 2022, champion: "Jason Sorrells", team: "Footballer..I hardly know her", runnerUp: "Brian Hardy", points: 147.9 }
+  { season: 2025, champion: "Alex Carter", team: "Fourth & Goal", runnerUp: "Jordan Lee", points: 164.7 },
+  { season: 2024, champion: "Morgan Reed", team: "Two-Minute Drill", runnerUp: "Riley Bennett", points: 151.2 },
+  { season: 2023, champion: "Casey Parker", team: "Goal Line Stand", runnerUp: "Taylor Brooks", points: 168.6 },
+  { season: 2022, champion: "Riley Bennett", team: "Sunday Surge", runnerUp: "Sam Rivera", points: 147.9 }
 ];
-
 
 export const demoPlayerPositions: Record<string, string> = {
   "Josh Allen": "QB", "Bijan Robinson": "RB", "Breece Hall": "RB", "Amon-Ra St. Brown": "WR", "Puka Nacua": "WR", "Trey McBride": "TE", "De'Von Achane": "RB",

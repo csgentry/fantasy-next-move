@@ -108,7 +108,7 @@ export default function RecordBookPage() {
       <AppShell>
         <div className="page-heading"><div><span className="eyebrow">League history</span><h1>Record Book</h1><p>Connect Sleeper or Yahoo to replace this demonstration archive with your real league history.</p></div><span className="pill">Demo archive</span></div>
         <section className="stats-grid three">
-          <div className="stat-card"><span>All-time leader</span><strong>Cody Gentry</strong><small>91 regular-season wins</small></div>
+          <div className="stat-card"><span>All-time leader</span><strong>Alex Carter</strong><small>91 regular-season wins</small></div>
           <div className="stat-card"><span>Highest single score</span><strong>212.44</strong><small>Week 11 · 2023</small></div>
           <div className="stat-card"><span>Best season</span><strong>13-1</strong><small>92.9% win rate</small></div>
         </section>

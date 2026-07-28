@@ -37,7 +37,7 @@ function baselineValue(position: string, starter: boolean, status: string | null
 function requiredPositions(rosterPositions: string[]) {
   const counts: Record<string, number> = {};
   rosterPositions.filter((position) => !["BN", "IR", "IR+", "TAXI", "NA", "K", "DEF", "DST"].includes(position)).forEach((position) => {
-    if (["FLEX", "WRT", "WRRB_FLEX", "REC_FLEX", "SUPER_FLEX", "SUPER_FLEX"].includes(position)) return;
+    if (["FLEX", "WRT", "WRRB_FLEX", "REC_FLEX", "SUPER_FLEX"].includes(position)) return;
     counts[position] = (counts[position] || 0) + 1;
   });
   return counts;

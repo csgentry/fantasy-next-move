@@ -12,6 +12,20 @@ type YahooStatus = {
   error?: string;
 };
 
+function friendlyYahooError(message: string) {
+  const normalized = message.toLowerCase();
+  if (normalized.includes("additional_authorization_required")) {
+    return "Yahoo is connected, but Fantasy API access is still pending approval. League import will work after Yahoo approves FantasyNextMove.";
+  }
+  if (normalized.includes("authorization could not be verified")) {
+    return "Yahoo sign-in expired or started from another domain. Open fantasy-next-move.vercel.app/connect and try again.";
+  }
+  if (normalized.includes("invalid_client") || normalized.includes("valid credentials")) {
+    return "Yahoo rejected the app credentials. Check the Client ID and Client Secret in Vercel.";
+  }
+  return message;
+}
+
 export default function ConnectPage() {
   const router = useRouter();
   const [username, setUsername] = useState("");
@@ -26,7 +40,7 @@ export default function ConnectPage() {
   useEffect(() => {
     const query = new URLSearchParams(window.location.search);
     if (query.get("yahoo") === "connected") setNotice("Yahoo connected. Choose a season and import your leagues.");
-    if (query.get("yahoo_error")) setError(query.get("yahoo_error") || "Yahoo connection failed.");
+    if (query.get("yahoo_error")) setError(friendlyYahooError(query.get("yahoo_error") || "Yahoo connection failed."));
     fetch("/api/yahoo/status", { cache: "no-store" })
       .then((response) => response.json())
       .then((payload: YahooStatus) => setYahooStatus(payload))
@@ -62,7 +76,7 @@ export default function ConnectPage() {
       if (!response.ok) throw new Error(payload.error || "Unable to import Yahoo leagues.");
       setYahooData(payload);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to import Yahoo leagues.");
+      setError(friendlyYahooError(err instanceof Error ? err.message : "Unable to import Yahoo leagues."));
     } finally {
       setLoading("");
     }
@@ -89,7 +103,7 @@ export default function ConnectPage() {
   return (
     <AppShell>
       <div className="page-heading"><div><span className="eyebrow">League import</span><h1>Connect your league</h1><p>Sleeper uses a public username. Yahoo uses secure authorization for private league data.</p></div></div>
-      {(error || notice) && <div className={`connection-message ${error ? "error" : "success"}`}>{error || notice}</div>}
+      {(error || notice) && <div aria-live="polite" className={`connection-message ${error ? "error" : "success"}`}>{error || notice}</div>}
 
       <div className="provider-grid">
         <form className="panel connect-form provider-card" onSubmit={importSleeper}>
@@ -111,7 +125,7 @@ export default function ConnectPage() {
               <button className="text-button" onClick={disconnectYahoo} disabled={Boolean(loading)}>{loading === "disconnect" ? "Disconnecting…" : "Disconnect Yahoo"}</button>
             </>
           )}
-          <p className="form-note">Yahoo credentials never enter FantasyNextMove. Yahoo returns revocable access and refresh tokens after approval.</p>
+          <p className="form-note">Your Yahoo password never enters FantasyNextMove. Yahoo sends revocable access tokens after you approve the connection.</p>
         </section>
       </div>
 
