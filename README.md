@@ -1,20 +1,26 @@
 # FantasyNextMove
 
-FantasyNextMove is a mobile-friendly fantasy-football decision and league-history app built with the Next.js App Router. The current release is a private beta.
+FantasyNextMove is an invite-only fantasy-football analysis beta built with the Next.js App Router, Supabase authentication, Sleeper imports, and Yahoo OAuth.
 
-## Working product areas
+## Current beta features
 
-- Responsive dashboard with power rankings, contender scoring, record context, and prioritized Next Moves
+- Public fictional sample league for signed-out visitors
+- Invite-code account creation, email confirmation, login, password reset, logout, and account deletion
+- Server-protected real-league pages and APIs
+- Account-owned connected leagues and historical record books stored in Supabase; real league data is no longer persisted in browser local storage
+- My Leagues library for reopening saved leagues on another device
 - Public, read-only Sleeper username and season import
-- Secure Yahoo Fantasy OAuth connection and encrypted token handling
-- Yahoo league import code for standings, teams, owners, rosters, and players after Fantasy API approval
-- Source-aware roster room for Sleeper and Yahoo
-- Historical Sleeper traversal through `previous_league_id`
-- Sleeper champion and runner-up detection from the winners bracket
-- Historical Yahoo traversal through renewed-league keys
-- Calculated manager leaderboard, aliases, titles, best seasons, and scoring records
-- Connected-roster Trade Lab with locked Redraft and Dynasty values plus roster-fit adjustments
-- Browser persistence for the selected provider, league, manager, and imported history
+- Sleeper Redraft, Keeper, and Dynasty detection
+- Sleeper future draft-pick ownership import, including traded picks and known draft slots
+- Secure Yahoo OAuth with encrypted account-owned token storage
+- Yahoo league import code ready for use after Fantasy API approval
+- Locked Redraft and Dynasty Trade Lab values; users cannot edit values
+- Dynasty trades containing players and imported draft picks
+- Privacy Notice and Private Beta Terms
+
+## Required setup
+
+The application will not allow real-league access until Supabase is configured. Follow [`BETA_AUTH_SETUP.md`](./BETA_AUTH_SETUP.md) in order.
 
 ## Run locally
 
@@ -26,32 +32,20 @@ npm run dev
 
 Open `http://localhost:3000`.
 
-## Configure Yahoo Fantasy
-
-1. Create an application in the Yahoo Developer Network.
-2. Apply for Yahoo Fantasy Sports API read access.
-3. Set the application callback URL to:
-
-```text
-http://localhost:3000/api/yahoo/callback
-```
-
-4. Copy the Consumer Key and Consumer Secret into `.env.local`:
+## Environment variables
 
 ```bash
-YAHOO_CLIENT_ID=your_consumer_key
-YAHOO_CLIENT_SECRET=your_consumer_secret
-YAHOO_REDIRECT_URI=http://localhost:3000/api/yahoo/callback
-FNM_COOKIE_SECRET=a_long_random_secret
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+
+YAHOO_CLIENT_ID=
+YAHOO_CLIENT_SECRET=
+YAHOO_REDIRECT_URI=
+FNM_COOKIE_SECRET=
 ```
 
-Generate a cookie secret with:
-
-```bash
-openssl rand -base64 48
-```
-
-For production, use the exact HTTPS production domain in Yahoo's application settings and `YAHOO_REDIRECT_URI`.
+`SUPABASE_SERVICE_ROLE_KEY`, `YAHOO_CLIENT_SECRET`, and `FNM_COOKIE_SECRET` are server-only secrets. Never prefix them with `NEXT_PUBLIC_`, commit them to GitHub, paste them into client code, or share them in screenshots.
 
 ## Validation commands
 
@@ -63,21 +57,27 @@ npm run build
 
 ## Security boundary
 
-- The Yahoo Consumer Secret is server-only.
-- Yahoo tokens are encrypted before being placed in an HTTP-only, same-site cookie.
-- The browser never receives the Yahoo refresh token in JavaScript.
-- Sleeper and Yahoo imports are read-only.
-- FantasyNextMove does not submit lineup changes, waiver claims, trades, or commissioner changes.
-- Real credentials belong only in deployment environment variables, never in GitHub.
+- Real league connections and provider APIs require an authenticated, invite-approved beta account.
+- Row Level Security restricts connected accounts, leagues, and history to the approved owner.
+- Users cannot update their own `beta_access` or plan columns.
+- Beta invite codes are stored only as SHA-256 hashes.
+- Yahoo access and refresh tokens are encrypted before storage in a server-only table and are also cached in an HTTP-only cookie.
+- Sleeper and Yahoo integrations are read-only.
+- FantasyNextMove never submits lineups, waiver claims, trades, or commissioner actions.
 
 ## Trade Lab boundary
 
-Trade Lab values are locked so every user receives a consistent result. Redraft and Dynasty modes use an internal beta model based on position, starter role, health, provider ranking data, age when available, lineup format, and roster fit.
+Trade Lab values are locked so users cannot manipulate the verdict. Redraft and Dynasty modes use an internal beta model based on player position, role, health, age when available, league settings, and roster fit. Dynasty mode also includes imported draft-pick ownership.
 
-The values are not a licensed consensus market feed. Draft-pick values, IDP-specific models, and independently validated production rankings are still required before the model should be marketed as authoritative.
+Future picks without a known draft slot are labeled as projected early, mid, or late. Preseason picks without meaningful standings default to mid rather than pretending an exact slot is known.
 
-Stripe billing and hosted Supabase accounts are not activated. No payments should be collected until accounts, authorization, billing, legal pages, and production monitoring are complete.
+The model is experimental and is not a licensed consensus market-value feed.
 
-## Launch checklist
+## Current limitations
 
-See [`PRODUCTION_CHECKLIST.md`](./PRODUCTION_CHECKLIST.md) for the account-specific steps required before public launch.
+- Yahoo Fantasy data remains blocked until Yahoo approves the application for Fantasy Sports API access.
+- Yahoo draft-pick support depends on what Yahoo exposes after approval; picks are never invented.
+- No payments are collected during the private beta.
+- Automated end-to-end tests, rate limiting, monitoring, and lawyer-reviewed legal documents remain required before a public launch.
+
+See [`PRODUCTION_CHECKLIST.md`](./PRODUCTION_CHECKLIST.md) for the remaining launch work.

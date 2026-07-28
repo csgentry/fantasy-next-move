@@ -13,7 +13,8 @@ function leagueTypeLabel(type: "redraft" | "keeper" | "dynasty" | undefined) {
 }
 
 export default function DashboardPage() {
-  const { league, source, teamRosterId, setTeamRosterId, resetLeague } = useSelectedLeague();
+  const { league, source, teamRosterId, setTeamRosterId, resetLeague, hydrated } = useSelectedLeague();
+  if (!hydrated) return <AppShell><div className="panel empty-state"><strong>Loading your league…</strong></div></AppShell>;
   const ranking = rankTeams(league);
   const myTeam = ranking.find((team) => team.rosterId === teamRosterId) ?? ranking[0];
 

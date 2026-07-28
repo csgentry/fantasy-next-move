@@ -13,9 +13,9 @@ export default function PricingPage() {
           <p>Use the working beta features while the product is being tested.</p>
           <ul>
             <li>Sample league dashboard</li>
-            <li>Public Sleeper league import</li>
-            <li>Yahoo OAuth setup pending API approval</li>
-            <li>Trade Lab and historical Record Book testing</li>
+            <li>Read-only Sleeper league import</li>
+            <li>Account-owned Yahoo OAuth pending API approval</li>
+            <li>Locked Trade Lab, dynasty picks, and Record Book testing</li>
           </ul>
           <Link className="button" href="/connect">Connect a league</Link>
         </article>

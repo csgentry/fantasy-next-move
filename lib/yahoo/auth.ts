@@ -1,5 +1,7 @@
+import "server-only";
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 const TOKEN_COOKIE = "fnm_yahoo_token";
 const STATE_COOKIE = "fnm_yahoo_state";
@@ -56,6 +58,21 @@ function decrypt(value: string): YahooToken {
   return JSON.parse(result) as YahooToken;
 }
 
+function isYahooConfigurationError(error: unknown) {
+  return error instanceof Error && error.message.startsWith("Yahoo is not configured.");
+}
+
+async function persistYahooCredential(userId: string, encryptedToken: string) {
+  const admin = createAdminClient();
+  const { error } = await admin.from("provider_credentials").upsert({
+    user_id: userId,
+    provider: "yahoo",
+    encrypted_token: encryptedToken,
+    updated_at: new Date().toISOString()
+  }, { onConflict: "user_id,provider" });
+  if (error) throw error;
+}
+
 export async function setYahooState(state: string) {
   const jar = await cookies();
   jar.set(STATE_COOKIE, state, {
@@ -74,30 +91,64 @@ export async function consumeYahooState() {
   return value;
 }
 
-export async function storeYahooToken(token: YahooToken) {
+export async function storeYahooToken(token: YahooToken, userId?: string) {
+  const encryptedToken = encrypt(token);
   const jar = await cookies();
-  jar.set(TOKEN_COOKIE, encrypt(token), {
+  jar.set(TOKEN_COOKIE, encryptedToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
     maxAge: 60 * 60 * 24 * 30
   });
+  if (userId) await persistYahooCredential(userId, encryptedToken);
 }
 
-export async function clearYahooToken() {
+export async function clearYahooToken(userId?: string) {
   const jar = await cookies();
   jar.delete(TOKEN_COOKIE);
+  if (userId) {
+    const admin = createAdminClient();
+    const { error } = await admin.from("provider_credentials").delete().eq("user_id", userId).eq("provider", "yahoo");
+    if (error) throw error;
+  }
 }
 
-async function readYahooToken() {
+async function readYahooToken(userId?: string) {
   const jar = await cookies();
-  const raw = jar.get(TOKEN_COOKIE)?.value;
-  if (!raw) return null;
+  const cookieValue = jar.get(TOKEN_COOKIE)?.value;
+  if (cookieValue) {
+    try {
+      const token = decrypt(cookieValue);
+      if (userId) await persistYahooCredential(userId, cookieValue);
+      return token;
+    } catch (error) {
+      if (isYahooConfigurationError(error)) throw error;
+      jar.delete(TOKEN_COOKIE);
+    }
+  }
+  if (!userId) return null;
+  const admin = createAdminClient();
+  const { data, error } = await admin.from("provider_credentials")
+    .select("encrypted_token")
+    .eq("user_id", userId)
+    .eq("provider", "yahoo")
+    .maybeSingle();
+  if (error) throw error;
+  if (!data?.encrypted_token) return null;
   try {
-    return decrypt(raw);
-  } catch {
-    jar.delete(TOKEN_COOKIE);
+    const token = decrypt(data.encrypted_token);
+    jar.set(TOKEN_COOKIE, data.encrypted_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 30
+    });
+    return token;
+  } catch (error) {
+    if (isYahooConfigurationError(error)) throw error;
+    await admin.from("provider_credentials").delete().eq("user_id", userId).eq("provider", "yahoo");
     return null;
   }
 }
@@ -120,7 +171,7 @@ async function tokenRequest(body: URLSearchParams): Promise<YahooTokenResponse> 
   return payload;
 }
 
-export async function exchangeYahooCode(code: string, redirectUri: string) {
+export async function exchangeYahooCode(code: string, redirectUri: string, userId?: string) {
   const payload = await tokenRequest(new URLSearchParams({
     grant_type: "authorization_code",
     code,
@@ -133,11 +184,11 @@ export async function exchangeYahooCode(code: string, redirectUri: string) {
     tokenType: payload.token_type || "bearer",
     redirectUri
   };
-  await storeYahooToken(token);
+  await storeYahooToken(token, userId);
   return token;
 }
 
-async function refreshYahooToken(token: YahooToken) {
+async function refreshYahooToken(token: YahooToken, userId?: string) {
   if (!token.refreshToken) throw new Error("Yahoo refresh token is missing. Reconnect Yahoo.");
   const payload = await tokenRequest(new URLSearchParams({
     grant_type: "refresh_token",
@@ -151,18 +202,18 @@ async function refreshYahooToken(token: YahooToken) {
     tokenType: payload.token_type || token.tokenType || "bearer",
     redirectUri: token.redirectUri
   };
-  await storeYahooToken(refreshed);
+  await storeYahooToken(refreshed, userId);
   return refreshed;
 }
 
-export async function getValidYahooToken() {
-  const token = await readYahooToken();
+export async function getValidYahooToken(userId?: string) {
+  const token = await readYahooToken(userId);
   if (!token) return null;
   if (token.expiresAt > Date.now()) return token;
   try {
-    return await refreshYahooToken(token);
+    return await refreshYahooToken(token, userId);
   } catch {
-    await clearYahooToken();
+    await clearYahooToken(userId);
     return null;
   }
 }

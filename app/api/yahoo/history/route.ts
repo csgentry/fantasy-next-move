@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { HistoricalSeason, LeagueHistoryPayload } from "@/lib/types";
 import { getValidYahooToken } from "@/lib/yahoo/auth";
 import { importYahooLeagueByKey } from "@/lib/yahoo/api";
+import { createClient } from "@/lib/supabase/server";
 
 const MAX_SEASONS = 15;
 
@@ -10,7 +11,10 @@ export async function GET(request: NextRequest) {
   if (!startingLeagueId) return NextResponse.json({ error: "A Yahoo league key is required." }, { status: 400 });
 
   try {
-    const token = await getValidYahooToken();
+    const supabase = await createClient();
+    const { data } = await supabase.auth.getUser();
+    if (!data.user) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
+    const token = await getValidYahooToken(data.user.id);
     if (!token) return NextResponse.json({ error: "Reconnect Yahoo before importing history." }, { status: 401 });
 
     const seasons: HistoricalSeason[] = [];

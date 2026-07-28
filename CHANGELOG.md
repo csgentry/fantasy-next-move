@@ -1,29 +1,36 @@
 # Changelog
 
-## 1.1.0
+## 1.2.0-beta
+
+- Added invite-only Supabase authentication with signup, email confirmation, login, password reset, logout, and account deletion.
+- Added invite-code hashing and atomic invite redemption.
+- Added server-side beta-access protection for real-league pages and APIs.
+- Added account-owned league and history persistence and retired browser-only real-league storage.
+- Added a My Leagues account library for reopening saved leagues without reimporting.
+- Added stricter Row Level Security and prevented users from self-approving beta access or changing plans.
+- Added encrypted account-owned Yahoo credential storage so the Yahoo connection can follow the signed-in account.
+- Added Sleeper future draft-pick ownership reconstruction using original picks plus traded-pick records.
+- Added exact draft slots when Sleeper supplies an upcoming draft order.
+- Added dynasty draft picks as locked Trade Lab assets.
+- Added early, mid, and late pick projections with a neutral preseason fallback.
+- Added Privacy Notice and Private Beta Terms pages.
+- Improved API authentication responses and Yahoo disconnect behavior.
+
+## 1.1.0-beta
 
 - Removed all manual player-value editing from Trade Lab.
 - Added locked Redraft and Dynasty modes.
-- Added format-aware values using provider player rank, age when available, health, starter role, Superflex, and tight-end-premium context.
+- Added format-aware values using player-directory rank, age when available, health, starter role, Superflex, and tight-end-premium context.
 - Added league-type detection for Sleeper imports and format labels on league cards and the dashboard.
 - Added player filters, side totals, reset controls, fair-value tolerance, clearer verdicts, and stronger mobile layouts.
 - Added richer Sleeper player profiles including age, experience, and search rank.
-- Updated public copy and documentation so the app no longer describes Trade Lab values as editable.
+- Updated public copy so the app no longer describes Trade Lab values as editable.
 
-## 1.0.0
+## 1.0.0-beta
 
 - Added Yahoo Fantasy OAuth authorization-code flow.
 - Added encrypted HTTP-only Yahoo token storage and automatic access-token refresh.
 - Added Yahoo season import for leagues, standings, owners, teams, rosters, and player metadata.
-- Added Yahoo disconnect and connection-status endpoints.
-- Added Sleeper historical traversal through `previous_league_id` and championship bracket detection.
-- Added Yahoo historical traversal through renewed-league keys.
-- Rebuilt Record Book to calculate manager records, aliases, titles, best seasons, and scoring leaders from imported history.
-- Added the initial connected-roster Trade Lab and roster-fit engine.
+- Added Sleeper and Yahoo historical league traversal.
+- Added the initial Record Book and connected-roster Trade Lab.
 - Unified sample, Sleeper, and Yahoo data behind one provider-neutral model.
-- Added multi-provider connection interface and persistent selected-league state.
-
-## 0.2.0
-
-- Fixed connected-user roster selection.
-- Added manager switching and Sleeper player resolution.

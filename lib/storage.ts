@@ -1,46 +1,16 @@
-import type { ImportedLeague, LeagueHistoryPayload, LeagueProvider, StoredConnection } from "./types";
+// FantasyNextMove used browser-only league persistence in early prototypes.
+// Account-owned Supabase storage replaced it in the invite-only beta. This
+// helper removes legacy browser records so signed-out visitors cannot reopen
+// real league data left behind by an older build.
+export const LEGACY_CONNECTION_KEY = "fnm:connection:v1";
+export const LEGACY_HISTORY_KEY = "fnm:history:v1";
 
-export const CONNECTION_KEY = "fnm:connection:v1";
-export const HISTORY_KEY = "fnm:history:v1";
-
-export function saveConnection(league: ImportedLeague, selectedRosterId?: number | null) {
-  const payload: StoredConnection = {
-    league,
-    source: league.provider,
-    selectedRosterId: selectedRosterId ?? league.userRosterId ?? league.teams[0]?.rosterId ?? null,
-    storedAt: new Date().toISOString()
-  };
-  window.localStorage.setItem(CONNECTION_KEY, JSON.stringify(payload));
-}
-
-export function loadConnection(): StoredConnection | null {
-  const raw = window.localStorage.getItem(CONNECTION_KEY);
-  if (!raw) return null;
-  const parsed = JSON.parse(raw) as StoredConnection;
-  if (!parsed?.league?.leagueId || !Array.isArray(parsed.league.teams)) return null;
-  return parsed;
-}
-
-export function clearConnection() {
-  window.localStorage.removeItem(CONNECTION_KEY);
-}
-
-export function saveHistory(payload: LeagueHistoryPayload) {
-  const all = loadAllHistory();
-  all[`${payload.provider}:${payload.currentLeagueId}`] = payload;
-  window.localStorage.setItem(HISTORY_KEY, JSON.stringify(all));
-}
-
-export function loadHistory(provider: LeagueProvider, leagueId: string): LeagueHistoryPayload | null {
-  const all = loadAllHistory();
-  return all[`${provider}:${leagueId}`] ?? null;
-}
-
-function loadAllHistory(): Record<string, LeagueHistoryPayload> {
+export function clearLegacyBrowserData() {
+  if (typeof window === "undefined") return;
   try {
-    const raw = window.localStorage.getItem(HISTORY_KEY);
-    return raw ? JSON.parse(raw) as Record<string, LeagueHistoryPayload> : {};
+    window.localStorage.removeItem(LEGACY_CONNECTION_KEY);
+    window.localStorage.removeItem(LEGACY_HISTORY_KEY);
   } catch {
-    return {};
+    // Storage may be unavailable in hardened or private browser contexts.
   }
 }

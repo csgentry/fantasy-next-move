@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
-import { clearConnection, saveConnection } from "@/lib/storage";
+import { saveLeagueToAccount } from "@/lib/account-storage";
 import type { ImportedLeague, SleeperImportPayload, YahooImportPayload } from "@/lib/types";
 
 type YahooStatus = {
@@ -35,17 +35,17 @@ function leagueTypeLabel(type: ImportedLeague["leagueType"]) {
 export default function ConnectPage() {
   const router = useRouter();
   const [username, setUsername] = useState("");
-  const [season, setSeason] = useState("2026");
+  const [season, setSeason] = useState(String(new Date().getFullYear()));
   const [sleeperData, setSleeperData] = useState<SleeperImportPayload | null>(null);
   const [yahooData, setYahooData] = useState<YahooImportPayload | null>(null);
   const [yahooStatus, setYahooStatus] = useState<YahooStatus>({ connected: false });
-  const [loading, setLoading] = useState<"sleeper" | "yahoo" | "disconnect" | "">("");
+  const [loading, setLoading] = useState<"sleeper" | "yahoo" | "disconnect" | "saving" | "">("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
   useEffect(() => {
     const query = new URLSearchParams(window.location.search);
-    if (query.get("yahoo") === "connected") setNotice("Yahoo connected. Choose a season and import your leagues.");
+    if (query.get("yahoo") === "connected") setNotice("Yahoo connected to your beta account. Choose a season and import your leagues.");
     if (query.get("yahoo_error")) setError(friendlyYahooError(query.get("yahoo_error") || "Yahoo connection failed."));
     fetch("/api/yahoo/status", { cache: "no-store" })
       .then((response) => response.json())
@@ -88,20 +88,35 @@ export default function ConnectPage() {
     }
   }
 
-  function selectLeague(league: ImportedLeague) {
+  async function selectLeague(league: ImportedLeague) {
     const rosterId = league.userRosterId ?? league.teams[0]?.rosterId ?? null;
-    saveConnection(league, rosterId);
-    router.push("/dashboard");
+    setLoading("saving");
+    setError("");
+    try {
+      await saveLeagueToAccount(league, rosterId);
+      router.push("/dashboard");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to save this league to your account.");
+      setLoading("");
+    }
   }
 
   async function disconnectYahoo() {
     setLoading("disconnect");
-    await fetch("/api/yahoo/disconnect", { method: "POST" });
-    setYahooStatus({ connected: false });
-    setYahooData(null);
-    clearConnection();
-    setNotice("Yahoo disconnected from this browser.");
-    setLoading("");
+    setError("");
+    setNotice("");
+    try {
+      const response = await fetch("/api/yahoo/disconnect", { method: "POST" });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "Unable to disconnect Yahoo.");
+      setYahooStatus({ connected: false });
+      setYahooData(null);
+      setNotice("Yahoo disconnected from your FantasyNextMove account. Previously imported league data remains saved until you delete your account.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to disconnect Yahoo.");
+    } finally {
+      setLoading("");
+    }
   }
 
   const importedLeagues = [...(sleeperData?.leagues || []), ...(yahooData?.leagues || [])];
@@ -131,7 +146,7 @@ export default function ConnectPage() {
               <button className="text-button" onClick={disconnectYahoo} disabled={Boolean(loading)}>{loading === "disconnect" ? "Disconnecting…" : "Disconnect Yahoo"}</button>
             </>
           )}
-          <p className="form-note">Your Yahoo password never enters FantasyNextMove. Yahoo sends revocable access tokens after you approve the connection.</p>
+          <p className="form-note">Your Yahoo password never enters FantasyNextMove. Approved access is encrypted and attached to your beta account until you disconnect it.</p>
         </section>
       </div>
 
@@ -139,8 +154,8 @@ export default function ConnectPage() {
         <div className="panel-heading"><div><span className="eyebrow">Imported leagues</span><h2>{importedLeagues.length ? `${importedLeagues.length} ready` : "Connect a provider"}</h2></div></div>
         {!importedLeagues.length && <div className="empty-state"><strong>Your leagues will appear here.</strong><p>Select one to open its dashboard, roster, Trade Lab, and historical Record Book.</p></div>}
         {importedLeagues.map((league) => (
-          <button className="league-choice" key={`${league.provider}:${league.leagueId}`} onClick={() => selectLeague(league)}>
-            <div><strong>{league.name}</strong><span>{league.provider === "yahoo" ? "Yahoo" : "Sleeper"} · {leagueTypeLabel(league.leagueType)} · {league.totalRosters} teams · {league.season}{league.userRosterId ? " · Your team found" : ""}</span></div><b>Open →</b>
+          <button className="league-choice" disabled={Boolean(loading)} key={`${league.provider}:${league.leagueId}`} onClick={() => selectLeague(league)}>
+            <div><strong>{league.name}</strong><span>{league.provider === "yahoo" ? "Yahoo" : "Sleeper"} · {leagueTypeLabel(league.leagueType)} · {league.totalRosters} teams · {league.season}{league.userRosterId ? " · Your team found" : ""}{league.leagueType === "dynasty" && league.draftPicks?.length ? ` · ${league.draftPicks.length} picks tracked` : ""}</span></div><b>{loading === "saving" ? "Saving…" : "Open →"}</b>
           </button>
         ))}
       </section>

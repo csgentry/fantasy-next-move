@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { useSelectedLeague } from "@/components/LeaguePicker";
+import { loadHistoryFromAccount, saveHistoryToAccount } from "@/lib/account-storage";
 import { historicalSeasons } from "@/lib/demo-data";
-import { loadHistory, saveHistory } from "@/lib/storage";
 import type { LeagueHistoryPayload } from "@/lib/types";
 
 function identityKey(ownerId: string | null, ownerName: string) {
@@ -12,17 +12,24 @@ function identityKey(ownerId: string | null, ownerName: string) {
 }
 
 export default function RecordBookPage() {
-  const { league, source } = useSelectedLeague();
+  const { league, source, hydrated } = useSelectedLeague();
   const [history, setHistory] = useState<LeagueHistoryPayload | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (source === "demo") {
+    let cancelled = false;
+    if (!hydrated) return <AppShell><div className="panel empty-state"><strong>Loading your league history…</strong></div></AppShell>;
+
+  if (source === "demo") {
       setHistory(null);
-      return;
+      return () => { cancelled = true; };
     }
-    setHistory(loadHistory(source, league.leagueId));
+    setHistory(null);
+    loadHistoryFromAccount(source, league.leagueId)
+      .then((remote) => { if (!cancelled && remote) setHistory(remote); })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
   }, [source, league.leagueId]);
 
   async function syncHistory() {
@@ -34,7 +41,7 @@ export default function RecordBookPage() {
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || "Unable to import league history.");
       setHistory(payload);
-      saveHistory(payload);
+      await saveHistoryToAccount(payload);
     } catch (syncError) {
       setError(syncError instanceof Error ? syncError.message : "Unable to import league history.");
     } finally {

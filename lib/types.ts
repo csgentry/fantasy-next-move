@@ -13,6 +13,18 @@ export type PlayerProfile = {
   searchRank?: number | null;
 };
 
+export type DraftPickAsset = {
+  id: string;
+  provider: LeagueProvider;
+  season: string;
+  round: number;
+  originalRosterId: number;
+  ownerRosterId: number;
+  previousOwnerRosterId?: number | null;
+  originalTeamName?: string | null;
+  draftSlot?: number | null;
+};
+
 export type LeagueTeam = {
   rosterId: number;
   providerTeamKey?: string | null;
@@ -43,6 +55,7 @@ export type ImportedLeague = {
   previousLeagueId: string | null;
   userRosterId: number | null;
   leagueType?: LeagueType;
+  draftPicks?: DraftPickAsset[];
   teams: LeagueTeam[];
 };
 
@@ -98,9 +111,3 @@ export type LeagueHistoryPayload = {
   warnings?: string[];
 };
 
-export type StoredConnection = {
-  league: ImportedLeague;
-  source: LeagueProvider;
-  selectedRosterId: number | null;
-  storedAt: string;
-};

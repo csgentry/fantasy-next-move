@@ -1,5 +1,30 @@
 import type { ImportedLeague } from "./types";
 
+const sampleTeamNames = ["Fourth & Goal", "Gridiron Atlas", "Red Zone Rally", "Two-Minute Drill", "Goal Line Stand", "Sunday Surge", "End Zone Echo", "Waiver Wire", "Hail Mary Club", "Clock Managers"];
+
+const sampleDraftPicks = [2027, 2028, 2029].flatMap((season) =>
+  sampleTeamNames.flatMap((teamName, teamIndex) =>
+    [1, 2, 3, 4].map((round) => {
+      const originalRosterId = teamIndex + 1;
+      const tradedOwner = season === 2027 && round === 1 && originalRosterId === 2 ? 1
+        : season === 2028 && round === 2 && originalRosterId === 1 ? 4
+          : originalRosterId;
+      return {
+        id: `demo:${season}:${round}:${originalRosterId}`,
+        provider: "demo" as const,
+        season: String(season),
+        round,
+        originalRosterId,
+        ownerRosterId: tradedOwner,
+        previousOwnerRosterId: tradedOwner === originalRosterId ? null : originalRosterId,
+        originalTeamName: teamName,
+        draftSlot: null
+      };
+    })
+  )
+);
+
+
 export const demoLeague: ImportedLeague = {
   provider: "demo",
   leagueId: "sample-league-2026",
@@ -11,7 +36,8 @@ export const demoLeague: ImportedLeague = {
   rosterPositions: ["QB", "RB", "RB", "WR", "WR", "TE", "FLEX", "K", "DEF", "BN", "BN", "BN", "BN", "BN", "IR"],
   previousLeagueId: "sample-league-2025",
   userRosterId: 1,
-  leagueType: "redraft",
+  leagueType: "dynasty",
+  draftPicks: sampleDraftPicks,
   teams: [
     { rosterId: 1, ownerId: "sample-1", ownerName: "Alex Carter", teamName: "Fourth & Goal", wins: 10, losses: 4, ties: 0, pointsFor: 1587.4, pointsAgainst: 1430.1, players: ["Josh Allen", "Bijan Robinson", "Breece Hall", "Amon-Ra St. Brown", "Puka Nacua", "Trey McBride", "De'Von Achane"], starters: ["Josh Allen", "Bijan Robinson", "Breece Hall", "Amon-Ra St. Brown", "Puka Nacua", "Trey McBride"] },
     { rosterId: 2, ownerId: "sample-2", ownerName: "Jordan Lee", teamName: "Gridiron Atlas", wins: 9, losses: 5, ties: 0, pointsFor: 1512.8, pointsAgainst: 1468.9, players: ["Jalen Hurts", "Jahmyr Gibbs", "Jonathan Taylor", "CeeDee Lamb", "Drake London", "Sam LaPorta"], starters: ["Jalen Hurts", "Jahmyr Gibbs", "Jonathan Taylor", "CeeDee Lamb", "Drake London", "Sam LaPorta"] },

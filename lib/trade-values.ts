@@ -1,7 +1,8 @@
-import type { PlayerProfile } from "./types";
+import type { DraftPickAsset, LeagueTeam, PlayerProfile } from "./types";
 
 export type TradeFormat = "redraft" | "dynasty";
 export type ValueConfidence = "High" | "Medium" | "Limited";
+export type PickTier = "early" | "mid" | "late";
 
 export type TradeValueContext = {
   rosterPositions: string[];
@@ -14,30 +15,12 @@ export type TradeValueResult = {
   position: string;
 };
 
-const REDRAFT_BASE: Record<string, number> = {
-  QB: 27,
-  RB: 34,
-  WR: 33,
-  TE: 26,
-  K: 4,
-  DEF: 5,
-  DST: 5
-};
-
-const DYNASTY_BASE: Record<string, number> = {
-  QB: 31,
-  RB: 30,
-  WR: 35,
-  TE: 29,
-  K: 2,
-  DEF: 2,
-  DST: 2
-};
+const REDRAFT_BASE: Record<string, number> = { QB: 27, RB: 34, WR: 33, TE: 26, K: 4, DEF: 5, DST: 5 };
+const DYNASTY_BASE: Record<string, number> = { QB: 31, RB: 30, WR: 35, TE: 29, K: 2, DEF: 2, DST: 2 };
 
 export function normalizePosition(position: string | null | undefined) {
   const first = (position || "—").split(/[,/]/)[0]?.trim().toUpperCase() || "—";
-  if (first === "D/ST") return "DEF";
-  return first;
+  return first === "D/ST" ? "DEF" : first;
 }
 
 export function isSuperflex(rosterPositions: string[]) {
@@ -61,41 +44,10 @@ function rankAdjustment(rank: number | null | undefined) {
 
 function dynastyAgeAdjustment(position: string, age: number | null | undefined) {
   if (!age || age < 18 || age > 50) return 0;
-
-  if (position === "QB") {
-    if (age <= 26) return 10;
-    if (age <= 30) return 7;
-    if (age <= 33) return 3;
-    if (age <= 35) return -2;
-    return -7;
-  }
-
-  if (position === "RB") {
-    if (age <= 23) return 13;
-    if (age <= 25) return 8;
-    if (age === 26) return 3;
-    if (age === 27) return -2;
-    if (age === 28) return -7;
-    return -13;
-  }
-
-  if (position === "WR") {
-    if (age <= 23) return 11;
-    if (age <= 26) return 8;
-    if (age <= 28) return 4;
-    if (age <= 30) return 0;
-    if (age === 31) return -5;
-    return -9;
-  }
-
-  if (position === "TE") {
-    if (age <= 24) return 9;
-    if (age <= 28) return 6;
-    if (age <= 30) return 2;
-    if (age === 31) return -2;
-    return -6;
-  }
-
+  if (position === "QB") return age <= 26 ? 10 : age <= 30 ? 7 : age <= 33 ? 3 : age <= 35 ? -2 : -7;
+  if (position === "RB") return age <= 23 ? 13 : age <= 25 ? 8 : age === 26 ? 3 : age === 27 ? -2 : age === 28 ? -7 : -13;
+  if (position === "WR") return age <= 23 ? 11 : age <= 26 ? 8 : age <= 28 ? 4 : age <= 30 ? 0 : age === 31 ? -5 : -9;
+  if (position === "TE") return age <= 24 ? 9 : age <= 28 ? 6 : age <= 30 ? 2 : age === 31 ? -2 : -6;
   return 0;
 }
 
@@ -109,37 +61,59 @@ function statusAdjustment(status: string | null, format: TradeFormat) {
   return format === "redraft" ? -2 : -1;
 }
 
-export function tradeValueForPlayer(
-  profile: PlayerProfile,
-  starter: boolean,
-  format: TradeFormat,
-  context: TradeValueContext
-): TradeValueResult {
+export function tradeValueForPlayer(profile: PlayerProfile, starter: boolean, format: TradeFormat, context: TradeValueContext): TradeValueResult {
   const position = normalizePosition(profile.position);
   const base = (format === "dynasty" ? DYNASTY_BASE : REDRAFT_BASE)[position] ?? 13;
-  let value = base;
-
-  value += rankAdjustment(profile.searchRank);
-  value += starter ? (format === "redraft" ? 9 : 7) : 0;
-  value += statusAdjustment(profile.status, format);
-
+  let value = base + rankAdjustment(profile.searchRank) + (starter ? (format === "redraft" ? 9 : 7) : 0) + statusAdjustment(profile.status, format);
   if (format === "dynasty") {
     value += dynastyAgeAdjustment(position, profile.age);
     if (profile.yearsExperience !== null && profile.yearsExperience !== undefined && profile.yearsExperience <= 1) value += 3;
   }
-
   if (position === "QB" && isSuperflex(context.rosterPositions)) value += format === "dynasty" ? 17 : 14;
   if (position === "TE" && isTightEndPremium(context.scoringSettings)) value += 5;
+  const confidence: ValueConfidence = profile.searchRank && profile.age ? "High" : profile.searchRank || profile.age ? "Medium" : "Limited";
+  return { value: Math.max(1, Math.min(100, Math.round(value))), confidence, position };
+}
 
-  const confidence: ValueConfidence = profile.searchRank && profile.age
-    ? "High"
-    : profile.searchRank || profile.age
-      ? "Medium"
-      : "Limited";
+export function projectedPickTier(originalTeam: LeagueTeam | undefined, teams: LeagueTeam[]): PickTier {
+  if (!originalTeam || teams.length < 3) return "mid";
+  const hasMeaningfulResults = teams.some((team) => team.wins + team.losses + team.ties > 0 || team.pointsFor > 0);
+  if (!hasMeaningfulResults) return "mid";
+  const sorted = [...teams].sort((a, b) => {
+    const aGames = Math.max(a.wins + a.losses + a.ties, 1);
+    const bGames = Math.max(b.wins + b.losses + b.ties, 1);
+    const aPct = (a.wins + a.ties * 0.5) / aGames;
+    const bPct = (b.wins + b.ties * 0.5) / bGames;
+    return aPct - bPct || a.pointsFor - b.pointsFor;
+  });
+  const index = sorted.findIndex((team) => team.rosterId === originalTeam.rosterId);
+  const third = Math.max(1, Math.ceil(sorted.length / 3));
+  if (index < third) return "early";
+  if (index >= sorted.length - third) return "late";
+  return "mid";
+}
 
-  return {
-    value: Math.max(1, Math.min(100, Math.round(value))),
-    confidence,
-    position
+function basePickValue(round: number, tier: PickTier) {
+  const values: Record<number, Record<PickTier, number>> = {
+    1: { early: 49, mid: 41, late: 34 },
+    2: { early: 25, mid: 19, late: 15 },
+    3: { early: 12, mid: 9, late: 7 },
+    4: { early: 7, mid: 5, late: 4 },
+    5: { early: 4, mid: 3, late: 2 }
   };
+  return values[Math.min(round, 5)]?.[tier] ?? 2;
+}
+
+export function tradeValueForPick(pick: DraftPickAsset, teams: LeagueTeam[], currentSeason: string) {
+  const originalTeam = teams.find((team) => team.rosterId === pick.originalRosterId);
+  let tier = projectedPickTier(originalTeam, teams);
+  let value = basePickValue(pick.round, tier);
+  const yearsAway = Math.max(0, Number(pick.season) - Number(currentSeason));
+  value -= yearsAway * (pick.round === 1 ? 4 : 2);
+  if (pick.draftSlot && teams.length) {
+    const slotRatio = pick.draftSlot / teams.length;
+    tier = slotRatio <= 0.34 ? "early" : slotRatio >= 0.67 ? "late" : "mid";
+    value = basePickValue(pick.round, tier) - yearsAway * (pick.round === 1 ? 4 : 2);
+  }
+  return { value: Math.max(1, Math.round(value)), tier, confidence: pick.draftSlot ? "High" as const : "Medium" as const };
 }

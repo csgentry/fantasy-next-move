@@ -1,62 +1,63 @@
 # Production launch checklist
 
-The application is a private-beta foundation. These services, validations, and policies are still required before public launch.
+The current build is an invite-only beta. Complete these items before opening public registration or collecting payments.
 
-## 1. Install and verify
+## 1. Deploy and verify the beta foundation
 
-```bash
-npm install
-npm run typecheck
-npm run lint
-npm run build
-```
+- Create the Supabase project and run `supabase/schema.sql`.
+- Add the three Supabase environment variables to Vercel Production.
+- Configure Supabase site and redirect URLs.
+- Enable email confirmation and test confirmation and recovery emails.
+- Create high-entropy, single-use invite codes.
+- Run `npm run typecheck`, `npm run lint`, and `npm run build` in CI for every change.
+- Test two separate accounts and confirm neither can read or alter the other account's leagues or history.
 
-Add automated checks so every GitHub change must pass type checking, linting, and a production build before deployment.
+## 2. Authentication and abuse prevention
 
-## 2. Yahoo Fantasy
+- Add rate limiting to login, signup, invite verification, imports, and provider OAuth routes.
+- Add audit logging for invite redemption, provider connection, deletion, and authentication failures.
+- Add a beta-admin workflow for creating, revoking, and reviewing invites instead of relying permanently on SQL Editor.
+- Add session/device management and optional multi-factor authentication before a larger rollout.
+
+## 3. Yahoo Fantasy
 
 - Complete Yahoo Fantasy Sports API review and obtain read access.
 - Keep the exact production callback URL registered.
-- Store `YAHOO_CLIENT_ID`, `YAHOO_CLIENT_SECRET`, `YAHOO_REDIRECT_URI`, and `FNM_COOKIE_SECRET` only in encrypted environment settings.
-- Test connect, refresh, league import, roster import, history sync, disconnect, and reconnect with real accounts.
+- Test account-owned token restore on a second device.
+- Test connect, refresh, league import, roster import, history sync, disconnect, and reconnect.
 - Add Yahoo's official Fantasy logo and required linked attribution exactly as Yahoo provides it.
-- Confirm that Yahoo attribution appears anywhere Yahoo API data is displayed.
+- Confirm attribution appears anywhere Yahoo API data is displayed.
+- Determine whether Yahoo exposes future draft-pick ownership; never fabricate missing picks.
 
-## 3. Hosted accounts and storage
+## 4. Dynasty and Trade Lab validation
 
-The included Supabase schema is only a starting point. Before launch:
-
-- Create a Supabase project.
-- Apply `supabase/schema.sql`.
-- Add authentication and server-side authorization checks.
-- Replace browser-only league persistence with account-owned database records.
-- Configure row-level security and test cross-account isolation.
-
-## 4. Trade-value model
-
-The current values are locked, consistent beta estimates—not a licensed market feed. Before calling them authoritative:
-
-- Validate Redraft and Dynasty outputs against multiple independent benchmarks.
+- Validate Sleeper pick ownership against several real dynasty leagues, including multi-step pick trades.
+- Validate completed-draft handling so spent picks do not remain available.
 - Add model versioning and value timestamps.
-- Add draft-pick values for Dynasty and Keeper leagues.
+- Replace or independently validate the current beta player-value model before marketing it as authoritative.
 - Add dedicated IDP handling and deeper scoring-format adjustments.
-- Add regression tests for age curves, Superflex, tight-end premium, injuries, and roster fit.
-- Decide whether to license a market source or maintain a documented independent model.
+- Add automated regression tests for age curves, Superflex, tight-end premium, injuries, pick-year discounts, exact slots, and roster fit.
 
-## 5. Billing
+## 5. Privacy, legal, and deletion
 
-No payments should be collected during private beta. Before activating subscriptions:
+- Have qualified counsel review the included beta Privacy Notice and Terms.
+- Confirm account deletion removes auth users, league records, history, provider metadata, and encrypted provider credentials.
+- Publish a support/contact method and data-retention schedule.
+- Document subprocessors, incident response, backups, and breach notification procedures.
+
+## 6. Operations
+
+- Add error monitoring, structured logs, uptime checks, and alerting.
+- Add database backups and a tested restore process.
+- Add provider API timeout, retry, and rate-limit handling.
+- Add a staging environment with separate Supabase and Yahoo credentials.
+
+## 7. Billing
+
+No payments should be collected during private beta. Before billing:
 
 - Create Stripe products and prices.
 - Add Checkout and Customer Portal sessions.
 - Verify webhook signatures server-side.
-- Store subscription state in the user profile.
-- Gate paid features on verified subscription state.
-
-## 6. Legal, privacy, and security
-
-- Publish reviewed Privacy Policy and Terms pages.
-- Explain what provider data is accessed, where tokens are stored, and how users disconnect/delete data.
-- Use HTTPS-only callback URLs.
-- Add rate limiting, request logging, error monitoring, backup procedures, and incident-response steps.
-- Review Yahoo and Sleeper developer requirements before commercial launch.
+- Store subscription state using trusted webhook events.
+- Gate paid features on server-verified subscription status.
