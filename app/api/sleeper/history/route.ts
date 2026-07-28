@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
   try {
     while (leagueId && seasons.length < MAX_SEASONS && !visited.has(leagueId)) {
       visited.add(leagueId);
-      const league = await sleeperFetch<SleeperLeague>(`/league/${leagueId}`);
+      const league: SleeperLeague = await sleeperFetch<SleeperLeague>(`/league/${leagueId}`);
       const [rosters, users, bracket] = await Promise.all([
         sleeperFetch<SleeperRoster[]>(`/league/${leagueId}/rosters`),
         sleeperFetch<SleeperUser[]>(`/league/${leagueId}/users`),
