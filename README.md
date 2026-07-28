@@ -1,20 +1,19 @@
-# FantasyNextMove v1
+# FantasyNextMove
 
-FantasyNextMove is a mobile-friendly fantasy-football decision and league-history app built with the Next.js App Router.
+FantasyNextMove is a mobile-friendly fantasy-football decision and league-history app built with the Next.js App Router. The current release is a private beta.
 
 ## Working product areas
 
 - Responsive dashboard with power rankings, contender scoring, record context, and prioritized Next Moves
-- Public Sleeper username and season import
-- Secure Yahoo Fantasy OAuth connection
-- Yahoo standings, teams, owners, rosters, and player import
-- Automatic Yahoo access-token refresh using an encrypted HTTP-only cookie
+- Public, read-only Sleeper username and season import
+- Secure Yahoo Fantasy OAuth connection and encrypted token handling
+- Yahoo league import code for standings, teams, owners, rosters, and players after Fantasy API approval
 - Source-aware roster room for Sleeper and Yahoo
 - Historical Sleeper traversal through `previous_league_id`
 - Sleeper champion and runner-up detection from the winners bracket
 - Historical Yahoo traversal through renewed-league keys
 - Calculated manager leaderboard, aliases, titles, best seasons, and scoring records
-- Connected-roster Trade Lab with editable values and positional-fit adjustments
+- Connected-roster Trade Lab with locked Redraft and Dynasty values plus roster-fit adjustments
 - Browser persistence for the selected provider, league, manager, and imported history
 
 ## Run locally
@@ -30,7 +29,7 @@ Open `http://localhost:3000`.
 ## Configure Yahoo Fantasy
 
 1. Create an application in the Yahoo Developer Network.
-2. Request access to **Fantasy Sports** with read permission.
+2. Apply for Yahoo Fantasy Sports API read access.
 3. Set the application callback URL to:
 
 ```text
@@ -52,7 +51,7 @@ Generate a cookie secret with:
 openssl rand -base64 48
 ```
 
-For production, use your HTTPS domain in both Yahoo's application settings and `YAHOO_REDIRECT_URI`.
+For production, use the exact HTTPS production domain in Yahoo's application settings and `YAHOO_REDIRECT_URI`.
 
 ## Validation commands
 
@@ -67,15 +66,18 @@ npm run build
 - The Yahoo Consumer Secret is server-only.
 - Yahoo tokens are encrypted before being placed in an HTTP-only, same-site cookie.
 - The browser never receives the Yahoo refresh token in JavaScript.
-- Sleeper and Yahoo imports are read-only in this version.
+- Sleeper and Yahoo imports are read-only.
 - FantasyNextMove does not submit lineup changes, waiver claims, trades, or commissioner changes.
+- Real credentials belong only in deployment environment variables, never in GitHub.
 
-## Honest product boundary
+## Trade Lab boundary
 
-The Trade Lab currently provides editable user values plus a transparent roster-fit engine. A commercially licensed or independently maintained live player-valuation feed is still required before the default numbers should be marketed as authoritative market values.
+Trade Lab values are locked so every user receives a consistent result. Redraft and Dynasty modes use an internal beta model based on position, starter role, health, provider ranking data, age when available, lineup format, and roster fit.
 
-Stripe billing and hosted Supabase accounts remain environment-ready product infrastructure, not activated services in this package. A real Stripe account, products, webhook signing secret, and deployment domain are required before subscriptions can collect money.
+The values are not a licensed consensus market feed. Draft-pick values, IDP-specific models, and independently validated production rankings are still required before the model should be marketed as authoritative.
+
+Stripe billing and hosted Supabase accounts are not activated. No payments should be collected until accounts, authorization, billing, legal pages, and production monitoring are complete.
 
 ## Launch checklist
 
-See [`PRODUCTION_CHECKLIST.md`](./PRODUCTION_CHECKLIST.md) for the account-specific steps required to deploy Yahoo OAuth, hosted persistence, billing, and production security.
+See [`PRODUCTION_CHECKLIST.md`](./PRODUCTION_CHECKLIST.md) for the account-specific steps required before public launch.

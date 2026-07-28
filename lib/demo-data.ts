@@ -11,6 +11,7 @@ export const demoLeague: ImportedLeague = {
   rosterPositions: ["QB", "RB", "RB", "WR", "WR", "TE", "FLEX", "K", "DEF", "BN", "BN", "BN", "BN", "BN", "IR"],
   previousLeagueId: "sample-league-2025",
   userRosterId: 1,
+  leagueType: "redraft",
   teams: [
     { rosterId: 1, ownerId: "sample-1", ownerName: "Alex Carter", teamName: "Fourth & Goal", wins: 10, losses: 4, ties: 0, pointsFor: 1587.4, pointsAgainst: 1430.1, players: ["Josh Allen", "Bijan Robinson", "Breece Hall", "Amon-Ra St. Brown", "Puka Nacua", "Trey McBride", "De'Von Achane"], starters: ["Josh Allen", "Bijan Robinson", "Breece Hall", "Amon-Ra St. Brown", "Puka Nacua", "Trey McBride"] },
     { rosterId: 2, ownerId: "sample-2", ownerName: "Jordan Lee", teamName: "Gridiron Atlas", wins: 9, losses: 5, ties: 0, pointsFor: 1512.8, pointsAgainst: 1468.9, players: ["Jalen Hurts", "Jahmyr Gibbs", "Jonathan Taylor", "CeeDee Lamb", "Drake London", "Sam LaPorta"], starters: ["Jalen Hurts", "Jahmyr Gibbs", "Jonathan Taylor", "CeeDee Lamb", "Drake London", "Sam LaPorta"] },

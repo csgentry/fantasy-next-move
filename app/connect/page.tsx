@@ -26,6 +26,12 @@ function friendlyYahooError(message: string) {
   return message;
 }
 
+function leagueTypeLabel(type: ImportedLeague["leagueType"]) {
+  if (type === "dynasty") return "Dynasty";
+  if (type === "keeper") return "Keeper";
+  return "Redraft";
+}
+
 export default function ConnectPage() {
   const router = useRouter();
   const [username, setUsername] = useState("");
@@ -134,7 +140,7 @@ export default function ConnectPage() {
         {!importedLeagues.length && <div className="empty-state"><strong>Your leagues will appear here.</strong><p>Select one to open its dashboard, roster, Trade Lab, and historical Record Book.</p></div>}
         {importedLeagues.map((league) => (
           <button className="league-choice" key={`${league.provider}:${league.leagueId}`} onClick={() => selectLeague(league)}>
-            <div><strong>{league.name}</strong><span>{league.provider === "yahoo" ? "Yahoo" : "Sleeper"} · {league.totalRosters} teams · {league.season}{league.userRosterId ? " · Your team found" : ""}</span></div><b>Open →</b>
+            <div><strong>{league.name}</strong><span>{league.provider === "yahoo" ? "Yahoo" : "Sleeper"} · {leagueTypeLabel(league.leagueType)} · {league.totalRosters} teams · {league.season}{league.userRosterId ? " · Your team found" : ""}</span></div><b>Open →</b>
           </button>
         ))}
       </section>

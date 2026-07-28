@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { Dispatch, SetStateAction } from "react";
 import { AppShell } from "@/components/AppShell";
 import { useSelectedLeague } from "@/components/LeaguePicker";
-import { demoPlayerPositions } from "@/lib/demo-data";
+import { demoPlayerPositions, tradePlayers } from "@/lib/demo-data";
+import { normalizePosition, tradeValueForPlayer } from "@/lib/trade-values";
+import type { TradeFormat, ValueConfidence } from "@/lib/trade-values";
 import type { LeagueTeam, PlayerProfile } from "@/lib/types";
 
 type Asset = {
@@ -16,28 +17,13 @@ type Asset = {
   teamName: string;
   starter: boolean;
   value: number;
+  confidence: ValueConfidence;
 };
-
-const BASE_VALUES: Record<string, number> = {
-  QB: 32,
-  RB: 40,
-  WR: 39,
-  TE: 30,
-  FLEX: 24,
-  K: 7,
-  DEF: 8,
-  DST: 8
-};
-
-function baselineValue(position: string, starter: boolean, status: string | null) {
-  const injuryPenalty = status && !["Active", "active"].includes(status) ? 4 : 0;
-  return Math.max(1, (BASE_VALUES[position] ?? 18) + (starter ? 7 : 0) - injuryPenalty);
-}
 
 function requiredPositions(rosterPositions: string[]) {
   const counts: Record<string, number> = {};
   rosterPositions.filter((position) => !["BN", "IR", "IR+", "TAXI", "NA", "K", "DEF", "DST"].includes(position)).forEach((position) => {
-    if (["FLEX", "WRT", "WRRB_FLEX", "REC_FLEX", "SUPER_FLEX"].includes(position)) return;
+    if (["FLEX", "WRT", "WRRB_FLEX", "REC_FLEX", "SUPER_FLEX", "SF", "OP", "Q/W/R/T"].includes(position)) return;
     counts[position] = (counts[position] || 0) + 1;
   });
   return counts;
@@ -47,7 +33,8 @@ function positionCounts(team: LeagueTeam, profiles: Record<string, PlayerProfile
   const outgoingIds = new Set(outgoing.map((asset) => asset.playerId));
   const counts: Record<string, number> = {};
   team.players.filter((playerId) => !outgoingIds.has(playerId)).forEach((playerId) => {
-    const position = profiles[playerId]?.position || "—";
+    const fallback = /^[A-Z]{2,3}$/.test(playerId) ? "DEF" : "—";
+    const position = normalizePosition(profiles[playerId]?.position || fallback);
     counts[position] = (counts[position] || 0) + 1;
   });
   incoming.forEach((asset) => { counts[asset.position] = (counts[asset.position] || 0) + 1; });
@@ -63,70 +50,109 @@ function fitScore(team: LeagueTeam, profiles: Record<string, PlayerProfile>, req
   }, 0);
 }
 
+function formatLabel(format: TradeFormat) {
+  return format === "dynasty" ? "Dynasty" : "Redraft";
+}
+
 function TradeSide({
   title,
+  subtitle,
   available,
   selected,
   onAdd,
-  onRemove,
-  onValueChange
+  onRemove
 }: {
   title: string;
+  subtitle: string;
   available: Asset[];
   selected: Asset[];
-  onAdd: (asset: Asset) => void;
+  onAdd: (playerId: string) => void;
   onRemove: (playerId: string) => void;
-  onValueChange: (playerId: string, value: number) => void;
 }) {
+  const [positionFilter, setPositionFilter] = useState("ALL");
+  const positions = [...new Set(available.map((asset) => asset.position).filter((position) => position !== "—"))].sort();
+  const filtered = available
+    .filter((asset) => positionFilter === "ALL" || asset.position === positionFilter)
+    .sort((a, b) => b.value - a.value || a.name.localeCompare(b.name));
+  const total = selected.reduce((sum, asset) => sum + asset.value, 0);
+
   return (
-    <div className="trade-side">
-      <h2>{title}</h2>
-      <select defaultValue="" onChange={(event) => {
-        const asset = available.find((item) => item.playerId === event.target.value);
-        if (asset) onAdd(asset);
-        event.target.value = "";
-      }}>
-        <option value="" disabled>Add a player</option>
-        {available.map((asset) => <option key={asset.playerId} value={asset.playerId}>{asset.name} · {asset.position} · {asset.value}</option>)}
-      </select>
+    <section className="trade-side">
+      <div className="trade-side-heading">
+        <div><h2>{title}</h2><p>{subtitle}</p></div>
+        <span className="trade-total">{total} pts</span>
+      </div>
+      <div className="trade-side-controls">
+        <select aria-label={`Filter ${title} players by position`} value={positionFilter} onChange={(event) => setPositionFilter(event.target.value)}>
+          <option value="ALL">All positions</option>
+          {positions.map((position) => <option key={position} value={position}>{position}</option>)}
+        </select>
+        <select aria-label={`Add a player to ${title}`} value="" onChange={(event) => {
+          if (event.target.value) onAdd(event.target.value);
+        }}>
+          <option value="" disabled>Add a player</option>
+          {filtered.map((asset) => <option key={asset.playerId} value={asset.playerId}>{asset.name} · {asset.position} · {asset.value}</option>)}
+        </select>
+      </div>
       <div className="trade-assets">
         {selected.map((asset) => (
           <article className="trade-asset" key={asset.playerId}>
             <button className="asset-remove" onClick={() => onRemove(asset.playerId)} aria-label={`Remove ${asset.name}`}>×</button>
-            <div><b>{asset.name}</b><small>{asset.position}{asset.nflTeam ? ` · ${asset.nflTeam}` : ""}{asset.starter ? " · Starter" : " · Bench"}</small></div>
-            <label><span>Value</span><input type="number" min="1" max="100" value={asset.value} onChange={(event) => onValueChange(asset.playerId, Number(event.target.value) || 1)} /></label>
+            <div className="trade-asset-copy"><b>{asset.name}</b><small>{asset.position}{asset.nflTeam ? ` · ${asset.nflTeam}` : ""}{asset.starter ? " · Starter" : " · Bench"}</small></div>
+            <div className="asset-value" title={`${asset.confidence} model confidence`}><strong>{asset.value}</strong><span>Locked value</span></div>
           </article>
         ))}
-        {!selected.length && <div className="empty-slot">Add players to this side</div>}
+        {!selected.length && <div className="empty-slot"><strong>No players added</strong><span>Select a player from the other roster.</span></div>}
       </div>
-    </div>
+    </section>
   );
 }
 
 export default function TradeLabPage() {
   const { league, source, teamRosterId } = useSelectedLeague();
+  const defaultFormat: TradeFormat = league.leagueType === "dynasty" || league.leagueType === "keeper" ? "dynasty" : "redraft";
+  const [format, setFormat] = useState<TradeFormat>(defaultFormat);
   const [teamAId, setTeamAId] = useState(teamRosterId);
   const [teamBId, setTeamBId] = useState(league.teams.find((team) => team.rosterId !== teamRosterId)?.rosterId ?? teamRosterId);
   const [profiles, setProfiles] = useState<Record<string, PlayerProfile>>({});
   const [loadingPlayers, setLoadingPlayers] = useState(false);
-  const [sideA, setSideA] = useState<Asset[]>([]);
-  const [sideB, setSideB] = useState<Asset[]>([]);
+  const [playerError, setPlayerError] = useState("");
+  const [sideAIds, setSideAIds] = useState<string[]>([]);
+  const [sideBIds, setSideBIds] = useState<string[]>([]);
 
   useEffect(() => {
     setTeamAId(teamRosterId);
     setTeamBId(league.teams.find((team) => team.rosterId !== teamRosterId)?.rosterId ?? teamRosterId);
-    setSideA([]);
-    setSideB([]);
-  }, [league.leagueId, teamRosterId, league.teams]);
+    setFormat(league.leagueType === "dynasty" || league.leagueType === "keeper" ? "dynasty" : "redraft");
+    setSideAIds([]);
+    setSideBIds([]);
+  }, [league.leagueId, league.leagueType, teamRosterId, league.teams]);
 
   useEffect(() => {
     const embedded = league.teams.reduce<Record<string, PlayerProfile>>((all, team) => ({ ...all, ...(team.playerProfiles || {}) }), {});
+    setPlayerError("");
+
     if (source === "yahoo") {
       setProfiles(embedded);
       return;
     }
+
     if (source === "demo") {
-      const demoProfiles = Object.fromEntries(league.teams.flatMap((team) => team.players.map((name) => [name, { playerId: name, fullName: name, position: demoPlayerPositions[name] || "—", team: null, status: null }] as const)));
+      const featuredRanks = new Map(tradePlayers
+        .slice()
+        .sort((a, b) => b.value - a.value)
+        .map((player, index) => [player.name, index + 1]));
+      let fallbackRank = 75;
+      const demoProfiles = Object.fromEntries(league.teams.flatMap((team) => team.players.map((name) => [name, {
+        playerId: name,
+        fullName: name,
+        position: demoPlayerPositions[name] || "—",
+        team: null,
+        status: "Active",
+        age: null,
+        yearsExperience: null,
+        searchRank: featuredRanks.get(name) ?? fallbackRank++
+      }] as const)));
       setProfiles(demoProfiles);
       return;
     }
@@ -141,6 +167,8 @@ export default function TradeLabPage() {
       return payload.players as Record<string, PlayerProfile>;
     })).then((chunks) => {
       if (!cancelled) setProfiles(Object.assign({}, ...chunks));
+    }).catch((error) => {
+      if (!cancelled) setPlayerError(error instanceof Error ? error.message : "Unable to load player details.");
     }).finally(() => { if (!cancelled) setLoadingPlayers(false); });
     return () => { cancelled = true; };
   }, [league, source]);
@@ -149,22 +177,32 @@ export default function TradeLabPage() {
   const teamB = league.teams.find((team) => team.rosterId === teamBId) || league.teams[1] || league.teams[0];
 
   const assets = useMemo(() => league.teams.flatMap((team) => team.players.map((playerId) => {
-    const profile = profiles[playerId];
+    const fallbackPosition = /^[A-Z]{2,3}$/.test(playerId) ? "DEF" : "—";
+    const profile = profiles[playerId] || { playerId, fullName: playerId, position: fallbackPosition, team: null, status: null };
     const starter = team.starters.includes(playerId);
+    const model = tradeValueForPlayer(profile, starter, format, {
+      rosterPositions: league.rosterPositions,
+      scoringSettings: league.scoringSettings
+    });
     return {
       playerId,
-      name: profile?.fullName || playerId,
-      position: profile?.position || "—",
-      nflTeam: profile?.team || null,
+      name: profile.fullName || playerId,
+      position: model.position,
+      nflTeam: profile.team || null,
       rosterId: team.rosterId,
       teamName: team.teamName,
       starter,
-      value: baselineValue(profile?.position || "—", starter, profile?.status || null)
+      value: model.value,
+      confidence: model.confidence
     } satisfies Asset;
-  })), [league.teams, profiles]);
+  })), [format, league.rosterPositions, league.scoringSettings, league.teams, profiles]);
 
-  const availableForA = assets.filter((asset) => asset.rosterId === teamB.rosterId && !sideA.some((selected) => selected.playerId === asset.playerId));
-  const availableForB = assets.filter((asset) => asset.rosterId === teamA.rosterId && !sideB.some((selected) => selected.playerId === asset.playerId));
+  const assetMap = useMemo(() => new Map(assets.map((asset) => [asset.playerId, asset])), [assets]);
+  const sideA = sideAIds.map((playerId) => assetMap.get(playerId)).filter((asset): asset is Asset => Boolean(asset));
+  const sideB = sideBIds.map((playerId) => assetMap.get(playerId)).filter((asset): asset is Asset => Boolean(asset));
+  const availableForA = assets.filter((asset) => asset.rosterId === teamB.rosterId && !sideAIds.includes(asset.playerId));
+  const availableForB = assets.filter((asset) => asset.rosterId === teamA.rosterId && !sideBIds.includes(asset.playerId));
+
   const requirements = requiredPositions(league.rosterPositions);
   const beforeFitA = fitScore(teamA, profiles, requirements, [], []);
   const beforeFitB = fitScore(teamB, profiles, requirements, [], []);
@@ -177,29 +215,71 @@ export default function TradeLabPage() {
   const adjustedA = rawA + fitDeltaA;
   const adjustedB = rawB + fitDeltaB;
   const difference = adjustedA - adjustedB;
-  const verdict = !sideA.length || !sideB.length ? "Add both sides" : Math.abs(difference) <= 4 ? "Balanced trade" : difference > 0 ? `${teamA.teamName} gains more` : `${teamB.teamName} gains more`;
+  const tradeSize = Math.max((adjustedA + adjustedB) / 2, 1);
+  const tolerance = Math.max(4, Math.round(tradeSize * 0.08));
+  const isComplete = sideA.length > 0 && sideB.length > 0;
+  const verdict = !sideA.length && !sideB.length
+    ? "Build a trade"
+    : !isComplete
+      ? "Add the other side"
+      : Math.abs(difference) <= tolerance
+        ? "Fair value"
+        : difference > 0
+          ? `${teamA.teamName} advantage`
+          : `${teamB.teamName} advantage`;
+  const advantage = isComplete ? Math.round((Math.abs(difference) / tradeSize) * 100) : 0;
 
-  function updateValue(setter: Dispatch<SetStateAction<Asset[]>>, playerId: string, value: number) {
-    setter((current) => current.map((asset) => asset.playerId === playerId ? { ...asset, value } : asset));
+  function resetTrade() {
+    setSideAIds([]);
+    setSideBIds([]);
   }
 
   return (
     <AppShell>
-      <div className="page-heading"><div><span className="eyebrow">Roster-aware decision engine</span><h1>Trade Lab</h1><p>Compare custom player values, then adjust the result for each roster&apos;s positional needs.</p></div><span className="pill">{source === "demo" ? "Demo values" : `${source} rosters`}</span></div>
+      <div className="page-heading trade-page-heading">
+        <div><span className="eyebrow">Format-aware trade evaluation</span><h1>Trade Lab</h1><p>Locked player values change with Redraft or Dynasty mode, then adjust for each roster&apos;s lineup needs.</p></div>
+        <span className="pill">{source === "demo" ? "Sample rosters" : `${source} rosters`}</span>
+      </div>
+
+      <section className="panel trade-toolbar">
+        <div className="trade-format-copy"><span className="eyebrow">League format</span><h2>How should this trade be valued?</h2><p>{league.leagueType ? `Imported league type: ${league.leagueType}. You can override it for this comparison.` : "Choose the format for this comparison."}</p></div>
+        <div className="format-switch" role="radiogroup" aria-label="Trade format">
+          <button className={format === "redraft" ? "active" : ""} role="radio" aria-checked={format === "redraft"} onClick={() => setFormat("redraft")}><strong>Redraft</strong><span>Current-season value</span></button>
+          <button className={format === "dynasty" ? "active" : ""} role="radio" aria-checked={format === "dynasty"} onClick={() => setFormat("dynasty")}><strong>Dynasty</strong><span>Long-term value and age curve</span></button>
+        </div>
+      </section>
 
       <div className="team-pair-panel panel">
-        <label><span>Team A</span><select value={teamA.rosterId} onChange={(event) => { setTeamAId(Number(event.target.value)); setSideB([]); }}>{league.teams.filter((team) => team.rosterId !== teamBId).map((team) => <option value={team.rosterId} key={team.rosterId}>{team.teamName} · {team.ownerName}</option>)}</select></label>
+        <label><span>Team A</span><select value={teamA.rosterId} onChange={(event) => { setTeamAId(Number(event.target.value)); resetTrade(); }}>{league.teams.filter((team) => team.rosterId !== teamBId).map((team) => <option value={team.rosterId} key={team.rosterId}>{team.teamName} · {team.ownerName}</option>)}</select></label>
         <span className="trade-arrow">↔</span>
-        <label><span>Team B</span><select value={teamB.rosterId} onChange={(event) => { setTeamBId(Number(event.target.value)); setSideA([]); }}>{league.teams.filter((team) => team.rosterId !== teamAId).map((team) => <option value={team.rosterId} key={team.rosterId}>{team.teamName} · {team.ownerName}</option>)}</select></label>
+        <label><span>Team B</span><select value={teamB.rosterId} onChange={(event) => { setTeamBId(Number(event.target.value)); resetTrade(); }}>{league.teams.filter((team) => team.rosterId !== teamAId).map((team) => <option value={team.rosterId} key={team.rosterId}>{team.teamName} · {team.ownerName}</option>)}</select></label>
+        {(sideA.length > 0 || sideB.length > 0) && <button className="text-button trade-reset" onClick={resetTrade}>Reset trade</button>}
       </div>
 
-      {loadingPlayers && <div className="connection-message">Loading league players…</div>}
-      <div className="trade-grid">
-        <TradeSide title={`${teamA.teamName} receives`} available={availableForA} selected={sideA} onAdd={(asset) => setSideA((current) => [...current, asset])} onRemove={(playerId) => setSideA((current) => current.filter((asset) => asset.playerId !== playerId))} onValueChange={(playerId, value) => updateValue(setSideA, playerId, value)} />
-        <div className="trade-verdict"><span>Verdict</span><strong>{verdict}</strong><div><b>{adjustedA}</b><i>vs.</i><b>{adjustedB}</b></div><p>Market inputs: {rawA}–{rawB}<br />Roster-fit adjustment: {fitDeltaA >= 0 ? "+" : ""}{fitDeltaA} / {fitDeltaB >= 0 ? "+" : ""}{fitDeltaB}</p></div>
-        <TradeSide title={`${teamB.teamName} receives`} available={availableForB} selected={sideB} onAdd={(asset) => setSideB((current) => [...current, asset])} onRemove={(playerId) => setSideB((current) => current.filter((asset) => asset.playerId !== playerId))} onValueChange={(playerId, value) => updateValue(setSideB, playerId, value)} />
+      {loadingPlayers && <div className="connection-message">Loading player profiles and locked values…</div>}
+      {playerError && <div className="connection-message error">{playerError}</div>}
+
+      <div className="trade-grid trade-grid-clean">
+        <TradeSide title={`${teamA.teamName} receives`} subtitle={`Players from ${teamB.teamName}`} available={availableForA} selected={sideA} onAdd={(playerId) => setSideAIds((current) => [...current, playerId])} onRemove={(playerId) => setSideAIds((current) => current.filter((id) => id !== playerId))} />
+        <div className={`trade-verdict ${isComplete && Math.abs(difference) > tolerance ? "has-advantage" : ""}`}>
+          <span>{formatLabel(format)} verdict</span>
+          <strong>{verdict}</strong>
+          <div className="verdict-score"><b>{adjustedA}</b><i>vs.</i><b>{adjustedB}</b></div>
+          {isComplete ? <p>{Math.abs(difference) <= tolerance ? `Within the ${tolerance}-point fair range.` : `${advantage}% modeled advantage after roster fit.`}</p> : <p>Add players to both sides to complete the comparison.</p>}
+          <div className="verdict-breakdown"><span>Player value {rawA}–{rawB}</span><span>Roster fit {fitDeltaA >= 0 ? "+" : ""}{fitDeltaA} / {fitDeltaB >= 0 ? "+" : ""}{fitDeltaB}</span></div>
+        </div>
+        <TradeSide title={`${teamB.teamName} receives`} subtitle={`Players from ${teamA.teamName}`} available={availableForB} selected={sideB} onAdd={(playerId) => setSideBIds((current) => [...current, playerId])} onRemove={(playerId) => setSideBIds((current) => current.filter((id) => id !== playerId))} />
       </div>
-      <div className="panel analysis-panel"><h2>How to use this honestly</h2><p>The default number is a transparent roster-role baseline—not a claim that FantasyNextMove already has a licensed live market-value feed. Adjust each player&apos;s value to match your preferred rankings. The app then adds roster-fit impact using your connected league&apos;s lineup requirements.</p></div>
+
+      <section className="panel trade-method-panel">
+        <div><span className="eyebrow">Locked beta model</span><h2>What the score uses</h2></div>
+        <div className="trade-method-grid">
+          <article><strong>Format</strong><p>Redraft prioritizes this season. Dynasty adds age and career-window adjustments.</p></article>
+          <article><strong>Player profile</strong><p>Position, starter role, health, provider ranking data, and age when available.</p></article>
+          <article><strong>League fit</strong><p>Superflex, tight-end premium signals, and lineup requirements influence the result.</p></article>
+        </div>
+        <p className="model-disclaimer">Values cannot be edited. They are consistent beta estimates, not sportsbook odds or a licensed consensus market. FantasyNextMove evaluates the trade but never sends an offer to your league.</p>
+      </section>
     </AppShell>
   );
 }

@@ -28,7 +28,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
         <div className="sidebar-card">
           <strong>Private beta</strong>
-          <p>Connect a league, review the sample experience, and help shape the first public release.</p>
+          <p>League imports are read-only. Trade Lab values are locked and format-aware.</p>
           <Link className="button small" href="/connect">Connect league</Link>
         </div>
       </aside>
@@ -36,7 +36,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         {children}
         <footer className="app-footer">
           <span>FantasyNextMove private beta</span>
-          <span>Read-only league analysis. No lineup, waiver, or trade actions are submitted.</span>
+          <span>Read-only imports. Trade Lab evaluates offers but never sends them.</span>
         </footer>
       </main>
     </div>

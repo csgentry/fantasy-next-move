@@ -29,6 +29,23 @@ function numberValue(value: unknown) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function ageFromBirthDate(value: unknown) {
+  const birthDate = text(value);
+  if (!birthDate) return null;
+  const parsed = new Date(birthDate);
+  if (Number.isNaN(parsed.getTime())) return null;
+  const today = new Date();
+  let age = today.getUTCFullYear() - parsed.getUTCFullYear();
+  const birthdayPassed = today.getUTCMonth() > parsed.getUTCMonth() || (today.getUTCMonth() === parsed.getUTCMonth() && today.getUTCDate() >= parsed.getUTCDate());
+  if (!birthdayPassed) age -= 1;
+  return age >= 18 && age <= 50 ? age : null;
+}
+
+function yahooLeagueType(settings: UnknownRecord) {
+  const keeperFlag = text(settings.keeper || settings.is_keeper || settings.uses_keeper).toLowerCase();
+  return ["1", "true", "yes"].includes(keeperFlag) ? "keeper" as const : "redraft" as const;
+}
+
 function asArray<T = unknown>(value: T | T[] | undefined | null): T[] {
   if (value === undefined || value === null) return [];
   return Array.isArray(value) ? value : [value];
@@ -117,6 +134,8 @@ function normalizeYahooPlayer(player: UnknownRecord): PlayerProfile & { starter:
   const playerId = text(player.player_key || player.player_id);
   const fullName = text(record(player.name).full) || [text(record(player.name).first), text(record(player.name).last)].filter(Boolean).join(" ") || playerId;
   const selectedPosition = text(record(player.selected_position).position) || null;
+  const explicitAge = numberValue(player.age);
+  const experience = numberValue(player.experience || player.years_experience);
   return {
     playerId,
     fullName,
@@ -124,6 +143,9 @@ function normalizeYahooPlayer(player: UnknownRecord): PlayerProfile & { starter:
     team: text(player.editorial_team_abbr) || null,
     status: text(player.status) || null,
     selectedPosition,
+    age: explicitAge || ageFromBirthDate(player.birth_date),
+    yearsExperience: experience || null,
+    searchRank: null,
     starter: !["BN", "IR", "IR+", "NA"].includes(selectedPosition || "")
   };
 }
@@ -214,6 +236,7 @@ export async function importYahooSeason(token: YahooToken, season: string) {
       rosterPositions,
       previousLeagueId: renewKey && renewKey !== "0" ? renewKey : null,
       userRosterId: userTeam?.rosterId ?? null,
+      leagueType: yahooLeagueType(settings),
       teams: normalizedTeams
     });
   }
@@ -240,6 +263,7 @@ export async function importYahooLeagueByKey(token: YahooToken, leagueKey: strin
     rosterPositions: [],
     previousLeagueId: renewKey && renewKey !== "0" ? renewKey : null,
     userRosterId: null,
+    leagueType: "redraft",
     teams: normalizedTeams
   };
 }

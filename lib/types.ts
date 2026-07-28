@@ -1,4 +1,5 @@
 export type LeagueProvider = "demo" | "sleeper" | "yahoo";
+export type LeagueType = "redraft" | "keeper" | "dynasty";
 
 export type PlayerProfile = {
   playerId: string;
@@ -7,6 +8,9 @@ export type PlayerProfile = {
   team: string | null;
   status: string | null;
   selectedPosition?: string | null;
+  age?: number | null;
+  yearsExperience?: number | null;
+  searchRank?: number | null;
 };
 
 export type LeagueTeam = {
@@ -38,6 +42,7 @@ export type ImportedLeague = {
   rosterPositions: string[];
   previousLeagueId: string | null;
   userRosterId: number | null;
+  leagueType?: LeagueType;
   teams: LeagueTeam[];
 };
 

@@ -16,7 +16,7 @@ export default function Home() {
           <Link className="button" href="/connect">Connect a league</Link>
           <Link className="button secondary" href="/dashboard">Explore sample league</Link>
         </div>
-        <div className="trust-row"><span>Read-only imports</span><span>Sample dashboard</span><span>Record books</span><span>Roster-aware trades</span></div>
+        <div className="trust-row"><span>Read-only imports</span><span>Sample dashboard</span><span>Record books</span><span>Format-aware trades</span></div>
       </section>
 
       <section className="preview-grid">
@@ -27,7 +27,7 @@ export default function Home() {
           <div className="mini-bars"><i style={{width:"88%"}}/><i style={{width:"72%"}}/><i style={{width:"61%"}}/></div>
         </div>
         <div className="preview-card"><span className="muted">All-time rank</span><strong className="huge">#2</strong><small>Across connected seasons</small></div>
-        <div className="preview-card"><span className="muted">Trade verdict</span><strong className="positive">Balanced</strong><small>Value plus roster fit</small></div>
+        <div className="preview-card"><span className="muted">Trade verdict</span><strong className="positive">Fair value</strong><small>Locked model plus roster fit</small></div>
       </section>
 
       <section className="feature-section">
@@ -35,7 +35,7 @@ export default function Home() {
         <div className="feature-grid">
           <article><b>01</b><h3>League memory</h3><p>Follow linked seasons, preserve team-name aliases, and calculate manager records and championships.</p></article>
           <article><b>02</b><h3>Next Moves</h3><p>Get prioritized, plain-English actions based on record quality, scoring, league rank, and contention window.</p></article>
-          <article><b>03</b><h3>Trade Lab</h3><p>Compare editable values and see whether a deal improves each roster&apos;s positional structure.</p></article>
+          <article><b>03</b><h3>Trade Lab</h3><p>Use locked Redraft or Dynasty values and see whether a deal improves each roster&apos;s positional structure.</p></article>
         </div>
       </section>
 

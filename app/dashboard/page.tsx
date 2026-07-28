@@ -6,6 +6,12 @@ import { RosterSnapshot } from "@/components/RosterSnapshot";
 import { StatCard } from "@/components/StatCard";
 import { contenderScore, rankTeams, recommendationsFor } from "@/lib/analysis";
 
+function leagueTypeLabel(type: "redraft" | "keeper" | "dynasty" | undefined) {
+  if (type === "dynasty") return "Dynasty";
+  if (type === "keeper") return "Keeper";
+  return "Redraft";
+}
+
 export default function DashboardPage() {
   const { league, source, teamRosterId, setTeamRosterId, resetLeague } = useSelectedLeague();
   const ranking = rankTeams(league);
@@ -24,7 +30,7 @@ export default function DashboardPage() {
     <AppShell>
       {source === "demo" && <div className="connection-message demo-notice"><strong>Sample data:</strong> This is a fictional league used to preview the app. Connect a league to analyze real rosters.</div>}
       <div className="page-heading">
-        <div><span className="eyebrow">{source === "demo" ? "Sample league" : `${source} league`}</span><h1>{league.name}</h1><p>{league.season} season command center</p></div>
+        <div><span className="eyebrow">{source === "demo" ? "Sample league" : `${source} league`}</span><h1>{league.name}</h1><p>{league.season} season command center · {leagueTypeLabel(league.leagueType)}</p></div>
         <div className="heading-actions">
           <label className="team-switcher"><span>Analyzing</span><select value={myTeam.rosterId} onChange={(event) => setTeamRosterId(Number(event.target.value))}>{league.teams.map((team) => <option key={team.rosterId} value={team.rosterId}>{team.teamName} · {team.ownerName}</option>)}</select></label>
           <div className="source-actions"><div className="pill">Data source: {source === "demo" ? "Sample" : source === "yahoo" ? "Yahoo" : "Sleeper"}</div>{source !== "demo" && <button className="text-button" onClick={resetLeague}>Close league</button>}</div>

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { ImportedLeague, LeagueTeam } from "@/lib/types";
+import type { ImportedLeague, LeagueTeam, LeagueType } from "@/lib/types";
 
 const API = "https://api.sleeper.app/v1";
 
@@ -10,11 +10,27 @@ async function sleeperFetch<T>(path: string): Promise<T> {
 }
 
 type SleeperUser = { user_id: string; username: string; display_name: string; avatar: string | null; metadata?: Record<string, string> };
-type SleeperLeague = { league_id: string; name: string; season: string; status: string; total_rosters: number; scoring_settings?: Record<string, number>; roster_positions?: string[]; previous_league_id?: string | null };
+type SleeperLeague = {
+  league_id: string;
+  name: string;
+  season: string;
+  status: string;
+  total_rosters: number;
+  scoring_settings?: Record<string, number>;
+  roster_positions?: string[];
+  previous_league_id?: string | null;
+  settings?: { type?: number; taxi_slots?: number; [key: string]: unknown };
+};
 type SleeperRoster = { roster_id: number; owner_id: string | null; players?: string[] | null; starters?: string[] | null; settings?: { wins?: number; losses?: number; ties?: number; fpts?: number; fpts_decimal?: number; fpts_against?: number; fpts_against_decimal?: number } };
 
 function decimalPoints(base = 0, decimal = 0) {
   return base + decimal / 100;
+}
+
+function leagueTypeFor(league: SleeperLeague): LeagueType {
+  if (league.settings?.type === 2 || Number(league.settings?.taxi_slots || 0) > 0 || /dynasty/i.test(league.name)) return "dynasty";
+  if (league.settings?.type === 1 || /keeper/i.test(league.name)) return "keeper";
+  return "redraft";
 }
 
 export async function GET(request: NextRequest) {
@@ -63,6 +79,7 @@ export async function GET(request: NextRequest) {
         rosterPositions: league.roster_positions || [],
         previousLeagueId: league.previous_league_id || null,
         userRosterId: teams.find((team) => team.ownerId === user.user_id)?.rosterId ?? null,
+        leagueType: leagueTypeFor(league),
         teams
       };
     }));
