@@ -18,19 +18,27 @@ export default function RecordBookPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    let cancelled = false;
-    if (!hydrated) return <AppShell><div className="panel empty-state"><strong>Loading your league history…</strong></div></AppShell>;
+  let cancelled = false;
+
+  if (!hydrated) return;
 
   if (source === "demo") {
-      setHistory(null);
-      return () => { cancelled = true; };
-    }
     setHistory(null);
-    loadHistoryFromAccount(source, league.leagueId)
-      .then((remote) => { if (!cancelled && remote) setHistory(remote); })
-      .catch(() => undefined);
-    return () => { cancelled = true; };
-  }, [source, league.leagueId]);
+    return;
+  }
+
+  setHistory(null);
+
+  loadHistoryFromAccount(source, league.leagueId)
+    .then((remote) => {
+      if (!cancelled && remote) setHistory(remote);
+    })
+    .catch(() => undefined);
+
+  return () => {
+    cancelled = true;
+  };
+}, [hydrated, source, league.leagueId]);
 
   async function syncHistory() {
     if (source === "demo") return;
@@ -110,6 +118,15 @@ export default function RecordBookPage() {
     return { leader: managerRecords[0], highestScoring, bestSeason };
   }, [history, managerRecords]);
 
+ if (!hydrated) {
+  return (
+    <AppShell>
+      <div className="panel empty-state">
+        <strong>Loading your league history…</strong>
+      </div>
+    </AppShell>
+  );
+}
   if (source === "demo") {
     return (
       <AppShell>
