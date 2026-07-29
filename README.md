@@ -7,6 +7,7 @@ FantasyNextMove is an invite-only fantasy-football analysis beta built with the 
 - Public fictional sample league for signed-out visitors
 - Invite-code account creation, email confirmation, login, password reset, logout, and account deletion
 - Administrator-only Beta Admin dashboard for creating, reviewing, copying, and expiring email-bound invite codes
+- League-wide Power Rankings Engine with starter strength, bench depth, positional grades, all-play records, expected wins, luck, contender and dynasty views, ranking movement, and explanations
 - Server-protected real-league pages and APIs
 - Account-owned connected leagues and historical record books stored in Supabase; real league data is no longer persisted in browser local storage
 - My Leagues library for reopening saved leagues on another device

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3B
+
+- Added a complete league-wide Power Rankings Engine with starter strength, bench depth, positional grades, all-play records, expected wins, luck ratings, contender rankings, dynasty rankings, weekly movement, and explanations.
+- Restored team-by-team power ranking inspection while keeping personalized Priority Boards private to the connected user.
+
 ## 1.3A-beta
 
 - Reordered the primary sidebar to Dashboard, Trade Lab, Record Book, My Leagues, and Connect League.

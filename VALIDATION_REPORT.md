@@ -1,21 +1,19 @@
-# FantasyNextMove 1.2 validation report
+# FantasyNextMove 1.3B validation report
 
-Validated July 28, 2026.
+Validated July 29, 2026.
 
 ## Passed in this build environment
 
-- Stub-assisted strict TypeScript semantic check across the project
-- Syntax parsing for 51 executable TypeScript/TSX files
-- No editable player-value controls or stale editable-value copy in Trade Lab
-- Sleeper traded-pick endpoint integration and draft-pick model references present
-- Real league/history persistence removed from browser local storage; only legacy-key deletion remains
-- No prior real demo-manager or league-team names found
-- No hard-coded production credentials found
-- Supabase schema delimiter and parenthesis checks
-- Draft-pick value smoke checks for early, mid, late, exact-slot, future-year, and preseason behavior
+- Project-wide TypeScript semantic check using temporary declarations for unavailable framework packages.
+- Strict TypeScript compilation of the Power Rankings model, trade-value dependency, shared types, and demo league data.
+- Power Rankings smoke test confirmed one unique overall rank per league team and finite values for overall score, starter strength, bench strength, all-play results, expected wins, luck, movement, and confidence.
+- All-play calculations were tested across 14 sample matchup weeks.
+- Overall, Contender, and Dynasty ranking outputs were generated successfully.
+- The complete-project Mac installer passed shell syntax validation and verifies the selected Git remote before replacing files.
+- No `.git`, `node_modules`, `.next`, `.DS_Store`, production `.env`, or hard-coded credentials are included.
 
 ## Deployment validation still required
 
-The complete dependency installation and `next build` could not be executed in this isolated environment because npm package downloads did not complete. Vercel must perform the authoritative dependency install and production build after the repository is pushed.
+A complete `npm install` and `next build` could not run in this environment because the internal npm registry returned 404 for `@supabase/ssr`. Vercel remains the authoritative dependency installation and production build check after the repository is pushed.
 
-Before admitting beta testers, complete `BETA_AUTH_SETUP.md`, run `supabase/schema.sql` in the Supabase SQL Editor, configure the three Supabase Vercel variables, and test signup, email confirmation, login, cross-device league persistence, account deletion, and a real Sleeper dynasty league.
+After deployment, test the Power Rankings Engine with at least one active Sleeper redraft league and one Sleeper dynasty league. Confirm weekly matchup history, all-play records, traded-pick ownership, mobile table scrolling, and ranking explanations.

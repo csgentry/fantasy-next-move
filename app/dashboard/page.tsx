@@ -2,9 +2,10 @@
 
 import { AppShell } from "@/components/AppShell";
 import { useSelectedLeague } from "@/components/LeaguePicker";
+import { PowerRankingsEngine } from "@/components/PowerRankingsEngine";
 import { RosterSnapshot } from "@/components/RosterSnapshot";
 import { StatCard } from "@/components/StatCard";
-import { contenderScore, rankTeams, recommendationsFor } from "@/lib/analysis";
+import { recommendationsFor } from "@/lib/analysis";
 
 function leagueTypeLabel(type: "redraft" | "keeper" | "dynasty" | undefined) {
   if (type === "dynasty") return "Dynasty";
@@ -29,10 +30,8 @@ export default function DashboardPage() {
     );
   }
 
-  const ranking = rankTeams(league);
   const ownerRosterId = league.userRosterId ?? teamRosterId;
-  const myTeam =
-    ranking.find((team) => team.rosterId === ownerRosterId) ?? ranking[0];
+  const myTeam = league.teams.find((team) => team.rosterId === ownerRosterId) ?? league.teams[0];
 
   if (!myTeam) {
     return (
@@ -45,126 +44,61 @@ export default function DashboardPage() {
     );
   }
 
-  const score = contenderScore(myTeam, league);
   const recs = recommendationsFor(myTeam, league);
   const recordGames = myTeam.wins + myTeam.losses + myTeam.ties;
-  const winPct =
-    ((myTeam.wins + myTeam.ties * 0.5) / Math.max(recordGames, 1)) * 100;
+  const winPct = ((myTeam.wins + myTeam.ties * 0.5) / Math.max(recordGames, 1)) * 100;
+  const pointDiff = myTeam.pointsFor - myTeam.pointsAgainst;
 
   return (
     <AppShell>
       {source === "demo" && (
         <div className="connection-message demo-notice">
-          <strong>Sample data:</strong> This is a fictional league used to
-          preview the app. Connect a league to analyze your real roster.
+          <strong>Sample data:</strong> This is a fictional league used to preview the app. Connect a league to analyze your real roster.
         </div>
       )}
 
       <div className="page-heading">
         <div>
-          <span className="eyebrow">
-            {source === "demo" ? "Sample league" : `${source} league`}
-          </span>
+          <span className="eyebrow">{source === "demo" ? "Sample league" : `${source} league`}</span>
           <h1>{league.name}</h1>
-          <p>
-            {league.season} season command center ·{" "}
-            {leagueTypeLabel(league.leagueType)}
-          </p>
+          <p>{league.season} season command center · {leagueTypeLabel(league.leagueType)}</p>
         </div>
         <div className="source-actions">
-          <div className="pill">
-            Data source: {source === "demo" ? "Sample" : source === "yahoo" ? "Yahoo" : "Sleeper"}
-          </div>
-          {source !== "demo" && (
-            <button className="text-button" onClick={resetLeague}>
-              Close league
-            </button>
-          )}
+          <div className="pill">Data source: {source === "demo" ? "Sample" : source === "yahoo" ? "Yahoo" : "Sleeper"}</div>
+          {source !== "demo" && <button className="text-button" onClick={resetLeague}>Close league</button>}
         </div>
       </div>
 
       <section className="stats-grid">
-        <StatCard
-          label="Power rank"
-          value={`#${myTeam.rank}`}
-          detail={`of ${ranking.length} teams`}
-        />
-        <StatCard
-          label="Contender score"
-          value={`${score}/100`}
-          detail={score >= 80 ? "Championship profile" : "Needs improvement"}
-        />
-        <StatCard
-          label="Record"
-          value={recordLabel(myTeam.wins, myTeam.losses, myTeam.ties)}
-          detail={`${winPct.toFixed(1)}% result rate`}
-        />
-        <StatCard
-          label="Point differential"
-          value={`${myTeam.pointDiff >= 0 ? "+" : ""}${myTeam.pointDiff.toFixed(1)}`}
-          detail={`${myTeam.pointsFor.toFixed(1)} points for`}
-        />
+        <StatCard label="Record" value={recordLabel(myTeam.wins, myTeam.losses, myTeam.ties)} detail={`${winPct.toFixed(1)}% result rate`} />
+        <StatCard label="Points for" value={myTeam.pointsFor.toFixed(1)} detail={`${(myTeam.pointsFor / Math.max(recordGames, 1)).toFixed(1)} per matchup`} />
+        <StatCard label="Point differential" value={`${pointDiff >= 0 ? "+" : ""}${pointDiff.toFixed(1)}`} detail={`${myTeam.pointsAgainst.toFixed(1)} points against`} />
+        <StatCard label="League format" value={leagueTypeLabel(league.leagueType)} detail={`${league.totalRosters} teams`} />
       </section>
 
-      <section className="dashboard-grid">
-        <div className="panel next-moves">
-          <div className="panel-heading">
-            <div>
-              <span className="eyebrow">Your priority board</span>
-              <h2>{myTeam.teamName}&apos;s Next Moves</h2>
-            </div>
-            <span className="pill">Your roster only</span>
+      <section className="panel next-moves dashboard-priority-panel">
+        <div className="panel-heading">
+          <div>
+            <span className="eyebrow">Your priority board</span>
+            <h2>{myTeam.teamName}&apos;s Next Moves</h2>
           </div>
+          <span className="pill">Your roster only</span>
+        </div>
+        <div className="priority-grid">
           {recs.map((rec, index) => (
             <article className="move-card" key={rec.title}>
               <div className="move-number">{index + 1}</div>
               <div>
-                <div className="move-meta">
-                  <span>{rec.category}</span>
-                  <span>{rec.impact} impact</span>
-                </div>
+                <div className="move-meta"><span>{rec.category}</span><span>{rec.impact} impact</span></div>
                 <h3>{rec.title}</h3>
                 <p>{rec.reason}</p>
               </div>
             </article>
           ))}
         </div>
-
-        <div className="panel">
-          <div className="panel-heading">
-            <div>
-              <span className="eyebrow">League pulse</span>
-              <h2>Power Rankings</h2>
-            </div>
-            <span className="pill">{ranking.length} teams</span>
-          </div>
-          <div className="ranking-list">
-            {ranking.map((team) => {
-              const isMyTeam = team.rosterId === myTeam.rosterId;
-              return (
-                <div
-                  className={isMyTeam ? "ranking-row active" : "ranking-row"}
-                  key={team.rosterId}
-                >
-                  <strong>{team.rank}</strong>
-                  <div>
-                    <b>{team.teamName}</b>
-                    <small>
-                      {team.ownerName}
-                      {isMyTeam ? " · Your team" : ""}
-                    </small>
-                  </div>
-                  <span>{recordLabel(team.wins, team.losses, team.ties)}</span>
-                </div>
-              );
-            })}
-          </div>
-          <p className="ranking-note">
-            Rankings are league context only. Personalized Next Moves remain
-            private to your connected roster.
-          </p>
-        </div>
       </section>
+
+      <PowerRankingsEngine league={league} source={source} myRosterId={myTeam.rosterId} />
 
       <RosterSnapshot team={myTeam} source={source} />
     </AppShell>

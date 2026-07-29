@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { PlayerProfile } from "@/lib/types";
 
 const PLAYERS_URL = "https://api.sleeper.app/v1/players/nfl";
-const MAX_IDS = 100;
+const MAX_IDS = 500;
 
 type SleeperPlayer = {
   player_id?: string;

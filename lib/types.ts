@@ -25,6 +25,13 @@ export type DraftPickAsset = {
   draftSlot?: number | null;
 };
 
+export type WeeklyTeamScore = {
+  week: number;
+  rosterId: number;
+  matchupId: number | null;
+  points: number;
+};
+
 export type LeagueTeam = {
   rosterId: number;
   providerTeamKey?: string | null;
@@ -56,6 +63,7 @@ export type ImportedLeague = {
   userRosterId: number | null;
   leagueType?: LeagueType;
   draftPicks?: DraftPickAsset[];
+  weeklyScores?: WeeklyTeamScore[];
   teams: LeagueTeam[];
 };
 
