@@ -7,10 +7,10 @@ import { AuthStatus } from "@/components/AuthStatus";
 
 const nav = [
   ["Dashboard", "/dashboard"],
-  ["My Leagues", "/leagues"],
-  ["Connect League", "/connect"],
   ["Trade Lab", "/trade-lab"],
-  ["Record Book", "/record-book"]
+  ["Record Book", "/record-book"],
+  ["My Leagues", "/leagues"],
+  ["Connect League", "/connect"]
 ];
 
 export function AppShell({

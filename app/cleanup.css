@@ -120,3 +120,13 @@ button:disabled{cursor:not-allowed;opacity:.6}
 @media(max-width:900px){.saved-league-grid{grid-template-columns:1fr}}
 @media(max-width:650px){.saved-league-card{align-items:flex-start;flex-direction:column}.saved-league-actions{width:100%;justify-content:space-between}}
 .account-panel-link{display:inline-flex;margin-top:14px;padding:0;color:var(--accent2)}
+
+/* Release 1.3A: access and presentation cleanup. */
+.provider-card-disabled{border-style:dashed;background:linear-gradient(145deg,rgba(255,255,255,.025),rgba(255,255,255,.01))}
+.provider-card-disabled .provider-heading,.provider-card-disabled .form-note{opacity:.82}
+.coming-soon-copy{display:flex;flex-direction:column;align-items:flex-start;gap:14px;padding:18px;border:1px solid var(--line);border-radius:13px;background:rgba(255,255,255,.018)}
+.coming-soon-copy p{margin:0;color:var(--muted);font-size:13px;line-height:1.6}
+.ranking-row{cursor:default}
+.ranking-row:hover{background:transparent}
+.ranking-row.active,.ranking-row.active:hover{background:rgba(103,240,173,.055);box-shadow:inset 3px 0 0 var(--accent)}
+.ranking-note{margin:18px 0 0;padding-top:16px;border-top:1px solid var(--line);color:var(--muted);font-size:12px;line-height:1.55}

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3A-beta
+
+- Reordered the primary sidebar to Dashboard, Trade Lab, Record Book, My Leagues, and Connect League.
+- Disabled new Yahoo connections in both the interface and OAuth routes, and replaced the unfinished flow with a clear Coming Soon state until Fantasy Sports API approval is complete.
+- Locked the Dashboard Priority Board, contender score, and roster snapshot to the connected user's roster.
+- Removed other-team Dashboard switching and made Power Ranking rows non-interactive.
+- Expanded Power Rankings to display every team in the connected league.
+
 ## 1.2.0-beta
 
 - Added an administrator-only Beta Admin dashboard for secure single-use invite creation, review, copying, and expiration.

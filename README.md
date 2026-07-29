@@ -1,6 +1,6 @@
 # FantasyNextMove
 
-FantasyNextMove is an invite-only fantasy-football analysis beta built with the Next.js App Router, Supabase authentication, Sleeper imports, and Yahoo OAuth.
+FantasyNextMove is an invite-only fantasy-football analysis beta built with the Next.js App Router, Supabase authentication, and live Sleeper imports. Yahoo support is staged behind a Coming Soon state until Fantasy Sports API approval is complete.
 
 ## Current beta features
 
@@ -13,8 +13,9 @@ FantasyNextMove is an invite-only fantasy-football analysis beta built with the 
 - Public, read-only Sleeper username and season import
 - Sleeper Redraft, Keeper, and Dynasty detection
 - Sleeper future draft-pick ownership import, including traded picks and known draft slots
-- Secure Yahoo OAuth with encrypted account-owned token storage
-- Yahoo league import code ready for use after Fantasy API approval
+- Dashboard analysis locked to the connected user's roster while still showing every team in league Power Rankings
+- Yahoo connection shown as Coming Soon until Fantasy Sports API approval allows a complete import
+- Secure Yahoo OAuth and encrypted account-owned token code retained server-side for the later launch
 - Locked Redraft and Dynasty Trade Lab values; users cannot edit values
 - Dynasty trades containing players and imported draft picks
 - Privacy Notice and Private Beta Terms
@@ -45,9 +46,10 @@ YAHOO_CLIENT_ID=
 YAHOO_CLIENT_SECRET=
 YAHOO_REDIRECT_URI=
 FNM_COOKIE_SECRET=
+ENABLE_YAHOO_CONNECT=false
 ```
 
-`SUPABASE_SERVICE_ROLE_KEY`, `YAHOO_CLIENT_SECRET`, and `FNM_COOKIE_SECRET` are server-only secrets. Never prefix them with `NEXT_PUBLIC_`, commit them to GitHub, paste them into client code, or share them in screenshots.
+`SUPABASE_SERVICE_ROLE_KEY`, `YAHOO_CLIENT_SECRET`, and `FNM_COOKIE_SECRET` are server-only secrets. Keep `ENABLE_YAHOO_CONNECT=false` until Yahoo Fantasy Sports API approval is complete. Never prefix them with `NEXT_PUBLIC_`, commit them to GitHub, paste them into client code, or share them in screenshots.
 
 ## Validation commands
 
