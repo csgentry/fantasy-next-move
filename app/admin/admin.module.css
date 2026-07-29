@@ -1,0 +1,311 @@
+.adminIdentity {
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.adminGrid {
+  display: grid;
+  grid-template-columns: 1.35fr 0.65fr;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.creator,
+.guidance,
+.invitePanel {
+  min-width: 0;
+}
+
+.sectionHeading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.sectionHeading h2,
+.guidance h2 {
+  margin: 7px 0 0;
+  font-size: 25px;
+  letter-spacing: -0.04em;
+}
+
+.secureBadge,
+.countLabel {
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--accent2);
+  background: rgba(255, 255, 255, 0.02);
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.form label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.form input,
+.form select {
+  width: 100%;
+  height: 48px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  outline: none;
+  background: #091713;
+  color: var(--text);
+}
+
+.form input:focus,
+.form select:focus {
+  border-color: var(--accent);
+}
+
+.form small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.actionMessage {
+  margin-top: 16px;
+  padding: 13px 14px;
+  border-radius: 11px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.actionSuccess {
+  border: 1px solid rgba(103, 240, 173, 0.35);
+  background: rgba(103, 240, 173, 0.08);
+  color: var(--accent2);
+}
+
+.actionError {
+  border: 1px solid rgba(255, 150, 140, 0.35);
+  background: rgba(255, 150, 140, 0.08);
+  color: var(--danger);
+}
+
+.codeCard {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 14px;
+  align-items: center;
+  margin-top: 16px;
+  padding: 17px;
+  border: 1px solid rgba(103, 240, 173, 0.35);
+  border-radius: 14px;
+  background: rgba(103, 240, 173, 0.065);
+}
+
+.codeCard > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.codeCard span {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 800;
+}
+
+.codeCard code {
+  overflow-wrap: anywhere;
+  color: var(--accent);
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.codeCard p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.guidance {
+  display: flex;
+  flex-direction: column;
+}
+
+.guidance > p {
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.guidanceStat {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-top: auto;
+  padding: 20px 0;
+  border-top: 1px solid var(--line);
+}
+
+.guidanceStat span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.guidanceStat strong {
+  color: var(--accent);
+  font-size: 34px;
+  letter-spacing: -0.05em;
+}
+
+.guidanceNote {
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--panel2);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.invitePanel {
+  margin-top: 18px;
+}
+
+.tableWrap {
+  width: 100%;
+}
+
+.inviteRow {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.6fr) 0.7fr 0.45fr 0.8fr 0.8fr 0.55fr;
+  gap: 14px;
+  align-items: center;
+  min-width: 860px;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.tableHead {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+
+.emailCell {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.emailCell strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.emailCell small {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.status {
+  justify-self: start;
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.statusActive {
+  border-color: rgba(103, 240, 173, 0.35);
+  background: rgba(103, 240, 173, 0.08);
+  color: var(--accent);
+}
+
+.statusUsed {
+  color: var(--accent2);
+}
+
+.statusExpired,
+.statusRevoked {
+  color: var(--muted);
+}
+
+.noAction {
+  color: var(--muted);
+}
+
+.empty {
+  padding: 34px 18px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  text-align: center;
+}
+
+@media (max-width: 1000px) {
+  .adminGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .tableWrap {
+    overflow-x: auto;
+  }
+}
+
+@media (max-width: 650px) {
+  .adminIdentity {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .formRow {
+    grid-template-columns: 1fr;
+  }
+
+  .sectionHeading {
+    flex-direction: column;
+  }
+
+  .codeCard {
+    grid-template-columns: 1fr;
+  }
+
+  .codeCard button {
+    width: 100%;
+  }
+}

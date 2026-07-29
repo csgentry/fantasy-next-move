@@ -16,7 +16,7 @@ The current build is an invite-only beta. Complete these items before opening pu
 
 - Add rate limiting to login, signup, invite verification, imports, and provider OAuth routes.
 - Add audit logging for invite redemption, provider connection, deletion, and authentication failures.
-- Add a beta-admin workflow for creating, revoking, and reviewing invites instead of relying permanently on SQL Editor.
+- Restrict the included Beta Admin dashboard with `FNM_ADMIN_EMAILS` and review administrator access before each rollout.
 - Add session/device management and optional multi-factor authentication before a larger rollout.
 
 ## 3. Yahoo Fantasy

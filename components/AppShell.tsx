@@ -13,24 +13,57 @@ const nav = [
   ["Record Book", "/record-book"]
 ];
 
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell({
+  children,
+  showAdmin = false
+}: {
+  children: ReactNode;
+  showAdmin?: boolean;
+}) {
   const pathname = usePathname();
+  const navigation = showAdmin ? [...nav, ["Beta Admin", "/admin"]] : nav;
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <Link className="brand" href="/"><span className="brand-mark">FNM</span><span>FantasyNextMove</span></Link>
+        <Link className="brand" href="/">
+          <span className="brand-mark">FNM</span>
+          <span>FantasyNextMove</span>
+        </Link>
         <nav aria-label="Primary navigation">
-          {nav.map(([label, href]) => <Link className={pathname === href ? "active" : ""} key={href} href={href}>{label}</Link>)}
+          {navigation.map(([label, href]) => (
+            <Link
+              className={pathname === href ? "active" : ""}
+              key={href}
+              href={href}
+            >
+              {label}
+            </Link>
+          ))}
         </nav>
         <div className="sidebar-card">
           <strong>Invite-only beta</strong>
-          <p>Real league connections, saved history, and dynasty picks require an approved account.</p>
+          <p>
+            Real league connections, saved history, and dynasty picks require
+            an approved account.
+          </p>
           <AuthStatus />
         </div>
       </aside>
       <main className="app-content">
         {children}
-        <footer className="app-footer"><span>FantasyNextMove private beta</span><span>Read-only analysis. No lineup, waiver, or trade actions are submitted.</span><span className="footer-links"><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link></span><AuthStatus compact /></footer>
+        <footer className="app-footer">
+          <span>FantasyNextMove private beta</span>
+          <span>
+            Read-only analysis. No lineup, waiver, or trade actions are
+            submitted.
+          </span>
+          <span className="footer-links">
+            <Link href="/privacy">Privacy</Link>
+            <Link href="/terms">Terms</Link>
+          </span>
+          <AuthStatus compact />
+        </footer>
       </main>
     </div>
   );

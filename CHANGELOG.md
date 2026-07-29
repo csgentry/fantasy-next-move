@@ -2,6 +2,7 @@
 
 ## 1.2.0-beta
 
+- Added an administrator-only Beta Admin dashboard for secure single-use invite creation, review, copying, and expiration.
 - Added invite-only Supabase authentication with signup, email confirmation, login, password reset, logout, and account deletion.
 - Added invite-code hashing and atomic invite redemption.
 - Added server-side beta-access protection for real-league pages and APIs.

@@ -6,6 +6,7 @@ FantasyNextMove is an invite-only fantasy-football analysis beta built with the 
 
 - Public fictional sample league for signed-out visitors
 - Invite-code account creation, email confirmation, login, password reset, logout, and account deletion
+- Administrator-only Beta Admin dashboard for creating, reviewing, copying, and expiring email-bound invite codes
 - Server-protected real-league pages and APIs
 - Account-owned connected leagues and historical record books stored in Supabase; real league data is no longer persisted in browser local storage
 - My Leagues library for reopening saved leagues on another device
@@ -38,6 +39,7 @@ Open `http://localhost:3000`.
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
+FNM_ADMIN_EMAILS=
 
 YAHOO_CLIENT_ID=
 YAHOO_CLIENT_SECRET=

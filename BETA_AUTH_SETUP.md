@@ -33,9 +33,12 @@ In Vercel, open **FantasyNextMove → Settings → Environment Variables** and a
 NEXT_PUBLIC_SUPABASE_URL = the Supabase project URL
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = the Supabase publishable key
 SUPABASE_SERVICE_ROLE_KEY = the Supabase service role key
+FNM_ADMIN_EMAILS = comma-separated emails allowed to use /admin
 ```
 
 Use **Production** as the environment. Mark `SUPABASE_SERVICE_ROLE_KEY` as sensitive. Never place the service role key in GitHub, browser code, chat, or screenshots.
+
+`FNM_ADMIN_EMAILS` should be enabled for **Production** only unless you intentionally want administrators to use preview deployments. The value is not a secret, but access is still enforced against the authenticated Supabase user on the server.
 
 ## 4. Configure authentication URLs
 
