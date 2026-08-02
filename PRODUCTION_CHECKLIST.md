@@ -1,68 +1,70 @@
-# Production launch checklist
+# FantasyNextMove production launch checklist
 
-The current build is an invite-only beta. Complete these items before opening public registration or collecting payments.
+Release 1.3D is a launch candidate. Complete every launch gate before enabling public live payments.
 
-## 1. Deploy and verify the beta foundation
+## Deployment and database
 
-- Create the Supabase project and run `supabase/schema.sql`.
-- Add the three Supabase environment variables to Vercel Production.
-- Configure Supabase site and redirect URLs.
-- Enable email confirmation and test confirmation and recovery emails.
-- Create high-entropy, single-use invite codes.
-- Run `npm run typecheck`, `npm run lint`, and `npm run build` in CI for every change.
-- Test two separate accounts and confirm neither can read or alter the other account's leagues or history.
-- Run `supabase/migrations/20260729_player_intelligence.sql` on existing Supabase projects.
-- Add a high-entropy `CRON_SECRET` to Vercel Production and confirm the daily player-intelligence job authenticates successfully.
-- Verify weekly projection and actual-stat imports against live Sleeper data and several custom scoring formats.
+- Push the complete 1.3D project and confirm Vercel succeeds.
+- Run `COPY_PASTE_SQL_1.3D.sql` in the existing Supabase project.
+- Confirm existing beta users receive complimentary All Access.
+- Confirm Row Level Security prevents one user from reading another user's leagues, billing summary, snapshots, and history.
+- Confirm both daily cron routes authenticate with `CRON_SECRET`.
 
-## 2. Authentication and abuse prevention
+## Stripe Test mode
 
-- Add rate limiting to login, signup, invite verification, imports, and provider OAuth routes.
-- Add audit logging for invite redemption, provider connection, deletion, and authentication failures.
-- Restrict the included Beta Admin dashboard with `FNM_ADMIN_EMAILS` and review administrator access before each rollout.
-- Add session/device management and optional multi-factor authentication before a larger rollout.
+- Create all four recurring prices and two one-time founding coupons.
+- Configure Customer Portal.
+- Configure and verify the production-domain webhook in Test mode.
+- Test Trade Lab monthly and annual purchases.
+- Test All Access monthly and annual purchases.
+- Confirm founding discounts apply only to eligible annual first invoices.
+- Confirm duplicate webhooks do not duplicate records.
+- Confirm plan upgrades, downgrades, cancellations, and period-end access.
+- Confirm past-due grace behavior and eventual access removal.
+- Confirm refund request, admin approval, Stripe refund, cancellation, and entitlement removal.
+- Confirm daily billing reconciliation repairs a deliberately stale Test-mode record.
 
-## 3. Yahoo Fantasy
+## Product access
 
-- Complete Yahoo Fantasy Sports API review and obtain read access.
-- Keep the exact production callback URL registered.
-- Test account-owned token restore on a second device.
-- Test connect, refresh, league import, roster import, history sync, disconnect, and reconnect.
-- Add Yahoo's official Fantasy logo and required linked attribution exactly as Yahoo provides it.
-- Confirm attribution appears anywhere Yahoo API data is displayed.
-- Determine whether Yahoo exposes future draft-pick ownership; never fabricate missing picks.
+- Signed-out visitor: fictional demo and Pricing only.
+- Unpaid account: Account and billing access, but no real league connection.
+- Trade Lab subscriber: up to three leagues and Trade Lab only.
+- All Access subscriber: up to ten leagues and all premium features.
+- Complimentary beta user: All Access without a Stripe subscription.
+- Administrator: Admin dashboard plus all product access.
 
-## 4. Dynasty and Trade Lab validation
+## Trade Lab and data quality
 
-- Validate projection snapshots, actual-stat snapshots, error metrics, and week rollover behavior.
-- Validate optimized-lineup and player-recommendation outputs against several real leagues.
-- Validate Sleeper pick ownership against several real dynasty leagues, including multi-step pick trades.
-- Validate completed-draft handling so spent picks do not remain available.
-- Add model versioning and value timestamps.
-- Replace or independently validate the current beta player-value model before marketing it as authoritative.
-- Add dedicated IDP handling and deeper scoring-format adjustments.
-- Add automated regression tests for age curves, Superflex, tight-end premium, injuries, pick-year discounts, exact slots, and roster fit.
+- Validate 1QB Redraft, Superflex Dynasty, Keeper, PPR, half-PPR, and TEP leagues.
+- Compare imported player names and market matches for at least 100 players.
+- Confirm highly ranked rookies remain clearly above replacement-level backups.
+- Confirm values change appropriately between one-quarterback and Superflex formats.
+- Confirm draft-pick owners and known slots match Sleeper.
+- Confirm package adjustments do not allow several weak assets to equal an elite asset automatically.
+- Confirm the Tradyr attribution remains visible whenever its market signal is used.
+- Confirm fallback values remain usable during a simulated market-feed outage.
 
-## 5. Privacy, legal, and deletion
+## User experience
 
-- Have qualified counsel review the included beta Privacy Notice and Terms.
-- Confirm account deletion removes auth users, league records, history, provider metadata, and encrypted provider credentials.
-- Publish a support/contact method and data-retention schedule.
-- Document subprocessors, incident response, backups, and breach notification procedures.
+- Verify mobile Pricing, Dashboard, Trade Lab, lineup, Account, and Admin pages.
+- Confirm all fantasy points show two decimals.
+- Confirm ranking indexes show one decimal.
+- Confirm vertical lineup slot order matches each league.
+- Confirm unavailable preseason metrics are described rather than shown as fake zeros.
+- Confirm Overall Power, Win Now, and Dynasty Future explanations change with the selected tab.
 
-## 6. Operations
+## Operations and compliance
 
-- Add error monitoring, structured logs, uptime checks, and alerting.
-- Add database backups and a tested restore process.
-- Add provider API timeout, retry, and rate-limit handling.
-- Add a staging environment with separate Supabase and Yahoo credentials.
+- Add rate limiting to signup, login, imports, checkout creation, and event endpoints.
+- Add error monitoring, uptime checks, structured logs, and alerting.
+- Configure database backups and test a restore.
+- Publish a support/contact method.
+- Have qualified counsel review Terms, Privacy, refunds, and subscription wording.
+- Confirm business entity, sales-tax registrations, filing obligations, and Stripe Tax configuration with a qualified accountant.
+- Complete a controlled real purchase and real refund before public launch.
 
-## 7. Billing
+## Plan boundary verification
 
-No payments should be collected during private beta. Before billing:
-
-- Create Stripe products and prices.
-- Add Checkout and Customer Portal sessions.
-- Verify webhook signatures server-side.
-- Store subscription state using trusted webhook events.
-- Gate paid features on server-verified subscription status.
+- Verify signed-out visitors can open `/demo` but not real paid data.
+- Verify Trade Lab-only accounts cannot load the real Dashboard, Record Book, league history, or Power-data APIs.
+- Verify All Access accounts can load every paid feature.

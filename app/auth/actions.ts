@@ -38,9 +38,6 @@ export async function signIn(formData: FormData) {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error || !data.user) {
       failure = error?.message || "Unable to sign in.";
-    } else {
-      const { data: profile } = await supabase.from("profiles").select("beta_access").eq("id", data.user.id).maybeSingle();
-      if (!profile?.beta_access) destination = "/pending";
     }
   } catch (error) {
     failure = error instanceof Error ? error.message : "Unable to sign in.";
@@ -54,31 +51,40 @@ export async function signUp(formData: FormData) {
   const password = value(formData, "password");
   const confirmPassword = value(formData, "confirmPassword");
   const inviteCode = value(formData, "inviteCode");
-  if (!email || !password || !inviteCode) redirect(withMessage("/signup", "error", "Email, password, and beta invite code are required."));
+  if (!email || !password) redirect(withMessage("/signup", "error", "Email and password are required."));
   if (email.length > 254 || password.length > 256 || inviteCode.length > 200) redirect(withMessage("/signup", "error", "One or more signup fields are too long."));
-  if (inviteCode.length < 12) redirect(withMessage("/signup", "error", "That beta invite code is not valid."));
   if (password.length < 8) redirect(withMessage("/signup", "error", "Use a password with at least 8 characters."));
   if (password !== confirmPassword) redirect(withMessage("/signup", "error", "The passwords do not match."));
 
   let failure = "";
   try {
     const admin = createAdminClient();
-    const inviteHash = createHash("sha256").update(inviteCode).digest("hex");
-    const { data: invite, error: inviteError } = await admin.from("beta_invites")
-      .select("active,max_uses,uses,expires_at,email")
-      .eq("code_hash", inviteHash)
-      .maybeSingle();
-    const inviteExpired = Boolean(invite?.expires_at && new Date(invite.expires_at).getTime() <= Date.now());
-    const wrongEmail = Boolean(invite?.email && String(invite.email).toLowerCase() !== email);
-    if (inviteError || !invite || !invite.active || invite.uses >= invite.max_uses || inviteExpired || wrongEmail) {
-      failure = "That beta invite is invalid, expired, already used, or assigned to another email.";
-    } else {
+    let inviteHash = "";
+    if (inviteCode) {
+      if (inviteCode.length < 12) redirect(withMessage("/signup", "error", "That complimentary-access code is not valid."));
+      inviteHash = createHash("sha256").update(inviteCode).digest("hex");
+      const { data: invite, error: inviteError } = await admin.from("beta_invites")
+        .select("active,max_uses,uses,expires_at,email")
+        .eq("code_hash", inviteHash)
+        .maybeSingle();
+      const inviteExpired = Boolean(invite?.expires_at && new Date(invite.expires_at).getTime() <= Date.now());
+      const wrongEmail = Boolean(invite?.email && String(invite.email).toLowerCase() !== email);
+      if (inviteError || !invite || !invite.active || invite.uses >= invite.max_uses || inviteExpired || wrongEmail) {
+        failure = "That complimentary-access code is invalid, expired, already used, or assigned to another email.";
+      }
+    }
+
+    if (!failure) {
       const supabase = await createClient();
       const origin = await appOrigin();
-      const { data, error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: `${origin}/auth/confirm` } });
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: `${origin}/auth/confirm?next=${inviteCode ? "/dashboard" : "/pricing"}` }
+      });
       if (error || !data.user || data.user.identities?.length === 0) {
         failure = error?.message || "An account with that email may already exist. Try signing in instead.";
-      } else {
+      } else if (inviteCode) {
         const { data: redeemed, error: redeemError } = await admin.rpc("redeem_beta_invite", {
           invite_hash: inviteHash,
           invite_email: email,
@@ -86,7 +92,7 @@ export async function signUp(formData: FormData) {
         });
         if (redeemError || redeemed !== true) {
           await admin.auth.admin.deleteUser(data.user.id);
-          failure = "That beta invite was claimed before signup completed. Ask for a new invite.";
+          failure = "That complimentary-access code was claimed before signup completed. Ask for a new code.";
         }
       }
     }
@@ -152,9 +158,19 @@ export async function deleteAccount(formData: FormData) {
       failure = "Your session expired. Sign in again before deleting the account.";
     } else {
       const admin = createAdminClient();
-      const { error } = await admin.auth.admin.deleteUser(data.user.id);
-      if (error) failure = error.message;
-      else await supabase.auth.signOut();
+      const { data: activeSubscription } = await admin.from("subscriptions")
+        .select("status")
+        .eq("user_id", data.user.id)
+        .in("status", ["active", "trialing", "past_due", "incomplete"])
+        .limit(1)
+        .maybeSingle();
+      if (activeSubscription) {
+        failure = "Cancel your active subscription in Manage Billing before deleting the account.";
+      } else {
+        const { error } = await admin.auth.admin.deleteUser(data.user.id);
+        if (error) failure = error.message;
+        else await supabase.auth.signOut();
+      }
     }
   } catch (error) {
     failure = error instanceof Error ? error.message : "Unable to delete the account.";

@@ -61,10 +61,21 @@ export default function DashboardPage() {
       </div>
 
       <section className="stats-grid">
-        <StatCard label="Record" value={recordLabel(myTeam.wins, myTeam.losses, myTeam.ties)} detail={`${winPct.toFixed(1)}% result rate`} />
-        <StatCard label="Points for" value={myTeam.pointsFor.toFixed(1)} detail={`${(myTeam.pointsFor / Math.max(recordGames, 1)).toFixed(1)} per matchup`} />
-        <StatCard label="Point differential" value={`${pointDiff >= 0 ? "+" : ""}${pointDiff.toFixed(1)}`} detail={`${myTeam.pointsAgainst.toFixed(1)} points against`} />
-        <StatCard label="League format" value={leagueTypeLabel(league.leagueType)} detail={`${league.totalRosters} teams`} />
+        {recordGames === 0 ? (
+          <>
+            <StatCard label="Projected lineup" value={projectedTotal === null ? "Loading" : projectedTotal.toFixed(2)} detail={data ? `Week ${data.projectionWeek} league-scored projection` : "Weekly projections load after connection"} />
+            <StatCard label="Roster size" value={`${myTeam.players.length}`} detail={`${myTeam.starters.length} imported starters`} />
+            <StatCard label="League size" value={`${league.totalRosters} teams`} detail={`${league.rosterPositions.length} configured roster slots`} />
+            <StatCard label="League format" value={leagueTypeLabel(league.leagueType)} detail="Preseason baseline" />
+          </>
+        ) : (
+          <>
+            <StatCard label="Record" value={recordLabel(myTeam.wins, myTeam.losses, myTeam.ties)} detail={`${winPct.toFixed(1)}% result rate`} />
+            <StatCard label="Points for" value={myTeam.pointsFor.toFixed(2)} detail={`${(myTeam.pointsFor / Math.max(recordGames, 1)).toFixed(2)} per matchup`} />
+            <StatCard label="Point differential" value={`${pointDiff >= 0 ? "+" : ""}${pointDiff.toFixed(2)}`} detail={`${myTeam.pointsAgainst.toFixed(2)} points against`} />
+            <StatCard label="League format" value={leagueTypeLabel(league.leagueType)} detail={`${league.totalRosters} teams`} />
+          </>
+        )}
       </section>
 
       {source === "sleeper" && (
@@ -78,10 +89,10 @@ export default function DashboardPage() {
           {data && (
             <>
               <div className="intelligence-metric-grid">
-                <div><span>Optimized lineup</span><strong>{projectedTotal === null ? "N/A" : projectedTotal.toFixed(1)}</strong><small>Projected Week {data.projectionWeek} points</small></div>
-                <div><span>Projection MAE</span><strong>{accuracy?.meanAbsoluteError === null || accuracy?.meanAbsoluteError === undefined ? "N/A" : accuracy.meanAbsoluteError.toFixed(2)}</strong><small>{accuracy?.week ? `Week ${accuracy.week} · ${accuracy.sampleSize} players` : "No completed week yet"}</small></div>
-                <div><span>Within 5 points</span><strong>{accuracy?.withinFivePointsPct === null || accuracy?.withinFivePointsPct === undefined ? "N/A" : `${accuracy.withinFivePointsPct.toFixed(1)}%`}</strong><small>Projection-versus-actual hit rate</small></div>
-                <div><span>Snapshots stored</span><strong>{data.storedWeeks.length}</strong><small>{data.storageStatus === "saved" ? "Weekly history active" : "Database migration required"}</small></div>
+                <div><span>Optimized lineup</span><strong>{projectedTotal === null ? "N/A" : projectedTotal.toFixed(2)}</strong><small>Projected Week {data.projectionWeek} points</small></div>
+                {accuracy?.week ? <div><span>Projection accuracy</span><strong>{accuracy.meanAbsoluteError === null ? "N/A" : `${accuracy.meanAbsoluteError.toFixed(2)} MAE`}</strong><small>Week {accuracy.week} · {accuracy.sampleSize} players</small></div> : <div><span>Projection accuracy</span><strong>Starts after Week 1</strong><small>Actual-stat comparison begins after a completed scoring period</small></div>}
+                {accuracy?.week ? <div><span>Within 5 points</span><strong>{accuracy.withinFivePointsPct === null ? "N/A" : `${accuracy.withinFivePointsPct.toFixed(1)}%`}</strong><small>Projection-versus-actual hit rate</small></div> : <div><span>Projection coverage</span><strong>{Math.round((data.currentSnapshots.filter((snapshot) => snapshot.rostered && snapshot.projectedPoints !== null).length / Math.max(myTeam.players.length, 1)) * 100)}%</strong><small>Rostered players with a current projection</small></div>}
+                <div><span>Last updated</span><strong>{new Date(data.syncedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</strong><small>{data.storageStatus === "saved" ? "Weekly history active" : "Database migration required"}</small></div>
               </div>
               {data.storageStatus === "migration-required" && <div className="connection-message error">Run <strong>supabase/migrations/20260729_player_intelligence.sql</strong> in Supabase to preserve weekly snapshots. Live projections still load, but history will not be saved until the migration is applied.</div>}
               {data.warnings.length > 0 && <div className="intelligence-warning">{data.warnings.join(" ")}</div>}
@@ -103,7 +114,7 @@ export default function DashboardPage() {
                 <div className="move-meta"><span>{recommendation.category}</span><span>{recommendation.impact} impact</span><span>{recommendation.confidence} confidence</span></div>
                 <h3>{recommendation.title}</h3>
                 <p>{recommendation.reason}</p>
-                {recommendation.projectedGain !== null && recommendation.projectedGain !== undefined && <small className="projected-gain">Projected gain: +{recommendation.projectedGain.toFixed(1)} points</small>}
+                {recommendation.projectedGain !== null && recommendation.projectedGain !== undefined && <small className="projected-gain">Projected gain: +{recommendation.projectedGain.toFixed(2)} points</small>}
               </div>
             </article>
           ))}
@@ -119,7 +130,7 @@ export default function DashboardPage() {
         intelligenceError={intelligenceState.error}
       />
 
-      <RosterSnapshot team={myTeam} source={source} intelligence={data} />
+      <RosterSnapshot team={myTeam} league={league} source={source} intelligence={data} />
     </AppShell>
   );
 }

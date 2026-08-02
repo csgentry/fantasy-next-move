@@ -154,7 +154,7 @@ export default function RecordBookPage() {
         <>
           <section className="stats-grid three">
             <div className="stat-card"><span>All-time wins leader</span><strong>{recordStats?.leader?.manager || "—"}</strong><small>{recordStats?.leader ? `${recordStats.leader.wins} wins · ${recordStats.leader.titles} title${recordStats.leader.titles === 1 ? "" : "s"}` : "No completed records"}</small></div>
-            <div className="stat-card"><span>Highest season scoring</span><strong>{recordStats?.highestScoring?.pointsFor.toFixed(1) || "—"}</strong><small>{recordStats?.highestScoring ? `${recordStats.highestScoring.teamName} · ${recordStats.highestScoring.season}` : "No scoring data"}</small></div>
+            <div className="stat-card"><span>Highest season scoring</span><strong>{recordStats?.highestScoring?.pointsFor.toFixed(2) || "—"}</strong><small>{recordStats?.highestScoring ? `${recordStats.highestScoring.teamName} · ${recordStats.highestScoring.season}` : "No scoring data"}</small></div>
             <div className="stat-card"><span>Best regular season</span><strong>{recordStats?.bestSeason ? `${recordStats.bestSeason.wins}-${recordStats.bestSeason.losses}${recordStats.bestSeason.ties ? `-${recordStats.bestSeason.ties}` : ""}` : "—"}</strong><small>{recordStats?.bestSeason ? `${recordStats.bestSeason.teamName} · ${recordStats.bestSeason.season}` : "No standings data"}</small></div>
           </section>
 

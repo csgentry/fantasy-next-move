@@ -40,9 +40,9 @@ find "$TARGET" -name '.DS_Store' -delete 2>/dev/null || true
 chmod +x "$TARGET/INSTALL_COMPLETE_PROJECT.command" 2>/dev/null || true
 
 echo
-echo "FantasyNextMove 1.3C was copied successfully."
+echo "FantasyNextMove 1.3D Launch Candidate was copied successfully."
 echo "Open GitHub Desktop to review, commit, and push the changes."
 echo
-echo "After deployment, run the included Supabase migration and add CRON_SECRET in Vercel."
+echo "After deployment, run the included Supabase billing migration, configure Stripe test mode, add the required Vercel variables, and redeploy."
 echo
 read -r -p "Press Return to close this window..." _

@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.3D
+
+- Added Stripe Checkout, Customer Portal, verified webhooks, subscription synchronization, founding pricing, refunds, reconciliation, and business administration.
+- Added Supabase subscriptions, entitlements, founding reservations, founding members, event tracking, and billing audits.
+- Rebuilt Trade Lab on a 0–10,000 scale with locked league format, multiple-league selection, keeper support, market ranges, ranks, tiers, rookies, picks, and package adjustments.
+- Added a permitted Tradyr composite market signal with attribution and independent fallback values.
+- Added two-decimal fantasy points, one-decimal power indexes, vertical lineup sections, preseason dashboard states, and clearer ranking-tab descriptions.
+- Improved personalized recommendations so league-relative positional strength prevents obvious contradictions.
+
 ## 1.3C
 
 - Added Sleeper weekly projection and actual-stat imports with defensive response normalization.

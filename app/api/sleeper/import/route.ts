@@ -22,7 +22,7 @@ type SleeperLeague = {
   previous_league_id?: string | null;
   settings?: { type?: number; taxi_slots?: number; draft_rounds?: number; [key: string]: unknown };
 };
-type SleeperRoster = { roster_id: number; owner_id: string | null; players?: string[] | null; starters?: string[] | null; settings?: { wins?: number; losses?: number; ties?: number; fpts?: number; fpts_decimal?: number; fpts_against?: number; fpts_against_decimal?: number } };
+type SleeperRoster = { roster_id: number; owner_id: string | null; players?: string[] | null; starters?: string[] | null; reserve?: string[] | null; taxi?: string[] | null; settings?: { wins?: number; losses?: number; ties?: number; fpts?: number; fpts_decimal?: number; fpts_against?: number; fpts_against_decimal?: number } };
 type SleeperTradedPick = { season: string; round: number; roster_id: number; previous_owner_id?: number; owner_id: number };
 type SleeperDraft = { season: string; status: string; settings?: { rounds?: number }; slot_to_roster_id?: Record<string, number | string> | null };
 
@@ -119,7 +119,9 @@ export async function GET(request: NextRequest) {
           pointsFor: decimalPoints(roster.settings?.fpts, roster.settings?.fpts_decimal),
           pointsAgainst: decimalPoints(roster.settings?.fpts_against, roster.settings?.fpts_against_decimal),
           players: roster.players || [],
-          starters: roster.starters || []
+          starters: roster.starters || [],
+          reserve: roster.reserve || [],
+          taxi: roster.taxi || []
         };
       });
       return {

@@ -29,7 +29,7 @@ export function recommendationsFor(team: LeagueTeam, league: ImportedLeague): Re
   if (team.pointsFor < leagueAverage) {
     recs.push({
       title: "Shop for a weekly ceiling upgrade",
-      reason: `Your scoring is ${(leagueAverage - team.pointsFor).toFixed(1)} points below the league average. Package depth for one dependable starter.`,
+      reason: `Your scoring is ${(leagueAverage - team.pointsFor).toFixed(2)} points below the league average. Package depth for one dependable starter.`,
       impact: "High",
       category: "Trade"
     });

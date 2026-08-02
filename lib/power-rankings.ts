@@ -484,7 +484,7 @@ export function buildPowerRankings(
         `Starter strength ranks ${ordinal(starterRanks.get(rosterId) || league.teams.length)} and bench depth ranks ${ordinal(benchRanks.get(rosterId) || league.teams.length)}.`,
         `${strongest} is the roster's strongest position (${ordinal(positional[strongest].rank)}); ${weakest} is the clearest weakness (${ordinal(positional[weakest].rank)}).`,
         item.projectedStarterPoints !== null
-          ? `The optimized lineup projects for ${item.projectedStarterPoints.toFixed(1)} points with ${Math.round(item.projectionCoverage * 100)}% starter projection coverage.`
+          ? `The optimized lineup projects for ${item.projectedStarterPoints.toFixed(2)} points with ${Math.round(item.projectionCoverage * 100)}% starter projection coverage.`
           : "Sleeper weekly projections are not populated for enough starters yet, so roster metadata carries more weight.",
         item.performance.completedWeeks
           ? `The all-play profile is ${(item.performance.allPlayPct * 100).toFixed(1)}%, translating to ${item.performance.expectedWins.toFixed(1)} expected wins versus ${item.team.wins + item.team.ties * 0.5} actual.`
@@ -499,15 +499,15 @@ export function buildPowerRankings(
         pointDiff: item.team.pointsFor - item.team.pointsAgainst,
         powerScore: item.overallRaw,
         rank: overallRank,
-        overallScore: Math.round(indexToBest(item.overallRaw, maxOverall)),
+        overallScore: Number(indexToBest(item.overallRaw, maxOverall).toFixed(1)),
         overallRank,
-        contenderScore: Math.round(indexToBest(item.contenderScore, maxContender)),
+        contenderScore: Number(indexToBest(item.contenderScore, maxContender).toFixed(1)),
         contenderRank: contenderRanks.get(rosterId) || league.teams.length,
-        dynastyScore: Math.round(indexToBest(item.dynastyScore, maxDynasty)),
+        dynastyScore: Number(indexToBest(item.dynastyScore, maxDynasty).toFixed(1)),
         dynastyRank: dynastyRanks.get(rosterId) || league.teams.length,
-        starterScore: Math.round(item.starterScore),
+        starterScore: Number(item.starterScore.toFixed(1)),
         starterRank: starterRanks.get(rosterId) || league.teams.length,
-        benchScore: Math.round(item.benchScore),
+        benchScore: Number(item.benchScore.toFixed(1)),
         benchRank: benchRanks.get(rosterId) || league.teams.length,
         positional,
         allPlayWins: item.performance.allPlayWins,

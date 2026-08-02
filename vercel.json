@@ -4,6 +4,10 @@
     {
       "path": "/api/cron/player-intelligence",
       "schedule": "15 9 * * *"
+    },
+    {
+      "path": "/api/cron/billing-reconcile",
+      "schedule": "45 9 * * *"
     }
   ]
 }

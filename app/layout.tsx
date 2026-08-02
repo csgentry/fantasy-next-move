@@ -6,7 +6,7 @@ import "./cleanup.css";
 
 export const metadata: Metadata = {
   title: "FantasyNextMove",
-  description: "Invite-only fantasy football analysis with league history, locked trade values, and dynasty draft capital."
+  description: "League-aware fantasy football trade analysis, power rankings, lineup intelligence, and record books."
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {

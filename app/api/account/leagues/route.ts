@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import type { ImportedLeague } from "@/lib/types";
+import { getUserEntitlement } from "@/lib/billing/entitlements";
+import { recordProductEvent } from "@/lib/billing/events";
 
 async function authenticated() {
   const supabase = await createClient();
@@ -42,6 +44,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "The imported league exceeds beta storage limits." }, { status: 400 });
     }
     if (!/^\d{4}$/.test(league.season)) return NextResponse.json({ error: "League season must be a four-digit year." }, { status: 400 });
+    const entitlement = await getUserEntitlement(supabase, user.id);
+    const { count: savedCount } = await supabase.from("leagues").select("id", { count: "exact", head: true }).eq("user_id", user.id);
+    const { data: existing } = await supabase.from("leagues").select("id").eq("user_id", user.id).eq("provider", league.provider).eq("provider_league_id", league.leagueId).eq("season", Number(league.season)).maybeSingle();
+    if (!existing && Number(savedCount || 0) >= entitlement.maxConnectedLeagues) {
+      return NextResponse.json({ error: `Your current plan allows ${entitlement.maxConnectedLeagues} connected leagues. Upgrade or remove a league before adding another.` }, { status: 403 });
+    }
     await supabase.from("leagues").update({ is_active: false }).eq("user_id", user.id).eq("is_active", true);
     const { error } = await supabase.from("leagues").upsert({
       user_id: user.id,
@@ -55,6 +63,7 @@ export async function POST(request: NextRequest) {
       synced_at: new Date().toISOString()
     }, { onConflict: "user_id,provider,provider_league_id,season" });
     if (error) throw error;
+    await recordProductEvent({ userId: user.id, eventName: "league_connected", properties: { provider: league.provider, leagueType: league.leagueType, totalRosters: league.totalRosters } });
     return NextResponse.json({ saved: true });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to save the league." }, { status: 500 });

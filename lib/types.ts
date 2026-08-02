@@ -49,6 +49,8 @@ export type LeagueTeam = {
   rank?: number | null;
   players: string[];
   starters: string[];
+  reserve?: string[];
+  taxi?: string[];
   playerProfiles?: Record<string, PlayerProfile>;
 };
 

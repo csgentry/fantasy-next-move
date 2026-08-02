@@ -1,43 +1,36 @@
-# FantasyNextMove 1.3C complete replacement package
+# FantasyNextMove 1.3D complete replacement package
 
-This archive contains the entire FantasyNextMove project with Release 1.3C already installed. It is not a partial patch.
+This archive contains the entire FantasyNextMove project with the 1.3D Launch Candidate already installed. It is not a partial patch.
 
 ## Install without manual merging
 
-On Mac, double-click `INSTALL_COMPLETE_PROJECT.command` and choose the existing `fantasy-next-move` folder used by GitHub Desktop.
+Double-click `INSTALL_COMPLETE_PROJECT.command` on Mac and choose the existing `fantasy-next-move` repository folder used by GitHub Desktop.
 
-The installer:
+The installer verifies the correct repository, refuses to overwrite uncommitted work, preserves `.git`, local environment files, Vercel metadata, `node_modules`, and `.next`, and replaces the complete tracked project.
 
-- Verifies the selected folder is connected to `csgentry/fantasy-next-move`
-- Refuses to run when uncommitted changes are present
-- Preserves the hidden `.git` repository connection
-- Preserves local environment files, Vercel metadata, `node_modules`, and `.next`
-- Replaces the complete tracked project contents in one operation
-
-After installation, use `GITHUB_DESKTOP_1.3C.md` for the exact commit Summary and Description.
+Use `GITHUB_DESKTOP_1.3D.md` for the exact commit text.
 
 ## Included
 
-- Beta Admin and invite-only authentication
-- Sleeper league import, saved leagues, and historical Record Book
-- Yahoo Coming Soon state
-- League-wide Power Rankings Engine
-- Sleeper weekly projections and actual player statistics
-- League-specific fantasy scoring
-- Weekly account-owned player snapshot history
-- Projection accuracy tracking
-- Projection-aware Trade Lab values
-- Personalized lineup, waiver, trade-target, and sell-high recommendations
-- Secured daily Vercel snapshot job
+- Two-decimal fantasy points and one-decimal ranking indexes
+- Vertical starters, bench, taxi, and injured-reserve lineup
+- Overall Power, Win Now, and Dynasty Future context
+- Preseason-aware dashboard and improved roster recommendations
+- League-locked Redraft, Keeper, and Dynasty Trade Lab 2.0
+- Multiple saved-league selector
+- 0–10,000 values, ranks, tiers, ranges, confidence, rookies, picks, and package adjustments
+- Permitted Tradyr composite market signal with visible attribution and independent fallback
+- Stripe Checkout, Customer Portal, verified webhooks, founding pricing, refunds, and reconciliation
+- Supabase subscription, entitlement, founding-member, audit, event, and refund tracking
+- FantasyNextMove Admin business dashboard
+- Paid league limits and server-side feature enforcement
+- Separate public `/demo` experience with real Dashboard and history routes restricted to All Access
+- Existing complimentary beta access preservation
 
 ## Required after deployment
 
-1. Run `supabase/migrations/20260729_player_intelligence.sql` in Supabase SQL Editor.
-2. Add `CRON_SECRET` to Vercel Production using a random value of at least 16 characters.
-3. Redeploy after adding the variable.
-
-Existing required Vercel Production variable:
-
-```text
-FNM_ADMIN_EMAILS=csgentry@outlook.com
-```
+1. Run `COPY_PASTE_SQL_1.3D.sql` in Supabase SQL Editor.
+2. Follow `BILLING_SETUP_1.3D.md` in Stripe Test mode.
+3. Add the new Vercel variables listed in `.env.example`.
+4. Redeploy Production.
+5. Complete the Test-mode purchase and refund checklist before using live Stripe keys.

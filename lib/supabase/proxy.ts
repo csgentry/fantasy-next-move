@@ -1,18 +1,26 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const betaRequiredPrefixes = [
+const tradeLabPrefixes = [
   "/connect",
   "/leagues",
   "/trade-lab",
-  "/record-book",
   "/api/account",
+  "/api/market",
   "/api/sleeper",
   "/api/yahoo"
 ];
 
-const authenticationOnlyPrefixes = ["/account"];
-
+const allAccessPrefixes = [
+  "/dashboard",
+  "/record-book",
+  "/api/account/history",
+  "/api/sleeper/history",
+  "/api/sleeper/power-data",
+  "/api/yahoo/history"
+];
+const authenticationOnlyPrefixes = ["/account", "/billing/success", "/api/billing"];
+const publicApiPrefixes = ["/api/stripe/webhook", "/api/cron"];
 const browserNavigationApis = new Set(["/api/yahoo/connect", "/api/yahoo/callback"]);
 
 function matchesPrefix(pathname: string, prefixes: string[]) {
@@ -32,21 +40,35 @@ function applySession<T extends NextResponse>(target: T, sessionResponse: NextRe
   return target;
 }
 
+function deniedResponse(request: NextRequest, response: NextResponse, message: string) {
+  if (isJsonApi(request.nextUrl.pathname)) {
+    return applySession(NextResponse.json({ error: message, upgradeRequired: true }, { status: 402 }), response);
+  }
+  const pricing = request.nextUrl.clone();
+  pricing.pathname = "/pricing";
+  pricing.search = "";
+  pricing.searchParams.set("message", message);
+  return applySession(NextResponse.redirect(pricing), response);
+}
+
 export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
-  const betaRequired = matchesPrefix(pathname, betaRequiredPrefixes);
+  if (matchesPrefix(pathname, publicApiPrefixes)) return NextResponse.next({ request });
+
+  const tradeLabRequired = matchesPrefix(pathname, tradeLabPrefixes);
+  const allAccessRequired = matchesPrefix(pathname, allAccessPrefixes);
   const authenticationOnly = matchesPrefix(pathname, authenticationOnlyPrefixes);
-  const protectedRoute = betaRequired || authenticationOnly;
+  const protectedRoute = tradeLabRequired || allAccessRequired || authenticationOnly;
   const jsonApi = isJsonApi(pathname);
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
   if (!url || !key) {
     if (!protectedRoute) return NextResponse.next({ request });
-    if (jsonApi) return NextResponse.json({ error: "Beta login is not configured yet." }, { status: 503 });
+    if (jsonApi) return NextResponse.json({ error: "Login is not configured yet." }, { status: 503 });
     const login = request.nextUrl.clone();
     login.pathname = "/login";
-    login.searchParams.set("error", "Beta login is not configured yet.");
+    login.searchParams.set("error", "Login is not configured yet.");
     return NextResponse.redirect(login);
   }
 
@@ -75,15 +97,20 @@ export async function updateSession(request: NextRequest) {
     return applySession(NextResponse.redirect(login), response);
   }
 
-  if (betaRequired && user) {
-    const { data: profile } = await supabase.from("profiles").select("beta_access").eq("id", user.id).maybeSingle();
-    if (!profile?.beta_access) {
-      if (jsonApi) return applySession(NextResponse.json({ error: "Private beta access is required." }, { status: 403 }), response);
-      const pending = request.nextUrl.clone();
-      pending.pathname = "/pending";
-      pending.search = "";
-      return applySession(NextResponse.redirect(pending), response);
-    }
+  if ((tradeLabRequired || allAccessRequired) && user) {
+    const [{ data: profile }, { data: entitlement }] = await Promise.all([
+      supabase.from("profiles").select("beta_access").eq("id", user.id).maybeSingle(),
+      supabase.from("entitlements")
+        .select("access_level,trade_lab_access,all_access,valid_until")
+        .eq("user_id", user.id)
+        .maybeSingle()
+    ]);
+    const unexpired = !entitlement?.valid_until || new Date(entitlement.valid_until).getTime() > Date.now();
+    const beta = Boolean(profile?.beta_access);
+    const tradeAccess = beta || (unexpired && Boolean(entitlement?.trade_lab_access || entitlement?.all_access || entitlement?.access_level === "admin"));
+    const allAccess = beta || (unexpired && Boolean(entitlement?.all_access || entitlement?.access_level === "admin"));
+    if (allAccessRequired && !allAccess) return deniedResponse(request, response, "All Access is required for this feature.");
+    if (tradeLabRequired && !tradeAccess) return deniedResponse(request, response, "A Trade Lab or All Access subscription is required to connect real leagues.");
   }
 
   return response;
