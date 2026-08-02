@@ -132,3 +132,10 @@ Test this exact sequence:
 ## 9. Yahoo note
 
 Keep the existing Yahoo environment variables. Yahoo OAuth tokens are encrypted with `FNM_COOKIE_SECRET` and stored in the server-only `provider_credentials` table so the connection can follow the signed-in account. Yahoo Fantasy data will still show the approval-pending message until Yahoo grants Fantasy Sports API access.
+
+
+## Release 1.3C upgrade
+
+For an existing Supabase project, run `supabase/migrations/20260729_player_intelligence.sql` once in SQL Editor. This adds the user-owned `player_weekly_snapshots` table used for Sleeper projections, actual stats, and accuracy history.
+
+Add `CRON_SECRET` to Vercel Production using a random value of at least 16 characters, then redeploy so Vercel's daily scheduled sync can authenticate to `/api/cron/player-intelligence`.

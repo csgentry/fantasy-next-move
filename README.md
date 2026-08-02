@@ -8,6 +8,9 @@ FantasyNextMove is an invite-only fantasy-football analysis beta built with the 
 - Invite-code account creation, email confirmation, login, password reset, logout, and account deletion
 - Administrator-only Beta Admin dashboard for creating, reviewing, copying, and expiring email-bound invite codes
 - League-wide Power Rankings Engine with starter strength, bench depth, positional grades, all-play records, expected wins, luck, contender and dynasty views, ranking movement, and explanations
+- Sleeper weekly projections and actual player statistics recalculated under each connected league's scoring settings
+- Weekly player snapshot history and projection-versus-actual accuracy tracking
+- Projection-aware optimized lineups, Trade Lab values, and personalized lineup, waiver, trade-target, and sell-high recommendations
 - Server-protected real-league pages and APIs
 - Account-owned connected leagues and historical record books stored in Supabase; real league data is no longer persisted in browser local storage
 - My Leagues library for reopening saved leagues on another device
@@ -48,9 +51,17 @@ YAHOO_CLIENT_SECRET=
 YAHOO_REDIRECT_URI=
 FNM_COOKIE_SECRET=
 ENABLE_YAHOO_CONNECT=false
+CRON_SECRET=
 ```
 
-`SUPABASE_SERVICE_ROLE_KEY`, `YAHOO_CLIENT_SECRET`, and `FNM_COOKIE_SECRET` are server-only secrets. Keep `ENABLE_YAHOO_CONNECT=false` until Yahoo Fantasy Sports API approval is complete. Never prefix them with `NEXT_PUBLIC_`, commit them to GitHub, paste them into client code, or share them in screenshots.
+`SUPABASE_SERVICE_ROLE_KEY`, `YAHOO_CLIENT_SECRET`, `FNM_COOKIE_SECRET`, and `CRON_SECRET` are server-only secrets. Keep `ENABLE_YAHOO_CONNECT=false` until Yahoo Fantasy Sports API approval is complete. Never prefix them with `NEXT_PUBLIC_`, commit them to GitHub, paste them into client code, or share them in screenshots.
+
+
+## Release 1.3C database and scheduled-sync setup
+
+Existing Supabase projects must run `supabase/migrations/20260729_player_intelligence.sql` once. New projects can run the complete `supabase/schema.sql`.
+
+Add `CRON_SECRET` to Vercel Production with a random value of at least 16 characters, then redeploy. Opening a Sleeper league also performs an authenticated on-demand refresh; the secured daily job preserves weekly history for active leagues.
 
 ## Validation commands
 
@@ -80,6 +91,8 @@ The model is experimental and is not a licensed consensus market-value feed.
 
 ## Current limitations
 
+- Sleeper projection and actual-stat feeds must be live-validated when the NFL season begins.
+- Projections are estimates and do not guarantee player performance.
 - Yahoo Fantasy data remains blocked until Yahoo approves the application for Fantasy Sports API access.
 - Yahoo draft-pick support depends on what Yahoo exposes after approval; picks are never invented.
 - No payments are collected during the private beta.

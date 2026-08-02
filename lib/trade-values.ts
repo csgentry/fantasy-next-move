@@ -1,4 +1,4 @@
-import type { DraftPickAsset, LeagueTeam, PlayerProfile } from "./types";
+import type { DraftPickAsset, LeagueTeam, PlayerProfile, PlayerWeeklySnapshot } from "./types";
 
 export type TradeFormat = "redraft" | "dynasty";
 export type ValueConfidence = "High" | "Medium" | "Limited";
@@ -13,10 +13,18 @@ export type TradeValueResult = {
   value: number;
   confidence: ValueConfidence;
   position: string;
+  projectedPoints: number | null;
+  recentActualPoints: number | null;
+  productionAdjustment: number;
 };
 
 const REDRAFT_BASE: Record<string, number> = { QB: 27, RB: 34, WR: 33, TE: 26, K: 4, DEF: 5, DST: 5 };
 const DYNASTY_BASE: Record<string, number> = { QB: 31, RB: 30, WR: 35, TE: 29, K: 2, DEF: 2, DST: 2 };
+const WEEKLY_BASELINE: Record<string, number> = { QB: 18, RB: 10.5, WR: 10.5, TE: 8, K: 7, DEF: 7, DST: 7 };
+
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
+}
 
 export function normalizePosition(position: string | null | undefined) {
   const first = (position || "—").split(/[,/]/)[0]?.trim().toUpperCase() || "—";
@@ -61,18 +69,47 @@ function statusAdjustment(status: string | null, format: TradeFormat) {
   return format === "redraft" ? -2 : -1;
 }
 
-export function tradeValueForPlayer(profile: PlayerProfile, starter: boolean, format: TradeFormat, context: TradeValueContext): TradeValueResult {
+function weeklyProductionAdjustment(position: string, format: TradeFormat, snapshot?: PlayerWeeklySnapshot) {
+  const projection = snapshot?.projectedPoints;
+  if (projection === null || projection === undefined) return 0;
+  const baseline = WEEKLY_BASELINE[position] ?? 8;
+  const weight = format === "redraft" ? 2.15 : 1.1;
+  let adjustment = clamp((projection - baseline) * weight, -16, format === "redraft" ? 31 : 18);
+  if (snapshot?.recentError !== null && snapshot?.recentError !== undefined) {
+    adjustment += clamp(snapshot.recentError * (format === "redraft" ? 0.16 : 0.08), -3, 3);
+  }
+  return Math.round(adjustment);
+}
+
+export function tradeValueForPlayer(
+  profile: PlayerProfile,
+  starter: boolean,
+  format: TradeFormat,
+  context: TradeValueContext,
+  snapshot?: PlayerWeeklySnapshot
+): TradeValueResult {
   const position = normalizePosition(profile.position);
   const base = (format === "dynasty" ? DYNASTY_BASE : REDRAFT_BASE)[position] ?? 13;
-  let value = base + rankAdjustment(profile.searchRank) + (starter ? (format === "redraft" ? 9 : 7) : 0) + statusAdjustment(profile.status, format);
+  const productionAdjustment = weeklyProductionAdjustment(position, format, snapshot);
+  let value = base + rankAdjustment(profile.searchRank) + (starter ? (format === "redraft" ? 9 : 7) : 0) + statusAdjustment(profile.status, format) + productionAdjustment;
   if (format === "dynasty") {
     value += dynastyAgeAdjustment(position, profile.age);
     if (profile.yearsExperience !== null && profile.yearsExperience !== undefined && profile.yearsExperience <= 1) value += 3;
   }
   if (position === "QB" && isSuperflex(context.rosterPositions)) value += format === "dynasty" ? 17 : 14;
   if (position === "TE" && isTightEndPremium(context.scoringSettings)) value += 5;
-  const confidence: ValueConfidence = profile.searchRank && profile.age ? "High" : profile.searchRank || profile.age ? "Medium" : "Limited";
-  return { value: Math.max(1, Math.min(100, Math.round(value))), confidence, position };
+
+  const hasProjection = snapshot?.projectedPoints !== null && snapshot?.projectedPoints !== undefined;
+  const hasProfileSignal = Boolean(profile.searchRank || profile.age);
+  const confidence: ValueConfidence = hasProjection && hasProfileSignal ? "High" : hasProjection || hasProfileSignal ? "Medium" : "Limited";
+  return {
+    value: Math.max(1, Math.min(100, Math.round(value))),
+    confidence,
+    position,
+    projectedPoints: snapshot?.projectedPoints ?? null,
+    recentActualPoints: snapshot?.previousActualPoints ?? null,
+    productionAdjustment
+  };
 }
 
 export function projectedPickTier(originalTeam: LeagueTeam | undefined, teams: LeagueTeam[]): PickTier {

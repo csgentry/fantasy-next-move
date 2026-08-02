@@ -11,6 +11,9 @@ The current build is an invite-only beta. Complete these items before opening pu
 - Create high-entropy, single-use invite codes.
 - Run `npm run typecheck`, `npm run lint`, and `npm run build` in CI for every change.
 - Test two separate accounts and confirm neither can read or alter the other account's leagues or history.
+- Run `supabase/migrations/20260729_player_intelligence.sql` on existing Supabase projects.
+- Add a high-entropy `CRON_SECRET` to Vercel Production and confirm the daily player-intelligence job authenticates successfully.
+- Verify weekly projection and actual-stat imports against live Sleeper data and several custom scoring formats.
 
 ## 2. Authentication and abuse prevention
 
@@ -31,6 +34,8 @@ The current build is an invite-only beta. Complete these items before opening pu
 
 ## 4. Dynasty and Trade Lab validation
 
+- Validate projection snapshots, actual-stat snapshots, error metrics, and week rollover behavior.
+- Validate optimized-lineup and player-recommendation outputs against several real leagues.
 - Validate Sleeper pick ownership against several real dynasty leagues, including multi-step pick trades.
 - Validate completed-draft handling so spent picks do not remain available.
 - Add model versioning and value timestamps.

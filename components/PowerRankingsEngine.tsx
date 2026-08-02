@@ -9,7 +9,13 @@ import {
   type PowerPosition,
   type PowerRankingTeam
 } from "@/lib/power-rankings";
-import type { ImportedLeague, LeagueProvider, PlayerProfile, WeeklyTeamScore } from "@/lib/types";
+import type {
+  ImportedLeague,
+  LeagueProvider,
+  PlayerIntelligencePayload,
+  PlayerProfile,
+  WeeklyTeamScore
+} from "@/lib/types";
 
 const POSITIONS: PowerPosition[] = ["QB", "RB", "WR", "TE"];
 
@@ -70,19 +76,18 @@ function demoProfiles(league: ImportedLeague) {
 function demoWeeklyScores(league: ImportedLeague): WeeklyTeamScore[] {
   const weeks = Math.max(...league.teams.map((team) => team.wins + team.losses + team.ties), 0);
   if (!weeks) return [];
-  return Array.from({ length: weeks }, (_, weekIndex) => {
-    return league.teams.map((team, teamIndex) => {
+  return Array.from({ length: weeks }, (_, weekIndex) =>
+    league.teams.map((team, teamIndex) => {
       const average = team.pointsFor / weeks;
       const wave = Math.sin((weekIndex + 1) * (teamIndex + 2) * 0.71) * 11;
-      const matchupId = Math.floor(teamIndex / 2) + 1;
       return {
         week: weekIndex + 1,
         rosterId: team.rosterId,
-        matchupId,
+        matchupId: Math.floor(teamIndex / 2) + 1,
         points: Math.max(40, Number((average + wave).toFixed(2)))
       } satisfies WeeklyTeamScore;
-    });
-  }).flat();
+    })
+  ).flat();
 }
 
 function MetricCard({ label, value, detail }: { label: string; value: string; detail: string }) {
@@ -98,89 +103,48 @@ function MetricCard({ label, value, detail }: { label: string; value: string; de
 export function PowerRankingsEngine({
   league,
   source,
-  myRosterId
+  myRosterId,
+  intelligence,
+  intelligenceLoading = false,
+  intelligenceError = ""
 }: {
   league: ImportedLeague;
   source: LeagueProvider;
   myRosterId: number;
+  intelligence?: PlayerIntelligencePayload | null;
+  intelligenceLoading?: boolean;
+  intelligenceError?: string;
 }) {
-  const initialProfiles = useMemo(() => source === "demo" ? demoProfiles(league) : embeddedProfiles(league), [league, source]);
-  const initialScores = useMemo(() => source === "demo" ? demoWeeklyScores(league) : league.weeklyScores || [], [league, source]);
-  const [profiles, setProfiles] = useState<Record<string, PlayerProfile>>(initialProfiles);
-  const [weeklyScores, setWeeklyScores] = useState<WeeklyTeamScore[]>(initialScores);
+  const profiles = useMemo(() => {
+    if (source === "demo") return demoProfiles(league);
+    return { ...embeddedProfiles(league), ...(intelligence?.profiles || {}) };
+  }, [intelligence?.profiles, league, source]);
+  const weeklyScores = useMemo(() => {
+    if (source === "demo") return demoWeeklyScores(league);
+    return intelligence?.weeklyScores || league.weeklyScores || [];
+  }, [intelligence?.weeklyScores, league, source]);
+  const snapshots = intelligence?.currentSnapshots || [];
   const [selectedRosterId, setSelectedRosterId] = useState(myRosterId);
   const [lens, setLens] = useState<PowerLens>("overall");
-  const [loading, setLoading] = useState(source === "sleeper");
-  const [dataNote, setDataNote] = useState("");
 
   useEffect(() => {
-    setProfiles(initialProfiles);
-    setWeeklyScores(initialScores);
     setSelectedRosterId(myRosterId);
     setLens("overall");
-  }, [initialProfiles, initialScores, league.leagueId, myRosterId]);
+  }, [league.leagueId, myRosterId]);
 
-  useEffect(() => {
-    if (source !== "sleeper") {
-      setLoading(false);
-      return;
-    }
-
-    const controller = new AbortController();
-    let cancelled = false;
-    const ids = [...new Set(league.teams.flatMap((team) => team.players))].slice(0, 500);
-    setLoading(true);
-    setDataNote("");
-
-    Promise.allSettled([
-      fetch("/api/sleeper/players", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids }),
-        signal: controller.signal
-      }).then(async (response) => {
-        const payload = await response.json();
-        if (!response.ok) throw new Error(payload.error || "Unable to load league player data.");
-        return payload as { players: Record<string, PlayerProfile> };
-      }),
-      fetch(`/api/sleeper/power-data?leagueId=${encodeURIComponent(league.leagueId)}`, {
-        cache: "no-store",
-        signal: controller.signal
-      }).then(async (response) => {
-        const payload = await response.json();
-        if (!response.ok) throw new Error(payload.error || "Unable to load weekly matchup data.");
-        return payload as { weeklyScores: WeeklyTeamScore[]; completedWeek: number };
-      })
-    ]).then(([playerResult, scoreResult]) => {
-      if (cancelled) return;
-      const notes: string[] = [];
-      if (playerResult.status === "fulfilled") {
-        setProfiles({ ...embeddedProfiles(league), ...playerResult.value.players });
-      } else if (!(playerResult.reason instanceof DOMException && playerResult.reason.name === "AbortError")) {
-        notes.push(playerResult.reason instanceof Error ? playerResult.reason.message : "Player data is partially unavailable.");
-      }
-      if (scoreResult.status === "fulfilled") {
-        setWeeklyScores(scoreResult.value.weeklyScores || []);
-      } else if (!(scoreResult.reason instanceof DOMException && scoreResult.reason.name === "AbortError")) {
-        notes.push(scoreResult.reason instanceof Error ? scoreResult.reason.message : "Weekly matchup data is partially unavailable.");
-      }
-      setDataNote(notes.join(" "));
-    }).finally(() => {
-      if (!cancelled) setLoading(false);
-    });
-
-    return () => {
-      cancelled = true;
-      controller.abort();
-    };
-  }, [league, source]);
-
-  const rankings = useMemo(() => buildPowerRankings(league, profiles, weeklyScores), [league, profiles, weeklyScores]);
+  const rankings = useMemo(
+    () => buildPowerRankings(league, profiles, weeklyScores, snapshots),
+    [league, profiles, snapshots, weeklyScores]
+  );
   const sorted = useMemo(() => rankingsForLens(rankings, lens), [rankings, lens]);
   const selected = rankings.find((team) => team.rosterId === selectedRosterId) || rankings[0];
   const dynastyAvailable = league.leagueType === "dynasty" || league.leagueType === "keeper";
-
   if (!selected) return null;
+
+  const warnings = intelligence?.warnings || [];
+  const statusText = intelligenceLoading
+    ? "Loading Sleeper projections, player stats, and weekly matchups…"
+    : intelligenceError || warnings[0] || "";
 
   return (
     <section className="panel power-engine">
@@ -197,23 +161,13 @@ export function PowerRankingsEngine({
         </div>
       </div>
 
-      {(loading || dataNote) && (
-        <div className="power-data-status">
-          {loading ? "Loading complete roster and weekly matchup data…" : dataNote}
-        </div>
-      )}
+      {statusText && <div className={`power-data-status${intelligenceError ? " error" : ""}`}>{statusText}</div>}
 
       <div className="power-analyzer-layout">
         <div className="power-table-wrap">
           <div className="power-table" role="table" aria-label={`${lens} power rankings`}>
             <div className="power-table-head" role="row">
-              <span>Rank</span>
-              <span>Team</span>
-              <span>Score</span>
-              <span>Move</span>
-              <span>All-play</span>
-              <span>Exp W</span>
-              <span>Luck</span>
+              <span>Rank</span><span>Team</span><span>Score</span><span>Move</span><span>Proj</span><span>Exp W</span><span>Luck</span>
             </div>
             {sorted.map((team) => {
               const movement = movementLabel(team);
@@ -227,13 +181,10 @@ export function PowerRankingsEngine({
                   type="button"
                 >
                   <strong>#{lensRank(team, lens)}</strong>
-                  <span className="power-team-cell">
-                    <b>{team.teamName}</b>
-                    <small>{team.ownerName}{isMine ? " · Your team" : ""}</small>
-                  </span>
+                  <span className="power-team-cell"><b>{team.teamName}</b><small>{team.ownerName}{isMine ? " · Your team" : ""}</small></span>
                   <span className="power-score-cell">{lensScore(team, lens)}</span>
                   <span className={`power-movement ${movement.className}`}>{movement.text}</span>
-                  <span>{allPlayLabel(team)}</span>
+                  <span>{team.projectedStarterPoints === null ? "—" : team.projectedStarterPoints.toFixed(1)}</span>
                   <span>{team.expectedWins.toFixed(1)}</span>
                   <span className={team.luckRating > 0.55 ? "luck-positive" : team.luckRating < -0.55 ? "luck-negative" : ""}>
                     {team.luckRating >= 0 ? "+" : ""}{team.luckRating.toFixed(1)}
@@ -246,19 +197,12 @@ export function PowerRankingsEngine({
 
         <aside className="power-inspector">
           <div className="power-inspector-title">
-            <div>
-              <span className="eyebrow">Why this rank</span>
-              <h3>{selected.teamName}</h3>
-              <p>{selected.ownerName} · {recordLabel(selected.wins, selected.losses, selected.ties)}</p>
-            </div>
-            <div className="power-rank-badge">
-              <span>Overall</span>
-              <strong>#{selected.overallRank}</strong>
-              <small>{selected.overallScore}/100</small>
-            </div>
+            <div><span className="eyebrow">Why this rank</span><h3>{selected.teamName}</h3><p>{selected.ownerName} · {recordLabel(selected.wins, selected.losses, selected.ties)}</p></div>
+            <div className="power-rank-badge"><span>Overall</span><strong>#{selected.overallRank}</strong><small>{selected.overallScore}/100</small></div>
           </div>
 
           <div className="power-metric-grid">
+            <MetricCard label="Projected lineup" value={selected.projectedStarterPoints === null ? "N/A" : selected.projectedStarterPoints.toFixed(1)} detail={`${Math.round(selected.projectionCoverage * 100)}% projection coverage`} />
             <MetricCard label="Starters" value={`${selected.starterScore}`} detail={`#${selected.starterRank} in league`} />
             <MetricCard label="Bench" value={`${selected.benchScore}`} detail={`#${selected.benchRank} in league`} />
             <MetricCard label="Contender" value={`#${selected.contenderRank}`} detail={`${selected.contenderScore}/100`} />
@@ -266,18 +210,14 @@ export function PowerRankingsEngine({
           </div>
 
           <div className="position-analysis">
-            <div className="subsection-heading">
-              <strong>Positional grades</strong>
-              <span>Indexed against the league leader</span>
-            </div>
+            <div className="subsection-heading"><strong>Positional grades</strong><span>Indexed against the league leader</span></div>
             {POSITIONS.map((position) => {
               const metric = selected.positional[position];
               return (
                 <div className="position-grade-row" key={position}>
                   <strong>{position}</strong>
                   <div className="position-grade-track"><i style={{ width: `${Math.max(4, metric.score)}%` }} /></div>
-                  <span>{metric.grade}</span>
-                  <small>#{metric.rank}</small>
+                  <span>{metric.grade}</span><small>#{metric.rank}</small>
                 </div>
               );
             })}
@@ -292,15 +232,13 @@ export function PowerRankingsEngine({
 
           <div className="rank-explanations">
             <div className="subsection-heading"><strong>Ranking explanation</strong><span>League context, not private advice</span></div>
-            {selected.explanations.map((explanation, index) => (
-              <p key={explanation}><span>{index + 1}</span>{explanation}</p>
-            ))}
+            {selected.explanations.map((explanation, index) => <p key={explanation}><span>{index + 1}</span>{explanation}</p>)}
           </div>
         </aside>
       </div>
 
       <p className="power-method-note">
-        Scores are relative to this league. Personalized Next Moves remain limited to the connected user&apos;s roster, while league-wide rankings and roster explanations are visible for every team.
+        Sleeper projections are recalculated under this league&apos;s scoring settings. Personalized Next Moves remain limited to the connected user&apos;s roster, while league-wide rankings and explanations are visible for every team.
       </p>
     </section>
   );

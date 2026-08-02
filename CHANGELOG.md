@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3C
+
+- Added Sleeper weekly projection and actual-stat imports with defensive response normalization.
+- Added league-specific fantasy scoring using each connected league's scoring settings.
+- Added account-owned weekly player snapshot storage, projection-accuracy tracking, and a secured daily sync job.
+- Integrated projections and recent production into Power Rankings, optimized lineups, Trade Lab values, and personalized player recommendations.
+
 ## 1.3B
 
 - Added a complete league-wide Power Rankings Engine with starter strength, bench depth, positional grades, all-play records, expected wins, luck ratings, contender rankings, dynasty rankings, weekly movement, and explanations.

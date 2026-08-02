@@ -31,15 +31,18 @@ rsync -a --delete \
   --exclude='.vercel' \
   --exclude='node_modules' \
   --exclude='.next' \
-  --exclude='INSTALL_COMPLETE_PROJECT.command' \
   --exclude='validation-stubs.d.ts' \
   --exclude='tsconfig.tsbuildinfo' \
   "$SCRIPT_DIR/" "$TARGET/"
 
 find "$TARGET" -name '.DS_Store' -delete 2>/dev/null || true
 
+chmod +x "$TARGET/INSTALL_COMPLETE_PROJECT.command" 2>/dev/null || true
+
 echo
-echo "FantasyNextMove 1.3B was copied successfully."
+echo "FantasyNextMove 1.3C was copied successfully."
 echo "Open GitHub Desktop to review, commit, and push the changes."
+echo
+echo "After deployment, run the included Supabase migration and add CRON_SECRET in Vercel."
 echo
 read -r -p "Press Return to close this window..." _

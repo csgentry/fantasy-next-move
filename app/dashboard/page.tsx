@@ -5,7 +5,13 @@ import { useSelectedLeague } from "@/components/LeaguePicker";
 import { PowerRankingsEngine } from "@/components/PowerRankingsEngine";
 import { RosterSnapshot } from "@/components/RosterSnapshot";
 import { StatCard } from "@/components/StatCard";
+import { usePlayerIntelligence } from "@/components/usePlayerIntelligence";
 import { recommendationsFor } from "@/lib/analysis";
+import {
+  buildPersonalizedPlayerRecommendations,
+  projectedTeamTotal
+} from "@/lib/player-intelligence";
+import type { PlayerRecommendation } from "@/lib/types";
 
 function leagueTypeLabel(type: "redraft" | "keeper" | "dynasty" | undefined) {
   if (type === "dynasty") return "Dynasty";
@@ -19,54 +25,39 @@ function recordLabel(wins: number, losses: number, ties: number) {
 
 export default function DashboardPage() {
   const { league, source, teamRosterId, resetLeague, hydrated } = useSelectedLeague();
+  const intelligenceState = usePlayerIntelligence(league, source);
 
   if (!hydrated) {
-    return (
-      <AppShell>
-        <div className="panel empty-state">
-          <strong>Loading your league…</strong>
-        </div>
-      </AppShell>
-    );
+    return <AppShell><div className="panel empty-state"><strong>Loading your league…</strong></div></AppShell>;
   }
 
   const ownerRosterId = league.userRosterId ?? teamRosterId;
   const myTeam = league.teams.find((team) => team.rosterId === ownerRosterId) ?? league.teams[0];
-
   if (!myTeam) {
-    return (
-      <AppShell>
-        <div className="panel empty-state">
-          <strong>No rosters found.</strong>
-          <p>Reconnect the league after rosters have been created.</p>
-        </div>
-      </AppShell>
-    );
+    return <AppShell><div className="panel empty-state"><strong>No rosters found.</strong><p>Reconnect the league after rosters have been created.</p></div></AppShell>;
   }
 
-  const recs = recommendationsFor(myTeam, league);
+  const data = intelligenceState.data;
+  const genericRecommendations = recommendationsFor(myTeam, league).map((recommendation, index) => ({
+    ...recommendation,
+    id: `fallback:${index}`,
+    confidence: "Limited" as const
+  }));
+  const recommendations: PlayerRecommendation[] = data
+    ? buildPersonalizedPlayerRecommendations(league, myTeam, data)
+    : genericRecommendations;
   const recordGames = myTeam.wins + myTeam.losses + myTeam.ties;
   const winPct = ((myTeam.wins + myTeam.ties * 0.5) / Math.max(recordGames, 1)) * 100;
   const pointDiff = myTeam.pointsFor - myTeam.pointsAgainst;
+  const projectedTotal = data ? projectedTeamTotal(myTeam, league, data) : null;
+  const accuracy = data?.accuracy;
 
   return (
     <AppShell>
-      {source === "demo" && (
-        <div className="connection-message demo-notice">
-          <strong>Sample data:</strong> This is a fictional league used to preview the app. Connect a league to analyze your real roster.
-        </div>
-      )}
-
+      {source === "demo" && <div className="connection-message demo-notice"><strong>Sample data:</strong> This is a fictional league used to preview the app. Connect a league to analyze your real roster.</div>}
       <div className="page-heading">
-        <div>
-          <span className="eyebrow">{source === "demo" ? "Sample league" : `${source} league`}</span>
-          <h1>{league.name}</h1>
-          <p>{league.season} season command center · {leagueTypeLabel(league.leagueType)}</p>
-        </div>
-        <div className="source-actions">
-          <div className="pill">Data source: {source === "demo" ? "Sample" : source === "yahoo" ? "Yahoo" : "Sleeper"}</div>
-          {source !== "demo" && <button className="text-button" onClick={resetLeague}>Close league</button>}
-        </div>
+        <div><span className="eyebrow">{source === "demo" ? "Sample league" : `${source} league`}</span><h1>{league.name}</h1><p>{league.season} season command center · {leagueTypeLabel(league.leagueType)}</p></div>
+        <div className="source-actions"><div className="pill">Data source: {source === "demo" ? "Sample" : source === "yahoo" ? "Yahoo" : "Sleeper"}</div>{source !== "demo" && <button className="text-button" onClick={resetLeague}>Close league</button>}</div>
       </div>
 
       <section className="stats-grid">
@@ -76,31 +67,59 @@ export default function DashboardPage() {
         <StatCard label="League format" value={leagueTypeLabel(league.leagueType)} detail={`${league.totalRosters} teams`} />
       </section>
 
+      {source === "sleeper" && (
+        <section className="panel intelligence-summary-panel">
+          <div className="panel-heading">
+            <div><span className="eyebrow">Sleeper Player Intelligence</span><h2>{data ? `Week ${data.projectionWeek} projection center` : "Loading weekly player data"}</h2></div>
+            <span className="pill">League-specific scoring</span>
+          </div>
+          {intelligenceState.error && <div className="connection-message error">{intelligenceState.error}</div>}
+          {intelligenceState.loading && <div className="connection-message">Importing Sleeper projections, actual stats, and weekly history…</div>}
+          {data && (
+            <>
+              <div className="intelligence-metric-grid">
+                <div><span>Optimized lineup</span><strong>{projectedTotal === null ? "N/A" : projectedTotal.toFixed(1)}</strong><small>Projected Week {data.projectionWeek} points</small></div>
+                <div><span>Projection MAE</span><strong>{accuracy?.meanAbsoluteError === null || accuracy?.meanAbsoluteError === undefined ? "N/A" : accuracy.meanAbsoluteError.toFixed(2)}</strong><small>{accuracy?.week ? `Week ${accuracy.week} · ${accuracy.sampleSize} players` : "No completed week yet"}</small></div>
+                <div><span>Within 5 points</span><strong>{accuracy?.withinFivePointsPct === null || accuracy?.withinFivePointsPct === undefined ? "N/A" : `${accuracy.withinFivePointsPct.toFixed(1)}%`}</strong><small>Projection-versus-actual hit rate</small></div>
+                <div><span>Snapshots stored</span><strong>{data.storedWeeks.length}</strong><small>{data.storageStatus === "saved" ? "Weekly history active" : "Database migration required"}</small></div>
+              </div>
+              {data.storageStatus === "migration-required" && <div className="connection-message error">Run <strong>supabase/migrations/20260729_player_intelligence.sql</strong> in Supabase to preserve weekly snapshots. Live projections still load, but history will not be saved until the migration is applied.</div>}
+              {data.warnings.length > 0 && <div className="intelligence-warning">{data.warnings.join(" ")}</div>}
+            </>
+          )}
+        </section>
+      )}
+
       <section className="panel next-moves dashboard-priority-panel">
         <div className="panel-heading">
-          <div>
-            <span className="eyebrow">Your priority board</span>
-            <h2>{myTeam.teamName}&apos;s Next Moves</h2>
-          </div>
+          <div><span className="eyebrow">Your priority board</span><h2>{myTeam.teamName}&apos;s Next Moves</h2></div>
           <span className="pill">Your roster only</span>
         </div>
         <div className="priority-grid">
-          {recs.map((rec, index) => (
-            <article className="move-card" key={rec.title}>
+          {recommendations.map((recommendation, index) => (
+            <article className="move-card intelligence-move-card" key={recommendation.id}>
               <div className="move-number">{index + 1}</div>
               <div>
-                <div className="move-meta"><span>{rec.category}</span><span>{rec.impact} impact</span></div>
-                <h3>{rec.title}</h3>
-                <p>{rec.reason}</p>
+                <div className="move-meta"><span>{recommendation.category}</span><span>{recommendation.impact} impact</span><span>{recommendation.confidence} confidence</span></div>
+                <h3>{recommendation.title}</h3>
+                <p>{recommendation.reason}</p>
+                {recommendation.projectedGain !== null && recommendation.projectedGain !== undefined && <small className="projected-gain">Projected gain: +{recommendation.projectedGain.toFixed(1)} points</small>}
               </div>
             </article>
           ))}
         </div>
       </section>
 
-      <PowerRankingsEngine league={league} source={source} myRosterId={myTeam.rosterId} />
+      <PowerRankingsEngine
+        league={league}
+        source={source}
+        myRosterId={myTeam.rosterId}
+        intelligence={data}
+        intelligenceLoading={intelligenceState.loading}
+        intelligenceError={intelligenceState.error}
+      />
 
-      <RosterSnapshot team={myTeam} source={source} />
+      <RosterSnapshot team={myTeam} source={source} intelligence={data} />
     </AppShell>
   );
 }

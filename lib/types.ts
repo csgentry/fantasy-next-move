@@ -11,6 +11,9 @@ export type PlayerProfile = {
   age?: number | null;
   yearsExperience?: number | null;
   searchRank?: number | null;
+  depthChartPosition?: number | null;
+  injuryStatus?: string | null;
+  practiceParticipation?: string | null;
 };
 
 export type DraftPickAsset = {
@@ -119,3 +122,82 @@ export type LeagueHistoryPayload = {
   warnings?: string[];
 };
 
+export type NumericStatLine = Record<string, number>;
+
+export type FantasyScoringContribution = {
+  key: string;
+  label: string;
+  statValue: number;
+  multiplier: number;
+  points: number;
+};
+
+export type FantasyScoreResult = {
+  total: number;
+  contributions: FantasyScoringContribution[];
+};
+
+export type PlayerWeeklySnapshot = {
+  playerId: string;
+  playerName: string;
+  season: number;
+  week: number;
+  seasonType: string;
+  position: string;
+  nflTeam: string | null;
+  rosterId: number | null;
+  rostered: boolean;
+  starter: boolean;
+  projectionStats: NumericStatLine;
+  actualStats: NumericStatLine;
+  projectedPoints: number | null;
+  actualPoints: number | null;
+  projectionError: number | null;
+  absoluteError: number | null;
+  previousProjectedPoints?: number | null;
+  previousActualPoints?: number | null;
+  recentError?: number | null;
+  syncedAt: string;
+};
+
+export type ProjectionAccuracy = {
+  week: number | null;
+  sampleSize: number;
+  meanAbsoluteError: number | null;
+  rootMeanSquaredError: number | null;
+  bias: number | null;
+  withinThreePointsPct: number | null;
+  withinFivePointsPct: number | null;
+};
+
+export type PlayerIntelligencePayload = {
+  provider: "sleeper";
+  leagueId: string;
+  season: number;
+  projectionWeek: number;
+  latestCompletedWeek: number;
+  seasonType: string;
+  profiles: Record<string, PlayerProfile>;
+  currentSnapshots: PlayerWeeklySnapshot[];
+  accuracySnapshots: PlayerWeeklySnapshot[];
+  weeklyScores: WeeklyTeamScore[];
+  accuracy: ProjectionAccuracy;
+  storedWeeks: number[];
+  storageStatus: "saved" | "migration-required" | "unavailable";
+  syncedAt: string;
+  warnings: string[];
+};
+
+export type PlayerRecommendation = {
+  id: string;
+  title: string;
+  reason: string;
+  category: "Lineup" | "Waiver" | "Trade" | "Strategy";
+  impact: "High" | "Medium" | "Low";
+  confidence: "High" | "Medium" | "Limited";
+  playerId?: string;
+  playerName?: string;
+  projectedGain?: number | null;
+  targetRosterId?: number | null;
+  targetTeamName?: string | null;
+};

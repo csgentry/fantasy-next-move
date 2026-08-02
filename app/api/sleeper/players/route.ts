@@ -15,6 +15,9 @@ type SleeperPlayer = {
   age?: number | null;
   years_exp?: number | null;
   search_rank?: number | null;
+  depth_chart_position?: number | null;
+  injury_status?: string | null;
+  practice_participation?: string | null;
 };
 
 export async function POST(request: NextRequest) {
@@ -55,7 +58,10 @@ export async function POST(request: NextRequest) {
         status: player.status || null,
         age: Number.isFinite(player.age) ? player.age ?? null : null,
         yearsExperience: Number.isFinite(player.years_exp) ? player.years_exp ?? null : null,
-        searchRank: Number.isFinite(player.search_rank) ? player.search_rank ?? null : null
+        searchRank: Number.isFinite(player.search_rank) ? player.search_rank ?? null : null,
+        depthChartPosition: Number.isFinite(player.depth_chart_position) ? player.depth_chart_position ?? null : null,
+        injuryStatus: player.injury_status || null,
+        practiceParticipation: player.practice_participation || null
       };
       return result;
     }, {});

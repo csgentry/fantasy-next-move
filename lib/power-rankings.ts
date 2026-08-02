@@ -3,6 +3,7 @@ import type {
   ImportedLeague,
   LeagueTeam,
   PlayerProfile,
+  PlayerWeeklySnapshot,
   WeeklyTeamScore
 } from "./types";
 
@@ -43,6 +44,8 @@ export type PowerRankingTeam = LeagueTeam & {
   confidence: PowerConfidence;
   playerCoverage: number;
   completedWeeks: number;
+  projectedStarterPoints: number | null;
+  projectionCoverage: number;
 };
 
 const POWER_POSITIONS: PowerPosition[] = ["QB", "RB", "WR", "TE"];
@@ -88,7 +91,12 @@ function ageAdjustment(position: string, age: number | null | undefined) {
   return 0;
 }
 
-function playerRating(profile: PlayerProfile | undefined, league: ImportedLeague, dynasty: boolean) {
+function playerRating(
+  profile: PlayerProfile | undefined,
+  league: ImportedLeague,
+  dynasty: boolean,
+  snapshot?: PlayerWeeklySnapshot
+) {
   if (!profile) return 18;
   const position = normalizePosition(profile.position);
   const rank = profile.searchRank && profile.searchRank > 0 ? profile.searchRank : null;
@@ -98,6 +106,12 @@ function playerRating(profile: PlayerProfile | undefined, league: ImportedLeague
   if (position === "TE" && isTightEndPremium(league)) score += 6;
   if (position === "K" || position === "DEF") score = Math.min(score, 30);
   score += statusPenalty(profile.status, dynasty);
+
+  const projected = snapshot?.projectedPoints;
+  if (projected !== null && projected !== undefined) {
+    const production = clamp(projected * 4.25, 5, 108);
+    score = dynasty ? score * 0.62 + production * 0.38 : score * 0.28 + production * 0.72;
+  }
 
   if (dynasty) {
     score += ageAdjustment(position, profile.age);
@@ -135,12 +149,14 @@ function optimizeLineup(
   team: LeagueTeam,
   league: ImportedLeague,
   profiles: Record<string, PlayerProfile>,
-  dynasty: boolean
+  dynasty: boolean,
+  snapshots: Map<string, PlayerWeeklySnapshot>
 ) {
   const candidates = teamProfiles(team, profiles).map((item) => ({
     ...item,
     position: normalizePosition(item.profile?.position),
-    value: playerRating(item.profile, league, dynasty)
+    value: playerRating(item.profile, league, dynasty, snapshots.get(item.playerId)),
+    projectedPoints: snapshots.get(item.playerId)?.projectedPoints ?? null
   }));
   const used = new Set<string>();
   const starters: typeof candidates = [];
@@ -353,16 +369,18 @@ function confidenceFor(coverage: number, completedWeeks: number) : PowerConfiden
 export function buildPowerRankings(
   league: ImportedLeague,
   profiles: Record<string, PlayerProfile>,
-  weeklyScores: WeeklyTeamScore[] = []
+  weeklyScores: WeeklyTeamScore[] = [],
+  playerSnapshots: PlayerWeeklySnapshot[] = []
 ): PowerRankingTeam[] {
+  const snapshotMap = new Map(playerSnapshots.map((snapshot) => [snapshot.playerId, snapshot]));
   const currentPerformance = performanceMetrics(league.teams, weeklyScores, true);
   const lastCompletedWeek = weeklyScores.reduce((max, score) => Math.max(max, score.week), 0);
   const previousScores = lastCompletedWeek > 1 ? weeklyScores.filter((score) => score.week < lastCompletedWeek) : [];
   const previousPerformance = performanceMetrics(league.teams, previousScores, false);
 
   const raw = league.teams.map((team) => {
-    const redraftLineup = optimizeLineup(team, league, profiles, false);
-    const dynastyLineup = optimizeLineup(team, league, profiles, true);
+    const redraftLineup = optimizeLineup(team, league, profiles, false, snapshotMap);
+    const dynastyLineup = optimizeLineup(team, league, profiles, true, snapshotMap);
     const embeddedProfiles = Object.keys(team.playerProfiles || {}).length;
     const covered = team.players.filter((playerId) => Boolean(team.playerProfiles?.[playerId] || profiles[playerId])).length;
     const playerCoverage = team.players.length ? Math.max(covered, embeddedProfiles) / team.players.length : 0;
@@ -381,7 +399,13 @@ export function buildPowerRankings(
       dynastyBenchRaw: benchRaw(dynastyLineup),
       positionsRaw: Object.fromEntries(POWER_POSITIONS.map((position) => [position, positionRaw(redraftLineup, position)])) as Record<PowerPosition, number>,
       draftCapital,
-      playerCoverage
+      playerCoverage,
+      projectedStarterPoints: redraftLineup.starters.some((player) => player.projectedPoints !== null)
+        ? redraftLineup.starters.reduce((sum, player) => sum + (player.projectedPoints || 0), 0)
+        : null,
+      projectionCoverage: redraftLineup.starters.length
+        ? redraftLineup.starters.filter((player) => player.projectedPoints !== null).length / redraftLineup.starters.length
+        : 0
     };
   });
 
@@ -459,6 +483,9 @@ export function buildPowerRankings(
       const explanations = [
         `Starter strength ranks ${ordinal(starterRanks.get(rosterId) || league.teams.length)} and bench depth ranks ${ordinal(benchRanks.get(rosterId) || league.teams.length)}.`,
         `${strongest} is the roster's strongest position (${ordinal(positional[strongest].rank)}); ${weakest} is the clearest weakness (${ordinal(positional[weakest].rank)}).`,
+        item.projectedStarterPoints !== null
+          ? `The optimized lineup projects for ${item.projectedStarterPoints.toFixed(1)} points with ${Math.round(item.projectionCoverage * 100)}% starter projection coverage.`
+          : "Sleeper weekly projections are not populated for enough starters yet, so roster metadata carries more weight.",
         item.performance.completedWeeks
           ? `The all-play profile is ${(item.performance.allPlayPct * 100).toFixed(1)}%, translating to ${item.performance.expectedWins.toFixed(1)} expected wins versus ${item.team.wins + item.team.ties * 0.5} actual.`
           : "Weekly matchup data is not available yet, so the ranking leans more heavily on roster construction and season totals.",
@@ -495,7 +522,9 @@ export function buildPowerRankings(
         explanations,
         confidence: confidenceFor(item.playerCoverage, item.performance.completedWeeks),
         playerCoverage: item.playerCoverage,
-        completedWeeks: item.performance.completedWeeks
+        completedWeeks: item.performance.completedWeeks,
+        projectedStarterPoints: item.projectedStarterPoints === null ? null : Math.round(item.projectedStarterPoints * 10) / 10,
+        projectionCoverage: item.projectionCoverage
       } satisfies PowerRankingTeam;
     })
     .sort((a, b) => a.overallRank - b.overallRank);
