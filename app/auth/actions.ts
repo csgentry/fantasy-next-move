@@ -1,5 +1,6 @@
 "use server";
 
+import {recordProductEvent} from "@/lib/billing/events";
 import { createHash } from "node:crypto";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -58,9 +59,9 @@ export async function signUp(formData: FormData) {
 
   let failure = "";
   try {
-    const admin = createAdminClient();
+    const admin = inviteCode ? createAdminClient() : null;
     let inviteHash = "";
-    if (inviteCode) {
+    if (inviteCode && admin) {
       if (inviteCode.length < 12) redirect(withMessage("/signup", "error", "That complimentary-access code is not valid."));
       inviteHash = createHash("sha256").update(inviteCode).digest("hex");
       const { data: invite, error: inviteError } = await admin.from("beta_invites")
@@ -80,11 +81,11 @@ export async function signUp(formData: FormData) {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: { emailRedirectTo: `${origin}/auth/confirm?next=${inviteCode ? "/dashboard" : "/pricing"}` }
+        options: { emailRedirectTo: `${origin}/auth/confirm?next=/connect` }
       });
       if (error || !data.user || data.user.identities?.length === 0) {
         failure = error?.message || "An account with that email may already exist. Try signing in instead.";
-      } else if (inviteCode) {
+      } else if (inviteCode && admin) {
         const { data: redeemed, error: redeemError } = await admin.rpc("redeem_beta_invite", {
           invite_hash: inviteHash,
           invite_email: email,
@@ -95,6 +96,7 @@ export async function signUp(formData: FormData) {
           failure = "That complimentary-access code was claimed before signup completed. Ask for a new code.";
         }
       }
+      if(!failure) await recordProductEvent({userId:data.user?.id,eventName:"signup_completed"});
     }
   } catch (error) {
     failure = error instanceof Error ? error.message : "Unable to create the account.";
@@ -167,6 +169,7 @@ export async function deleteAccount(formData: FormData) {
       if (activeSubscription) {
         failure = "Cancel your active subscription in Manage Billing before deleting the account.";
       } else {
+        await supabase.auth.signOut({ scope: "global" });
         const { error } = await admin.auth.admin.deleteUser(data.user.id);
         if (error) failure = error.message;
         else await supabase.auth.signOut();
@@ -177,4 +180,24 @@ export async function deleteAccount(formData: FormData) {
   }
   if (failure) redirect(withMessage("/account", "error", failure));
   redirect(withMessage("/", "message", "Your FantasyNextMove account and stored beta data were deleted."));
+}
+
+export async function disconnectSleeper(formData: FormData) {
+  if(value(formData,"confirmation")!=="DISCONNECT")redirect(withMessage("/account","error","Confirm Sleeper disconnection."));
+  const supabase=await createClient();
+  const {data}=await supabase.auth.getUser();
+  if(!data.user)redirect("/login?next=/account");
+  let failed=false;
+  try {
+    const admin=createAdminClient();
+    // Weekly snapshot storage is Sleeper-only; every operation is account scoped.
+    const snapshots=await admin.from("player_weekly_snapshots").delete().eq("user_id",data.user.id);
+    if(snapshots.error)throw snapshots.error;
+    for(const table of ["league_histories","leagues","connected_accounts"]){
+      const result=await admin.from(table).delete().eq("user_id",data.user.id).eq("provider","sleeper");
+      if(result.error)throw result.error;
+    }
+  }catch{failed=true;}
+  if(failed)redirect(withMessage("/account","error","We couldn’t finish removing the Sleeper data. Try again or contact support."));
+  redirect(withMessage("/account","message","Sleeper disconnected and stored Sleeper league data removed."));
 }

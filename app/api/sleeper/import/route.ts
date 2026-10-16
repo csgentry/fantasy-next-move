@@ -81,9 +81,10 @@ function buildDraftPicks(league: SleeperLeague, teams: LeagueTeam[], traded: Sle
   return assets;
 }
 
-export async function GET(request: NextRequest) {
-  const username = request.nextUrl.searchParams.get("username")?.trim();
-  const season = request.nextUrl.searchParams.get("season")?.trim() || String(new Date().getFullYear());
+export async function POST(request: NextRequest) {
+  const body = await request.json().catch(() => ({})) as {username?:unknown;season?:unknown};
+  const username = typeof body.username === "string" ? body.username.trim() : "";
+  const season = typeof body.season === "string" ? body.season.trim() : String(new Date().getFullYear());
   if (!username) return NextResponse.json({ error: "A Sleeper username is required." }, { status: 400 });
   if (username.length > 80) return NextResponse.json({ error: "Sleeper username is too long." }, { status: 400 });
   if (!/^\d{4}$/.test(season)) return NextResponse.json({ error: "Season must be a four-digit year." }, { status: 400 });
@@ -156,6 +157,6 @@ export async function GET(request: NextRequest) {
       leagues: normalized
     });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to reach Sleeper." }, { status: 502 });
+    return NextResponse.json({ error: "We couldn’t refresh your Sleeper leagues. No saved league was changed. Try again shortly." }, { status: 502 });
   }
 }

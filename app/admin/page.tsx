@@ -49,7 +49,7 @@ export default async function AdminPage() {
     admin.from("refund_requests").select("id,user_id,reason,eligible,status,amount,requested_at").order("requested_at", { ascending: false }).limit(100),
     admin.from("founding_members").select("user_id", { count: "exact", head: true }),
     admin.from("leagues").select("id", { count: "exact", head: true }),
-    admin.from("product_events").select("id", { count: "exact", head: true }).gte("created_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()),
+    admin.from("product_events").select("id", { count: "exact", head: true }).gte("created_at", new Date(new Date().getTime() - 7 * 24 * 60 * 60 * 1000).toISOString()),
     admin.auth.admin.listUsers({ page: 1, perPage: 1000 })
   ]);
 

@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  if (!code || !state || !expectedState || state !== expectedState) {
+  if (!code || !state || !expectedState || !expectedState.endsWith(`:${state}`)) {
     return NextResponse.redirect(
       new URL(
         "/connect?yahoo_error=Yahoo%20authorization%20could%20not%20be%20verified.",
@@ -46,6 +46,8 @@ export async function GET(request: NextRequest) {
         new URL("/login?next=/connect", request.nextUrl.origin)
       );
     }
+
+    if (expectedState !== `${data.user.id}:${state}`) return NextResponse.redirect(new URL("/connect?yahoo_error=Account%20changed.%20Reconnect%20Yahoo.", request.nextUrl.origin));
 
     const token = await exchangeYahooCode(
       code,

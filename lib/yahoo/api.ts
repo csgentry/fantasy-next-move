@@ -1,3 +1,4 @@
+import { fetchWithBackoff } from "./retry";
 import { XMLParser } from "fast-xml-parser";
 import type { ImportedLeague, LeagueTeam, PlayerProfile } from "@/lib/types";
 import type { YahooToken } from "./auth";
@@ -92,7 +93,7 @@ function uniqueBy<T>(items: T[], selector: (item: T) => string) {
 }
 
 export async function yahooFantasyFetch(path: string, token: YahooToken) {
-  const response = await fetch(`${API}${path}`, {
+  const response = await fetchWithBackoff(`${API}${path}`, {
     headers: {
       Authorization: `Bearer ${token.accessToken}`,
       Accept: "application/xml"

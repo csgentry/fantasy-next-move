@@ -39,6 +39,7 @@ function roundTo(value: number, step = 5) {
 }
 
 export function normalizePosition(position: string | null | undefined) {
+  if (["D/ST", "DST", "DEF"].includes((position || "").trim().toUpperCase())) return "DEF";
   const first = (position || "—").split(/[,/]/)[0]?.trim().toUpperCase() || "—";
   return first === "D/ST" ? "DEF" : first;
 }
@@ -145,10 +146,10 @@ export function tradeValueForPlayer(
   if (position === "TE" && isTightEndPremium(context.scoringSettings)) value += format === "redraft" ? 450 : 650;
 
   const hasProjection = snapshot?.projectedPoints !== null && snapshot?.projectedPoints !== undefined;
-  const hasProfileSignal = Boolean(profile.searchRank || profile.age || profile.yearsExperience !== null);
+  const hasProfileSignal = Boolean(profile.searchRank || profile.age || (profile.yearsExperience !== null && profile.yearsExperience !== undefined));
   const hasMarketSignal = Boolean(market?.value);
   const confidence: ValueConfidence = hasMarketSignal && (hasProjection || hasProfileSignal) ? "High" : hasMarketSignal || hasProjection || hasProfileSignal ? "Medium" : "Limited";
-  const lockedValue = roundTo(clamp(value, 1, 9995));
+  const lockedValue = Math.max(5, roundTo(clamp(value, 1, 9995)));
   const range = rangeFor(lockedValue, confidence);
   return {
     value: lockedValue,

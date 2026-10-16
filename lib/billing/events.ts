@@ -9,12 +9,14 @@ export async function recordProductEvent(input: {
 }) {
   try {
     const admin = createAdminClient();
-    await admin.from("product_events").insert({
+    const {error} = await admin.from("product_events").insert({
       user_id: input.userId || null,
       event_name: input.eventName,
       properties: input.properties || {}
     });
+    return !error;
   } catch {
+    return false;
     // Analytics must never break a product action.
   }
 }

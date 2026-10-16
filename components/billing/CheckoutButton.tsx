@@ -1,9 +1,11 @@
 "use client";
 
+import {useRouter} from "next/navigation";
 import { useState } from "react";
 import type { BillingInterval, BillingPlan } from "@/lib/billing/config";
 
 export function CheckoutButton({ plan, interval, label }: { plan: BillingPlan; interval: BillingInterval; label: string }) {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   async function checkout() {
@@ -17,7 +19,7 @@ export function CheckoutButton({ plan, interval, label }: { plan: BillingPlan; i
       });
       const payload = await response.json().catch(() => ({}));
       if (response.status === 401) {
-        window.location.href = `/login?next=${encodeURIComponent(`/pricing?plan=${plan}&interval=${interval}`)}`;
+        router.push(`/login?next=${encodeURIComponent(`/pricing?plan=${plan}&interval=${interval}`)}`);
         return;
       }
       if (!response.ok || !payload.url) throw new Error(payload.error || "Unable to start checkout.");

@@ -5,3 +5,7 @@ node_modules
 .DS_Store
 npm-debug.log*
 tsconfig.tsbuildinfo
+
+# Browser verification output
+test-results/
+playwright-report/

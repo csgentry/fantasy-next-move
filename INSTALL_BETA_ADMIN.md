@@ -16,7 +16,7 @@ This folder is the complete FantasyNextMove project, not a partial patch.
 Add this variable to **Production** only:
 
 ```text
-FNM_ADMIN_EMAILS=csgentry@outlook.com
+FNM_ADMIN_EMAILS=admin@example.com
 ```
 
 - Sensitive: off

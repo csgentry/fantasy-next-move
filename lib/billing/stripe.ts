@@ -29,6 +29,7 @@ export async function stripeRequest<T>(
 ): Promise<T> {
   const secret = process.env.STRIPE_SECRET_KEY;
   if (!secret) throw new Error("Stripe is not configured.");
+  if (!secret.startsWith("sk_test_") && !secret.startsWith("rk_test_")) throw new Error("Live billing is disabled pending explicit launch authorization.");
   const method = options.method || "GET";
   const params = new URLSearchParams();
   appendParams(params, options.params || {});

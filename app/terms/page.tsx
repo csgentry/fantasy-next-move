@@ -7,7 +7,7 @@ export default function TermsPage() {
       <article className="panel legal-page">
         <span className="eyebrow">Service terms</span>
         <h1>FantasyNextMove Terms</h1>
-        <p className="legal-updated">Last updated August 2, 2026</p>
+        <p className="legal-updated">Draft for professional review · October 16, 2026</p>
 
         <h2>Account access</h2>
         <p>You are responsible for keeping your account credentials private and for activity performed through your account. Do not share paid access, attempt to access another user&apos;s league data, or bypass subscription controls.</p>

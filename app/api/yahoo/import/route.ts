@@ -1,9 +1,11 @@
+import { yahooConnectionEnabled } from "@/lib/yahoo/availability";
 import { NextRequest, NextResponse } from "next/server";
 import { getValidYahooToken } from "@/lib/yahoo/auth";
 import { importYahooSeason, yahooUserInfo } from "@/lib/yahoo/api";
 import { createClient } from "@/lib/supabase/server";
 
 export async function GET(request: NextRequest) {
+  if (!yahooConnectionEnabled()) return NextResponse.json({error: "Yahoo integration is awaiting activation and contract review."}, {status: 503, headers: {"Cache-Control": "private, no-store"}});
   const season = request.nextUrl.searchParams.get("season")?.trim() || String(new Date().getFullYear());
   if (!/^\d{4}$/.test(season)) return NextResponse.json({ error: "Season must be a four-digit year." }, { status: 400 });
 
@@ -24,7 +26,7 @@ export async function GET(request: NextRequest) {
       },
       season,
       leagues
-    });
+    }, {headers: {"Cache-Control": "private, no-store"}});
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to import Yahoo leagues." }, { status: 502 });
   }

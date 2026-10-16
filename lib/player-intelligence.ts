@@ -397,7 +397,8 @@ export function buildPersonalizedPlayerRecommendations(
     });
   }
 
-  return recommendations.slice(0, 4);
+  const impactWeight = { High: 3, Medium: 2, Low: 1 };
+  return recommendations.sort((a, b) => impactWeight[b.impact] - impactWeight[a.impact] || (b.projectedGain ?? 0) - (a.projectedGain ?? 0)).slice(0, 4);
 }
 
 export function projectedTeamTotal(

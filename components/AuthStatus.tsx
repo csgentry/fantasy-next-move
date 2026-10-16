@@ -9,20 +9,21 @@ export function AuthStatus({ compact = false }: { compact?: boolean }) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    try {
-      const supabase = createClient();
-      supabase.auth.getUser().then(({ data }) => {
-        setEmail(data.user?.email || null);
-        setReady(true);
-      }).catch(() => setReady(true));
-      const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-        setEmail(session?.user.email || null);
-        setReady(true);
-      });
-      return () => listener.subscription.unsubscribe();
-    } catch {
-      setReady(true);
+    let cancelled = false;
+    let unsubscribe: (() => void) | undefined;
+    async function initialize() {
+      try {
+        const supabase = createClient();
+        const {data:listener} = supabase.auth.onAuthStateChange((_event,session) => {
+          if (!cancelled) {setEmail(session?.user.email || null);setReady(true);}
+        });
+        unsubscribe = () => listener.subscription.unsubscribe();
+        const {data} = await supabase.auth.getUser();
+        if (!cancelled) {setEmail(data.user?.email || null);setReady(true);}
+      } catch {if(!cancelled) setReady(true);}
     }
+    void initialize();
+    return () => {cancelled=true;unsubscribe?.();};
   }, []);
 
   if (!ready) return <span className="auth-status-placeholder">Checking account…</span>;

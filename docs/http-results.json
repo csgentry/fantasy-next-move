@@ -1,0 +1,36 @@
+[
+  {
+    "route": "/",
+    "status": 200,
+    "location": null
+  },
+  {
+    "route": "/demo",
+    "status": 200,
+    "location": null
+  },
+  {
+    "route": "/pricing",
+    "status": 200,
+    "location": null
+  },
+  {
+    "route": "/dashboard",
+    "status": 307,
+    "location": "/login?next=%2Fdashboard"
+  },
+  {
+    "route": "/team",
+    "status": 307,
+    "location": "/login?next=%2Fteam"
+  },
+  {
+    "route": "/api/account/leagues",
+    "status": 401,
+    "location": null
+  },
+  {
+    "route": "cross-origin mutation",
+    "status": 403
+  }
+]

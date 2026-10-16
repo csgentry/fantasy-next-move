@@ -40,56 +40,23 @@ export function RosterSnapshot({
   source: LeagueProvider;
   intelligence?: PlayerIntelligencePayload | null;
 }) {
-  const [playersById, setPlayersById] = useState<Record<string, PlayerProfile>>(
-    intelligence?.profiles || team.playerProfiles || {}
-  );
-  const [loading, setLoading] = useState(source === "sleeper" && !intelligence);
-  const [error, setError] = useState("");
-
+  const requestKey = `${source}:${team.rosterId}:${team.players.join(",")}`;
+  const [remote, setRemote] = useState<{key:string;players:Record<string,PlayerProfile>;error:string}|null>(null);
+  const needsFetch = source === "sleeper" && !intelligence;
+  const current = remote?.key === requestKey ? remote : null;
+  const playersById = useMemo(() => ({...(team.playerProfiles || {}), ...(intelligence?.profiles || (needsFetch ? current?.players : {}) || {})}), [team.playerProfiles, intelligence, needsFetch, current]);
+  const loading = needsFetch && !current;
+  const error = current?.error || "";
   useEffect(() => {
-    if (intelligence) {
-      setPlayersById({ ...(team.playerProfiles || {}), ...intelligence.profiles });
-      setLoading(false);
-      setError("");
-      return;
-    }
-    if (source === "yahoo") {
-      setPlayersById(team.playerProfiles || {});
-      setLoading(false);
-      setError("");
-      return;
-    }
-    if (source !== "sleeper") {
-      setLoading(false);
-      setError("");
-      setPlayersById({});
-      return;
-    }
-
+    if (!needsFetch) return;
     const controller = new AbortController();
-    const ids = team.players.slice(0, 120);
-    setLoading(true);
-    setError("");
-    fetch("/api/sleeper/players", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ids }),
-      signal: controller.signal
-    })
-      .then(async (response) => {
-        const payload = await response.json();
-        if (!response.ok) throw new Error(payload.error || "Unable to load player names.");
-        return payload as { players: Record<string, PlayerProfile> };
-      })
-      .then((payload) => setPlayersById(payload.players))
-      .catch((requestError) => {
-        if (requestError instanceof DOMException && requestError.name === "AbortError") return;
-        setError(requestError instanceof Error ? requestError.message : "Unable to load player names.");
-      })
-      .finally(() => setLoading(false));
-
-    return () => controller.abort();
-  }, [intelligence, source, team.playerProfiles, team.players, team.rosterId]);
+    let cancelled = false;
+    fetch("/api/sleeper/players", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ids:team.players.slice(0,120)}), signal:controller.signal})
+      .then(async response => {const payload = await response.json(); if (!response.ok) throw Error(payload.error || "Unable to load player names."); return payload as {players:Record<string,PlayerProfile>};})
+      .then(payload => {if(!cancelled) setRemote({key:requestKey, players:payload.players, error:""});})
+      .catch(error => {if(!cancelled) setRemote({key:requestKey, players:{}, error:error instanceof Error ? error.message : "Unable to load player names."});});
+    return () => {cancelled=true; controller.abort();};
+  }, [needsFetch, requestKey, team.players]);
 
   const snapshotMap = useMemo(
     () => new Map((intelligence?.currentSnapshots || []).map((snapshot) => [snapshot.playerId, snapshot])),
@@ -136,7 +103,7 @@ export function RosterSnapshot({
 
   const lowestStarterProjection = Math.min(...groups.starters.map((row) => row.projectedPoints ?? Number.POSITIVE_INFINITY));
 
-  function LineupSection({ title, rows }: { title: string; rows: ReturnType<typeof playerRow>[] }) {
+  function renderLineupSection({ title, rows }: { title: string; rows: ReturnType<typeof playerRow>[] }) {
     if (!rows.length) return null;
     return (
       <div className="lineup-section">
@@ -180,7 +147,7 @@ export function RosterSnapshot({
       {error && <div className="roster-state error">{error}</div>}
       {!loading && !totalPlayers && <div className="roster-state">No roster data is available yet.</div>}
 
-      {!!totalPlayers && <div className="vertical-lineup"><LineupSection title="Starting lineup" rows={groups.starters} /><LineupSection title="Bench" rows={groups.bench} /><LineupSection title="Taxi squad" rows={groups.taxi} /><LineupSection title="Injured reserve" rows={groups.reserve} /></div>}
+      {!!totalPlayers && <div className="vertical-lineup">{renderLineupSection({title: "Starting lineup", rows: groups.starters})}{renderLineupSection({title: "Bench", rows: groups.bench})}{renderLineupSection({title: "Taxi squad", rows: groups.taxi})}{renderLineupSection({title: "Injured reserve", rows: groups.reserve})}</div>}
     </section>
   );
 }

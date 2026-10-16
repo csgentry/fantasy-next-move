@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { PortalButton } from "@/components/billing/PortalButton";
 import { RefundRequest } from "@/components/billing/RefundRequest";
-import { deleteAccount, signOut } from "@/app/auth/actions";
+import { deleteAccount, disconnectSleeper, signOut } from "@/app/auth/actions";
 import { getUserEntitlement } from "@/lib/billing/entitlements";
 import { PLAN_NAMES, type BillingPlan } from "@/lib/billing/config";
 import { isAdminEmail } from "@/lib/admin";
@@ -57,7 +57,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
   const error = typeof params.error === "string" ? params.error : "";
   const message = typeof params.message === "string" ? params.message : "";
   const showAdmin = isAdminEmail(data.user.email);
-  const planName = entitlement.accessLevel === "admin" ? "Administrator" : entitlement.accessLevel === "all_access" ? "All Access" : entitlement.accessLevel === "trade_lab" ? "Trade Lab" : "No active plan";
+  const planName = entitlement.accessLevel === "admin" ? "Administrator" : entitlement.accessLevel === "all_access" ? "Pro" : entitlement.accessLevel === "trade_lab" ? "Trade Lab" : "Free";
 
   return (
     <AppShell showAdmin={showAdmin}>
@@ -73,13 +73,13 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
         <article className="panel account-panel membership-panel">
           <span className="eyebrow">Current membership</span>
           <h2>{planName}</h2>
-          <p>{entitlement.accessSource === "beta" ? "Complimentary beta access" : entitlement.accessSource === "stripe" ? "Paid Stripe subscription" : "Choose a plan to connect real leagues"}</p>
+          <p>{entitlement.accessSource === "beta" ? "Complimentary beta access" : entitlement.accessSource === "stripe" ? "Paid Stripe subscription" : "One connected league and your highest-priority Next Move"}</p>
           <div className="account-status"><span>Trade Lab</span><strong>{entitlement.tradeLabAccess || entitlement.allAccess ? "Unlocked" : "Locked"}</strong></div>
-          <div className="account-status"><span>All Access</span><strong>{entitlement.allAccess ? "Unlocked" : "Locked"}</strong></div>
+          <div className="account-status"><span>Pro</span><strong>{entitlement.allAccess ? "Unlocked" : "Locked"}</strong></div>
           <div className="account-status"><span>Connected leagues</span><strong>{leagueRows.length} of {entitlement.maxConnectedLeagues || 0}</strong></div>
           {foundingResult.data?.founding_number && <div className="founding-badge">Founding Member #{foundingResult.data.founding_number}</div>}
           {entitlement.accessLevel === "none" && <Link className="button small account-panel-link" href="/pricing">Choose a plan</Link>}
-          {entitlement.accessLevel === "trade_lab" && <Link className="button small account-panel-link" href="/pricing">Upgrade to All Access</Link>}
+          {entitlement.accessLevel === "trade_lab" && <Link className="button small account-panel-link" href="/pricing">Explore Pro</Link>}
         </article>
 
         <article className="panel account-panel billing-panel">
@@ -105,6 +105,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
         <article className="panel account-panel">
           <span className="eyebrow">Connected providers</span><h2>{accountRows.length} connected</h2>
           {accountRows.length ? <div className="account-list">{accountRows.map((account, index) => <div key={`${account.provider}-${index}`}><strong>{account.provider}</strong><span>{account.provider_username || "Connected account"}</span></div>)}</div> : <p>No provider account has been saved yet.</p>}
+          {accountRows.some(a=>a.provider==="sleeper") && <form action={disconnectSleeper}><input type="hidden" name="confirmation" value="DISCONNECT"/><p>Remove the connection and your stored Sleeper league data.</p><button className="button secondary small" type="submit">Disconnect Sleeper and remove data</button></form>}
         </article>
 
         <article className="panel account-panel">

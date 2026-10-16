@@ -11,7 +11,7 @@ export const PLAN_LIMITS: Record<BillingPlan, number> = {
 
 export const PLAN_NAMES: Record<BillingPlan, string> = {
   trade_lab: "Trade Lab",
-  all_access: "All Access"
+  all_access: "FantasyNextMove Pro"
 };
 
 export function priceIdFor(plan: BillingPlan, interval: BillingInterval) {
@@ -44,8 +44,6 @@ export function siteUrl() {
 export function stripeConfigured() {
   return Boolean(
     process.env.STRIPE_SECRET_KEY &&
-    process.env.STRIPE_PRICE_TRADE_MONTHLY &&
-    process.env.STRIPE_PRICE_TRADE_ANNUAL &&
     process.env.STRIPE_PRICE_ALL_ACCESS_MONTHLY &&
     process.env.STRIPE_PRICE_ALL_ACCESS_ANNUAL
   );

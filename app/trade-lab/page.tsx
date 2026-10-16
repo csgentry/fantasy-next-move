@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import {EventTracker} from "@/components/EventTracker";
+import {evaluateRosterTrade} from "@/lib/trade-impact";
 import { AppShell } from "@/components/AppShell";
 import { useSelectedLeague } from "@/components/LeaguePicker";
 import { usePlayerIntelligence } from "@/components/usePlayerIntelligence";
-import { loadSavedLeaguesFromAccount, saveLeagueToAccount, type SavedLeagueRecord } from "@/lib/account-storage";
+import { loadSavedLeaguesFromAccount, type SavedLeagueRecord } from "@/lib/account-storage";
 import { demoPlayerPositions, tradePlayers } from "@/lib/demo-data";
 import { isSuperflex, normalizePosition, tradeValueForPick, tradeValueForPlayer } from "@/lib/trade-values";
 import { marketKey, type MarketValueSignal } from "@/lib/market-values";
@@ -187,7 +189,12 @@ function TradeSide({ title, subtitle, available, selected, onAdd, onRemove }: {
 }
 
 export default function TradeLabPage() {
-  const { league, source, teamRosterId, setLeague, hydrated } = useSelectedLeague();
+  const selected = useSelectedLeague();
+  return <TradeLabWorkspace key={`${selected.source}:${selected.league.leagueId}:${selected.teamRosterId}`} selected={selected} />;
+}
+
+function TradeLabWorkspace({selected}: {selected: ReturnType<typeof useSelectedLeague>}) {
+  const { league, source, teamRosterId, setLeague, hydrated } = selected;
   const intelligenceState = usePlayerIntelligence(league, source);
   const importedFormat = leagueFormat(league.leagueType);
   const [manualFormat, setManualFormat] = useState<TradeFormat>(importedFormat);
@@ -196,11 +203,10 @@ export default function TradeLabPage() {
   const [changingLeague, setChangingLeague] = useState(false);
   const [teamAId, setTeamAId] = useState(teamRosterId);
   const [teamBId, setTeamBId] = useState(league.teams.find((team) => team.rosterId !== teamRosterId)?.rosterId ?? teamRosterId);
-  const [profiles, setProfiles] = useState<Record<string, PlayerProfile>>({});
   const [marketValues, setMarketValues] = useState<Record<string, MarketValueSignal>>({});
-  const [marketStatus, setMarketStatus] = useState<"idle" | "loading" | "ready" | "fallback">("idle");
-  const [loadingPlayers, setLoadingPlayers] = useState(false);
-  const [playerError, setPlayerError] = useState("");
+  const [marketStatus, setMarketStatus] = useState<"idle" | "loading" | "ready" | "fallback">(source === "demo" ? "idle" : "loading");
+  const loadingPlayers = intelligenceState.loading;
+  const playerError = intelligenceState.error;
   const [sideAIds, setSideAIds] = useState<string[]>([]);
   const [sideBIds, setSideBIds] = useState<string[]>([]);
 
@@ -209,22 +215,8 @@ export default function TradeLabPage() {
   }, [source, league.leagueId]);
 
   useEffect(() => {
-    setTeamAId(teamRosterId);
-    setTeamBId(league.teams.find((team) => team.rosterId !== teamRosterId)?.rosterId ?? teamRosterId);
-    setManualFormat(importedFormat);
-    setSideAIds([]);
-    setSideBIds([]);
-  }, [league.leagueId, importedFormat, teamRosterId, league.teams]);
-
-
-  useEffect(() => {
-    if (source === "demo") {
-      setMarketValues({});
-      setMarketStatus("idle");
-      return;
-    }
+    if (source === "demo") return;
     let canceled = false;
-    setMarketStatus("loading");
     const params = new URLSearchParams({
       format: importedFormat,
       numQbs: isSuperflex(league.rosterPositions) ? "2" : "1",
@@ -250,24 +242,16 @@ export default function TradeLabPage() {
     return () => { canceled = true; };
   }, [importedFormat, league.rosterPositions, league.scoringSettings, source]);
 
-  useEffect(() => {
-    const embedded = league.teams.reduce<Record<string, PlayerProfile>>((all, team) => ({ ...all, ...(team.playerProfiles || {}) }), {});
-    setPlayerError("");
-    if (source === "yahoo") { setProfiles(embedded); setLoadingPlayers(false); return; }
-    if (source === "demo") {
-      const featuredRanks = new Map(tradePlayers.slice().sort((a, b) => b.value - a.value).map((player, index) => [player.name, index + 1]));
-      let fallbackRank = 75;
-      setProfiles(Object.fromEntries(league.teams.flatMap((team) => team.players.map((name) => [name, {
-        playerId: name, fullName: name, position: demoPlayerPositions[name] || "—", team: null, status: "Active", age: 24 + (fallbackRank % 8),
-        yearsExperience: fallbackRank % 5, searchRank: featuredRanks.get(name) ?? fallbackRank++
-      }] as const))));
-      setLoadingPlayers(false);
-      return;
-    }
-    setLoadingPlayers(intelligenceState.loading);
-    if (intelligenceState.data) setProfiles({ ...embedded, ...intelligenceState.data.profiles });
-    if (intelligenceState.error) setPlayerError(intelligenceState.error);
-  }, [intelligenceState.data, intelligenceState.error, intelligenceState.loading, league, source]);
+  const profiles = useMemo<Record<string, PlayerProfile>>(() => {
+    const embedded = league.teams.reduce<Record<string, PlayerProfile>>((all, team) => ({...all, ...(team.playerProfiles || {})}), {});
+    if (source !== "demo") return {...embedded, ...(intelligenceState.data?.profiles || {})};
+    const featuredRanks = new Map(tradePlayers.slice().sort((a,b) => b.value-a.value).map((player,index) => [player.name,index+1]));
+    let fallbackRank = 75;
+    return Object.fromEntries(league.teams.flatMap(team => team.players.map(name => [name, {
+      playerId:name, fullName:name, position:demoPlayerPositions[name] || "—", team:null, status:"Active",
+      age:24+(fallbackRank%8), yearsExperience:fallbackRank%5, searchRank:featuredRanks.get(name) ?? fallbackRank++
+    }])));
+  }, [league, source, intelligenceState.data]);
 
   const teamA = league.teams.find((team) => team.rosterId === teamAId) || league.teams[0];
   const teamB = league.teams.find((team) => team.rosterId === teamBId) || league.teams[1] || league.teams[0];
@@ -346,7 +330,8 @@ export default function TradeLabPage() {
   const tradeSize = Math.max((adjustedA + adjustedB) / 2, 1);
   const tolerance = Math.max(250, Math.round(tradeSize * 0.07));
   const isComplete = sideA.length > 0 && sideB.length > 0;
-  const verdict = !sideA.length && !sideB.length ? "Build a trade" : !isComplete ? "Add the other side" : Math.abs(difference) <= tolerance ? "Fair trade" : difference > 0 ? `Slight edge: ${teamA.teamName}` : `Slight edge: ${teamB.teamName}`;
+  const rosterImpact = evaluateRosterTrade(teamA, league, profiles, intelligenceState.data?.currentSnapshots || [], playerAssets(sideB).map(a=>a.playerId), playerAssets(sideA).map(a=>a.playerId));
+  const marketVerdict = !sideA.length && !sideB.length ? "Build a trade" : !isComplete ? "Add the other side" : Math.abs(difference) <= tolerance ? "Fair trade" : difference > 0 ? `Slight edge: ${teamA.teamName}` : `Slight edge: ${teamB.teamName}`;
   const advantage = isComplete ? (Math.abs(difference) / tradeSize) * 100 : 0;
 
   function resetTrade() { setSideAIds([]); setSideBIds([]); }
@@ -357,8 +342,7 @@ export default function TradeLabPage() {
     setChangingLeague(true);
     try {
       const selectedRosterId = record.selected_roster_id ?? record.raw_data.userRosterId ?? record.raw_data.teams[0]?.rosterId ?? null;
-      await saveLeagueToAccount(record.raw_data, selectedRosterId);
-      setLeague(record.raw_data);
+      await setLeague(record.raw_data, selectedRosterId);
       resetTrade();
     } finally {
       setChangingLeague(false);
@@ -368,8 +352,8 @@ export default function TradeLabPage() {
   if (!hydrated) return <AppShell><div className="panel empty-state"><strong>Loading your league…</strong></div></AppShell>;
 
   return (
-    <AppShell>
-      <div className="page-heading trade-page-heading"><div><span className="eyebrow">League-aware market evaluation</span><h1>Trade Lab 2.0</h1><p>Every value is locked to the selected league&apos;s format, scoring, lineup requirements, roster depth, projections, and owned draft picks.</p></div><span className="pill">0–10,000 value scale</span></div>
+    <AppShell><EventTracker event="trade_lab_opened"/>{isComplete && <EventTracker event="trade_analyzed"/>}
+      <div className="page-heading trade-page-heading"><div><span className="eyebrow">Does this trade make your team better?</span><h1>Trade Lab</h1><p>Choose what you send and receive. Start with lineup impact, then review depth and value.</p></div></div>
 
       <section className="panel trade-league-context">
         <div><span className="eyebrow">Trade Lab for</span><h2>{league.name}</h2><p>{formatLabel(format)} · {league.totalRosters} teams · {scoringLabel(league.scoringSettings)} · {league.rosterPositions.join(" · ")}</p></div>
@@ -399,14 +383,14 @@ export default function TradeLabPage() {
       <div className="trade-grid trade-grid-clean">
         <TradeSide title={`${teamA.teamName} receives`} subtitle={`Assets currently owned by ${teamB.teamName}`} available={availableForA} selected={sideA} onAdd={(id) => setSideAIds((current) => [...current, id])} onRemove={(id) => setSideAIds((current) => current.filter((assetId) => assetId !== id))} />
         <div className={`trade-verdict ${isComplete && Math.abs(difference) > tolerance ? "has-advantage" : ""}`}>
-          <span>{formatLabel(format)} verdict</span><strong>{verdict}</strong><div className="verdict-score"><b>{formatNumber(adjustedA)}</b><i>vs.</i><b>{formatNumber(adjustedB)}</b></div>
+          <span>Your team impact</span><strong>{isComplete ? rosterImpact.verdict : "Build a trade"}</strong><p>{isComplete ? rosterImpact.reason : "Select players on both sides to compare the effect on your team."}</p>{isComplete && <small>{rosterImpact.confidence}</small>}{isComplete && rosterImpact.gain !== null && <p>Projected lineup change: {rosterImpact.gain > 0 ? "+" : ""}{rosterImpact.gain.toFixed(1)} points</p>}<details><summary>Supporting value comparison</summary><p>{marketVerdict}</p><div className="verdict-score"><b>{formatNumber(adjustedA)}</b><i>vs.</i><b>{formatNumber(adjustedB)}</b></div>
           {isComplete ? <p>{Math.abs(difference) <= tolerance ? `Inside the ±${formatNumber(tolerance)} fair-market range.` : `${advantage.toFixed(1)}% modeled difference after roster fit and package value.`}</p> : <p>Add assets to both sides to complete the comparison.</p>}
           <div className="verdict-breakdown"><span>Players {formatNumber(playerValueA)}–{formatNumber(playerValueB)}</span><span>Weekly projection {projectedA.toFixed(2)}–{projectedB.toFixed(2)}</span>{format !== "redraft" && <span>Picks {formatNumber(pickValueA)}–{formatNumber(pickValueB)}</span>}<span>Roster fit {fitDeltaA >= 0 ? "+" : ""}{formatNumber(fitDeltaA)} / {fitDeltaB >= 0 ? "+" : ""}{formatNumber(fitDeltaB)}</span><span>Package adjustment {packageA >= 0 ? "+" : ""}{formatNumber(packageA)} / {packageB >= 0 ? "+" : ""}{formatNumber(packageB)}</span></div>
-        </div>
+        </details></div>
         <TradeSide title={`${teamB.teamName} receives`} subtitle={`Assets currently owned by ${teamA.teamName}`} available={availableForB} selected={sideB} onAdd={(id) => setSideBIds((current) => [...current, id])} onRemove={(id) => setSideBIds((current) => current.filter((assetId) => assetId !== id))} />
       </div>
 
-      <section className="panel trade-method-panel">
+      <details className="panel trade-method-panel"><summary>How this analysis works</summary>
         <div><span className="eyebrow">FantasyNextMove consensus model</span><h2>Market value plus actual league impact</h2></div>
         <div className="trade-method-grid">
           <article><strong>Market separation</strong><p>The 0–10,000 scale keeps elite assets, premium rookies, starters, depth players, and picks from collapsing into the same two-digit range.</p></article>
@@ -414,7 +398,7 @@ export default function TradeLabPage() {
           <article><strong>Trade structure</strong><p>Elite-asset premiums, quantity discounts, replacement level, roster fit, and package consolidation are evaluated instead of simply adding raw values.</p></article>
         </div>
         <p className="model-disclaimer">FantasyNextMove does not scrape or reproduce proprietary competitor rankings. It combines imported league information, player profile signals, projections, performance, age curves, scarcity, and FantasyNextMove&apos;s valuation rules with a permitted market composite when available. {marketStatus === "loading" ? "Refreshing market consensus…" : marketStatus === "fallback" ? "The live market feed is temporarily unavailable, so independent fallback values are shown." : marketStatus === "ready" ? <>Market consensus powered in part by <a href="https://tradyr.app" target="_blank" rel="noreferrer">Tradyr</a>.</> : "The fictional demo does not expose live market values."}</p>
-      </section>
+      </details>
     </AppShell>
   );
 }

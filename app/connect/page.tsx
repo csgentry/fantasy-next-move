@@ -1,5 +1,6 @@
 "use client";
 
+import {trackProductEvent} from "@/lib/product-events";
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
@@ -19,22 +20,25 @@ export default function ConnectPage() {
   const [sleeperData, setSleeperData] = useState<SleeperImportPayload | null>(null);
   const [loading, setLoading] = useState<"sleeper" | "saving" | "">("");
   const [error, setError] = useState("");
+  const [pendingLeague,setPendingLeague]=useState<ImportedLeague|null>(null);
 
   async function importSleeper(event: FormEvent) {
     event.preventDefault();
+    void trackProductEvent("provider_connection_started");
     setLoading("sleeper");
     setError("");
     setSleeperData(null);
 
     try {
       const response = await fetch(
-        `/api/sleeper/import?username=${encodeURIComponent(username)}&season=${encodeURIComponent(season)}`
+        "/api/sleeper/import", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username,season})}
       );
       const payload = await response.json();
       if (!response.ok) {
         throw new Error(payload.error || "Unable to import Sleeper leagues.");
       }
       setSleeperData(payload);
+      void trackProductEvent("provider_connected");
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Unable to import Sleeper leagues."
@@ -44,13 +48,15 @@ export default function ConnectPage() {
     }
   }
 
-  async function selectLeague(league: ImportedLeague) {
-    const rosterId = league.userRosterId ?? league.teams[0]?.rosterId ?? null;
+  async function selectLeague(league: ImportedLeague, selectedRosterId?:number) {
+    if(league.userRosterId===null && selectedRosterId===undefined){setPendingLeague(league);return;}
+    const rosterId = selectedRosterId ?? league.userRosterId;
     setLoading("saving");
     setError("");
 
     try {
       await saveLeagueToAccount(league, rosterId);
+      void trackProductEvent("league_selected");
       router.push("/dashboard");
     } catch (err) {
       setError(
@@ -83,6 +89,7 @@ export default function ConnectPage() {
         </div>
       )}
 
+      {pendingLeague && <section className="panel"><h2>Choose your team</h2><p>{pendingLeague.name}</p>{pendingLeague.teams.map(team=><button className="button secondary" key={team.rosterId} disabled={Boolean(loading)} onClick={()=>selectLeague(pendingLeague,team.rosterId)}>{team.teamName}</button>)}</section>}
       <div className="provider-grid">
         <form className="panel connect-form provider-card" onSubmit={importSleeper}>
           <div className="provider-heading">
@@ -121,7 +128,7 @@ export default function ConnectPage() {
         </form>
 
         <section
-          aria-disabled="true"
+
           className="panel connect-form provider-card provider-card-disabled"
         >
           <div className="provider-heading">
@@ -164,8 +171,7 @@ export default function ConnectPage() {
           <div className="empty-state">
             <strong>Your Sleeper leagues will appear here.</strong>
             <p>
-              Select one to open its Dashboard, Trade Lab, Record Book, and
-              saved league library.
+              Select a league to see your Next Move and team analysis.
             </p>
           </div>
         )}

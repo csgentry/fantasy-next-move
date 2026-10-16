@@ -1,3 +1,4 @@
+import { createClient } from "@/lib/supabase/server";
 import { randomBytes } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { yahooConnectionEnabled } from "@/lib/yahoo/availability";
@@ -11,9 +12,12 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const supabase = await createClient();
+    const {data} = await supabase.auth.getUser();
+    if (!data.user) return NextResponse.redirect(new URL("/login?next=/connect", request.nextUrl.origin));
     const { clientId } = yahooConfig();
     const state = randomBytes(24).toString("hex");
-    await setYahooState(state);
+    await setYahooState(`${data.user.id}:${state}`);
     const redirectUri = callbackUrl(request.nextUrl.origin);
     const authorizationUrl = new URL(
       "https://api.login.yahoo.com/oauth2/request_auth"

@@ -173,6 +173,8 @@ export type ProjectionAccuracy = {
 };
 
 export type PlayerIntelligencePayload = {
+  nextMoves?: PlayerRecommendation[];
+  pro?: boolean;
   provider: "sleeper";
   leagueId: string;
   season: number;

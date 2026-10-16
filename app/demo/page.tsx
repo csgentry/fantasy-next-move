@@ -2,7 +2,6 @@ import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { PowerRankingsEngine } from "@/components/PowerRankingsEngine";
 import { RosterSnapshot } from "@/components/RosterSnapshot";
-import { StatCard } from "@/components/StatCard";
 import { recommendationsFor } from "@/lib/analysis";
 import { demoLeague } from "@/lib/demo-data";
 
@@ -26,14 +25,7 @@ export default function DemoPage() {
         <div className="pill">Data source: Sample</div>
       </div>
 
-      <section className="stats-grid">
-        <StatCard label="Projected lineup" value="142.20" detail="Example league-scored projection" />
-        <StatCard label="Overall Power" value="#2" detail="Balanced current and future strength" />
-        <StatCard label="Win Now" value="#1" detail="Example championship outlook" />
-        <StatCard label="Dynasty Future" value="#4" detail="Example long-term franchise value" />
-      </section>
-
-      <section className="panel next-moves dashboard-priority-panel">
+      <section id="sample-analysis" className="panel next-moves dashboard-priority-panel">
         <div className="panel-heading">
           <div><span className="eyebrow">Sample priority board</span><h2>{myTeam.teamName}&apos;s Next Moves</h2></div>
           <span className="pill">Fictional example</span>
@@ -52,11 +44,11 @@ export default function DemoPage() {
         </div>
       </section>
 
-      <PowerRankingsEngine league={demoLeague} source="demo" myRosterId={myTeam.rosterId} />
-      <RosterSnapshot team={myTeam} league={demoLeague} source="demo" />
+      <details className="panel"><summary>Explore team strength</summary><PowerRankingsEngine league={demoLeague} source="demo" myRosterId={myTeam.rosterId} />
+      </details><details className="panel"><summary>Explore the roster</summary><RosterSnapshot team={myTeam} league={demoLeague} source="demo" />
 
-      <section className="panel pricing-guarantee">
-        <div><span className="eyebrow">Ready for your real league?</span><h2>Choose Trade Lab or All Access.</h2><p>Real league imports, saved analysis, and current market values require a paid or complimentary account.</p></div>
+      </details><section className="panel pricing-guarantee">
+        <div><span className="eyebrow">Ready for your real league?</span><h2>Preview FantasyNextMove Pro.</h2><p>Real league imports, saved analysis, and current market values require a paid or complimentary account.</p></div>
         <Link className="button" href="/pricing">See pricing</Link>
       </section>
     </AppShell>

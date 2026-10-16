@@ -1,25 +1,9 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const tradeLabPrefixes = [
-  "/connect",
-  "/leagues",
-  "/trade-lab",
-  "/api/account",
-  "/api/market",
-  "/api/sleeper",
-  "/api/yahoo"
-];
-
-const allAccessPrefixes = [
-  "/dashboard",
-  "/record-book",
-  "/api/account/history",
-  "/api/sleeper/history",
-  "/api/sleeper/power-data",
-  "/api/yahoo/history"
-];
-const authenticationOnlyPrefixes = ["/account", "/billing/success", "/api/billing"];
+const tradeLabPrefixes = ["/trade-lab", "/api/market"];
+const allAccessPrefixes = ["/api/account/history", "/api/sleeper/history", "/api/sleeper/power-data", "/api/yahoo/history", "/api/account/player-snapshots"];
+const authenticationOnlyPrefixes = ["/account", "/billing/success", "/api/billing", "/dashboard", "/team", "/leagues", "/connect", "/api/account", "/api/sleeper/import", "/api/sleeper/intelligence", "/api/sleeper/players", "/api/yahoo"];
 const publicApiPrefixes = ["/api/stripe/webhook", "/api/cron"];
 const browserNavigationApis = new Set(["/api/yahoo/connect", "/api/yahoo/callback"]);
 
@@ -53,6 +37,10 @@ function deniedResponse(request: NextRequest, response: NextResponse, message: s
 
 export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
+  if (["POST", "PUT", "PATCH", "DELETE"].includes(request.method) && !matchesPrefix(pathname, publicApiPrefixes)) {
+    const origin = request.headers.get("origin");
+    if (!origin || origin !== request.nextUrl.origin) return NextResponse.json({error: "Request origin could not be verified."}, {status: 403});
+  }
   if (matchesPrefix(pathname, publicApiPrefixes)) return NextResponse.next({ request });
 
   const tradeLabRequired = matchesPrefix(pathname, tradeLabPrefixes);
@@ -109,8 +97,8 @@ export async function updateSession(request: NextRequest) {
     const beta = Boolean(profile?.beta_access);
     const tradeAccess = beta || (unexpired && Boolean(entitlement?.trade_lab_access || entitlement?.all_access || entitlement?.access_level === "admin"));
     const allAccess = beta || (unexpired && Boolean(entitlement?.all_access || entitlement?.access_level === "admin"));
-    if (allAccessRequired && !allAccess) return deniedResponse(request, response, "All Access is required for this feature.");
-    if (tradeLabRequired && !tradeAccess) return deniedResponse(request, response, "A Trade Lab or All Access subscription is required to connect real leagues.");
+    if (allAccessRequired && !allAccess) return deniedResponse(request, response, "Pro is required for this detail.");
+    if (tradeLabRequired && !tradeAccess) return deniedResponse(request, response, "Pro is required for full Trade Lab. Explore the free sample or upgrade.");
   }
 
   return response;

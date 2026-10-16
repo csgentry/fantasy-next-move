@@ -1,3 +1,6 @@
+import {getUserEntitlement} from "@/lib/billing/entitlements";
+import {buildPersonalizedPlayerRecommendations} from "@/lib/player-intelligence";
+import type {ImportedLeague} from "@/lib/types";
 import { NextRequest, NextResponse } from "next/server";
 import { syncSleeperPlayerIntelligence, type SleeperLeagueRecord } from "@/lib/sleeper/intelligence-server";
 import { createClient } from "@/lib/supabase/server";
@@ -11,7 +14,7 @@ export async function POST(request: NextRequest) {
     const { data } = await supabase.auth.getUser();
     if (!data.user) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
 
-    const body = await request.json().catch(() => ({})) as { leagueId?: string };
+    const body = await request.json().catch(() => ({})) as { leagueId?: string; rosterId?: number };
     const leagueId = String(body.leagueId || "").trim();
     if (!/^\d{8,24}$/.test(leagueId)) {
       return NextResponse.json({ error: "A valid Sleeper league ID is required." }, { status: 400 });
@@ -33,10 +36,16 @@ export async function POST(request: NextRequest) {
       leagueRecord: leagueRecord as SleeperLeagueRecord,
       backfillLimit: 3
     });
-    return NextResponse.json(intelligence);
+    const league = leagueRecord.raw_data as ImportedLeague;
+    const selectedId = body.rosterId ?? league.userRosterId;
+    const team = league.teams.find(t => t.rosterId === selectedId) ?? league.teams[0];
+    const entitlement = await getUserEntitlement(supabase, data.user.id);
+    const pro = entitlement.allAccess || entitlement.tradeLabAccess;
+    const moves = team ? buildPersonalizedPlayerRecommendations(league,team,intelligence) : [];
+    return NextResponse.json({...intelligence, nextMoves: pro ? moves : moves.slice(0,1), pro}, {headers:{"Cache-Control":"private, no-store"}});
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unable to load Sleeper player intelligence." },
+      { error: "We couldn’t refresh player analysis. Your league connection is intact. Try again shortly." },
       { status: 500 }
     );
   }

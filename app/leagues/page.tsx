@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { loadSavedLeaguesFromAccount, saveLeagueToAccount } from "@/lib/account-storage";
+import {useSelectedLeague} from "@/components/LeaguePicker";
+import {usePlayerIntelligence} from "@/components/usePlayerIntelligence";
+import {PowerRankingsEngine} from "@/components/PowerRankingsEngine";
 import type { SavedLeagueRecord } from "@/lib/account-storage";
 
 function formatLabel(value: string | undefined) {
@@ -14,6 +17,8 @@ function formatLabel(value: string | undefined) {
 
 export default function MyLeaguesPage() {
   const router = useRouter();
+  const {league,source,teamRosterId}=useSelectedLeague();
+  const intelligence=usePlayerIntelligence(league,source,teamRosterId);
   const [leagues, setLeagues] = useState<SavedLeagueRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [opening, setOpening] = useState("");
@@ -41,10 +46,11 @@ export default function MyLeaguesPage() {
 
   return (
     <AppShell>
-      <div className="page-heading"><div><span className="eyebrow">Account library</span><h1>My Leagues</h1><p>Open any league saved to your beta account without importing it again.</p></div><a className="button small" href="/connect">Connect another league</a></div>
+      <div className="page-heading"><div><span className="eyebrow">Your league context</span><h1>League</h1><p>See how your team compares. Switch connected leagues below.</p></div><a className="button small" href="/connect">Connect another league</a></div>
       {error && <div className="connection-message error">{error}</div>}
       {loading && <div className="panel empty-state"><strong>Loading saved leagues…</strong></div>}
-      {!loading && !leagues.length && <div className="panel empty-state"><strong>No saved leagues yet.</strong><p>Connect Sleeper or Yahoo to add your first league.</p><a className="button small" href="/connect">Connect a league</a></div>}
+      {!loading && !leagues.length && <div className="panel empty-state"><strong>No saved leagues yet.</strong><p>Connect Sleeper to add your first league. Yahoo is pending activation.</p><a className="button small" href="/connect">Connect a league</a></div>}
+      {source !== "demo" && <PowerRankingsEngine league={league} source={source} myRosterId={teamRosterId} intelligence={intelligence.data}/>}
       {!!leagues.length && <section className="saved-league-grid">{leagues.map((record) => (
         <article className={`panel saved-league-card ${record.is_active ? "active" : ""}`} key={record.id}>
           <div><span className="eyebrow">{record.provider} · {record.season}</span><h2>{record.name}</h2><p>{formatLabel(record.raw_data.leagueType)} · {record.raw_data.totalRosters} teams{record.raw_data.draftPicks?.length ? ` · ${record.raw_data.draftPicks.length} picks tracked` : ""}</p></div>

@@ -18,12 +18,12 @@ export async function GET(request: NextRequest) {
     if (request.nextUrl.searchParams.get("all") === "1") {
       const { data, error } = await supabase.from("leagues")
         .select("id,provider,name,season,raw_data,selected_roster_id,is_active,synced_at")
-        .eq("user_id", user.id)
+        .eq("user_id", user.id).neq("provider", "yahoo")
         .order("synced_at", { ascending: false });
       if (error) throw error;
       return NextResponse.json({ leagues: data || [] });
     }
-    let query = supabase.from("leagues").select("raw_data,selected_roster_id,is_active,synced_at").eq("user_id", user.id).order("synced_at", { ascending: false }).limit(1);
+    let query = supabase.from("leagues").select("raw_data,selected_roster_id,is_active,synced_at").eq("user_id", user.id).neq("provider", "yahoo").order("synced_at", { ascending: false }).limit(1);
     if (request.nextUrl.searchParams.get("active") === "1") query = query.eq("is_active", true);
     const { data, error } = await query.maybeSingle();
     if (error) throw error;
@@ -39,6 +39,7 @@ export async function POST(request: NextRequest) {
     if (!user) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
     const body = await request.json() as { league?: ImportedLeague; selectedRosterId?: number | null };
     const league = body.league;
+    if (league?.provider === "yahoo") return NextResponse.json({ error: "Yahoo league data cannot be saved. Reconnect for a fresh read-only session." }, { status: 422 });
     if (!league?.leagueId || !league.provider || !Array.isArray(league.teams)) return NextResponse.json({ error: "A valid league is required." }, { status: 400 });
     if (league.leagueId.length > 180 || league.name.length > 180 || league.teams.length > 40 || (league.draftPicks?.length || 0) > 2000) {
       return NextResponse.json({ error: "The imported league exceeds beta storage limits." }, { status: 400 });

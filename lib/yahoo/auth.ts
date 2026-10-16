@@ -1,4 +1,6 @@
 import "server-only";
+import { yahooConnectionEnabled } from "./availability";
+import { fetchWithBackoff } from "./retry";
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -93,14 +95,6 @@ export async function consumeYahooState() {
 
 export async function storeYahooToken(token: YahooToken, userId?: string) {
   const encryptedToken = encrypt(token);
-  const jar = await cookies();
-  jar.set(TOKEN_COOKIE, encryptedToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 30
-  });
   if (userId) await persistYahooCredential(userId, encryptedToken);
 }
 
@@ -115,18 +109,8 @@ export async function clearYahooToken(userId?: string) {
 }
 
 async function readYahooToken(userId?: string) {
-  const jar = await cookies();
-  const cookieValue = jar.get(TOKEN_COOKIE)?.value;
-  if (cookieValue) {
-    try {
-      const token = decrypt(cookieValue);
-      if (userId) await persistYahooCredential(userId, cookieValue);
-      return token;
-    } catch (error) {
-      if (isYahooConfigurationError(error)) throw error;
-      jar.delete(TOKEN_COOKIE);
-    }
-  }
+  // Credential ownership comes exclusively from the authenticated account.
+  // Never migrate a browser token to the currently signed-in user.
   if (!userId) return null;
   const admin = createAdminClient();
   const { data, error } = await admin.from("provider_credentials")
@@ -138,13 +122,6 @@ async function readYahooToken(userId?: string) {
   if (!data?.encrypted_token) return null;
   try {
     const token = decrypt(data.encrypted_token);
-    jar.set(TOKEN_COOKIE, data.encrypted_token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 30
-    });
     return token;
   } catch (error) {
     if (isYahooConfigurationError(error)) throw error;
@@ -155,7 +132,7 @@ async function readYahooToken(userId?: string) {
 
 async function tokenRequest(body: URLSearchParams): Promise<YahooTokenResponse> {
   const { clientId, clientSecret } = yahooConfig();
-  const response = await fetch("https://api.login.yahoo.com/oauth2/get_token", {
+  const response = await fetchWithBackoff("https://api.login.yahoo.com/oauth2/get_token", {
     method: "POST",
     headers: {
       Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`,
@@ -207,6 +184,7 @@ async function refreshYahooToken(token: YahooToken, userId?: string) {
 }
 
 export async function getValidYahooToken(userId?: string) {
+  if (!yahooConnectionEnabled()) return null;
   const token = await readYahooToken(userId);
   if (!token) return null;
   if (token.expiresAt > Date.now()) return token;

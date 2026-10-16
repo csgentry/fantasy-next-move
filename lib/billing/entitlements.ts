@@ -18,7 +18,7 @@ export const NO_ENTITLEMENT: UserEntitlement = {
   accessSource: "none",
   tradeLabAccess: false,
   allAccess: false,
-  maxConnectedLeagues: 0,
+  maxConnectedLeagues: 1,
   validUntil: null,
   foundingMember: false
 };
