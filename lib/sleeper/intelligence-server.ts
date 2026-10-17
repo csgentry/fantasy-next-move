@@ -1,8 +1,11 @@
 import "server-only";
+import {publicSleeperFeed} from './public-feed-cache';
+import { sleeperAvatarUrl } from "../sleeper-avatar";
 
 import { calculateFantasyScore } from "@/lib/fantasy-scoring";
 import { calculateProjectionAccuracy } from "@/lib/player-intelligence";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import type {
   ImportedLeague,
   NumericStatLine,
@@ -23,6 +26,8 @@ type SleeperLeague = {
   season?: string;
   status?: string;
   season_type?: string;
+  scoring_settings?: Record<string, number>;
+  roster_positions?: string[];
   settings?: { last_scored_leg?: number; playoff_week_start?: number };
 };
 type SleeperMatchup = {
@@ -59,7 +64,7 @@ export type SleeperLeagueRecord = {
   provider_league_id: string;
   raw_data: ImportedLeague;
 };
-type SyncOptions = { leagueRecord: SleeperLeagueRecord; backfillLimit?: number };
+type SyncOptions = { leagueRecord: SleeperLeagueRecord; backfillLimit?: number; deferPersistence?: (work:()=>Promise<void>)=>void };
 
 function numberValue(value: unknown) {
   const numeric = Number(value);
@@ -131,7 +136,8 @@ function toProfile(playerId: string, player: SleeperPlayerRecord | undefined | n
 
 async function sleeperFetch<T>(url: string, revalidate: number, optional = false): Promise<T | null> {
   try {
-    const response = await fetch(url, { next: { revalidate } });
+    if(url.includes('/players/nfl?')||url.startsWith(`${SLEEPER_DATA_API}/projections/`)||url.startsWith(`${SLEEPER_DATA_API}/stats/`))return await publicSleeperFeed<T>(url,revalidate);
+    const response = await fetch(url, { next: { revalidate }, signal: AbortSignal.timeout(12000) });
     if (!response.ok) {
       if (optional && [400, 404, 422].includes(response.status)) return null;
       throw new Error(`Sleeper request failed (${response.status}).`);
@@ -185,17 +191,17 @@ function determineWeeks(league: ImportedLeague, leagueMeta: SleeperLeague | null
   };
 }
 
-async function weeklyScores(leagueId: string, completedWeek: number) {
+async function weeklyScores(leagueId: string, completedWeek: number, currentOnly=false) {
   if (!completedWeek) return [] as WeeklyTeamScore[];
   const weeks = await Promise.all(
-    Array.from({ length: completedWeek }, (_, index) => index + 1).map(async (week) => {
+    (currentOnly?[completedWeek]:Array.from({ length: completedWeek }, (_, index) => index + 1)).map(async (week) => {
       const payload = await sleeperFetch<SleeperMatchup[]>(
         `${SLEEPER_PUBLIC_API}/league/${encodeURIComponent(leagueId)}/matchups/${week}`,
         300,
         true
       );
-      return (payload || [])
-        .filter((row) => Number.isInteger(Number(row.roster_id)))
+      return (Array.isArray(payload) ? payload : [])
+        .filter((row) => Number.isInteger(Number(row.roster_id)) && typeof (row.custom_points ?? row.points) === "number" && Number.isFinite(row.custom_points ?? row.points))
         .map((row) => ({
           week,
           rosterId: Number(row.roster_id),
@@ -325,7 +331,7 @@ async function buildWeekRows(
 
 async function upsertRows(rows: SnapshotRow[]): Promise<"saved" | "migration-required" | "unavailable"> {
   if (!rows.length) return "saved";
-  const admin = createAdminClient();
+  const admin = process.env.SUPABASE_SERVICE_ROLE_KEY ? createAdminClient() : await createClient();
   for (let index = 0; index < rows.length; index += 250) {
     const { error } = await admin
       .from("player_weekly_snapshots")
@@ -341,7 +347,7 @@ async function upsertRows(rows: SnapshotRow[]): Promise<"saved" | "migration-req
 }
 
 async function storedWeeks(userId: string, leagueRecord: SleeperLeagueRecord) {
-  const admin = createAdminClient();
+  const admin = process.env.SUPABASE_SERVICE_ROLE_KEY ? createAdminClient() : await createClient();
   const { data, error } = await admin
     .from("player_weekly_snapshots")
     .select("week")
@@ -361,26 +367,46 @@ function returnableRows(rows: SnapshotRow[], rosteredIds: Set<string>) {
 
 export async function syncSleeperPlayerIntelligence({
   leagueRecord,
-  backfillLimit = 3
+  backfillLimit = 3,
+  deferPersistence
 }: SyncOptions): Promise<PlayerIntelligencePayload> {
-  const league = leagueRecord.raw_data;
+  let league = leagueRecord.raw_data;
   const warnings: string[] = [];
-  const [state, leagueMeta, playerMapPayload] = await Promise.all([
+  const rosterRequest=sleeperFetch<Array<{roster_id:number;owner_id:string|null;players?:string[];starters?:string[];reserve?:string[];taxi?:string[];settings?:{wins?:number;losses?:number;ties?:number;fpts?:number;fpts_decimal?:number;fpts_against?:number;fpts_against_decimal?:number}}>>(`${SLEEPER_PUBLIC_API}/league/${encodeURIComponent(league.leagueId)}/rosters`, 0, true);
+  const [state, leagueMeta, playerMapPayload, leagueUsers, rosters] = await Promise.all([
     sleeperFetch<SleeperState>(`${SLEEPER_PUBLIC_API}/state/nfl`, 120),
     sleeperFetch<SleeperLeague>(`${SLEEPER_PUBLIC_API}/league/${encodeURIComponent(league.leagueId)}`, 300),
-    sleeperFetch<Record<string, SleeperPlayerRecord>>(`${SLEEPER_PUBLIC_API}/players/nfl?active=true`, 86400)
+    sleeperFetch<Record<string, SleeperPlayerRecord>>(`${SLEEPER_PUBLIC_API}/players/nfl?active=true`, 300),
+    sleeperFetch<Array<{user_id:string;avatar?:string|null;metadata?:{avatar?:string}}>>(`${SLEEPER_PUBLIC_API}/league/${encodeURIComponent(league.leagueId)}/users`, 300).catch(() => null),
+    rosterRequest
   ]);
+  // Refresh ownership before any waiver or trade advice. Never infer availability from saved rosters.
+  const rosterIds = new Set(Array.isArray(rosters) ? rosters.map(r=>r.roster_id) : []);
+  const ownershipVerified = Array.isArray(rosters) && rosters.length === league.teams.length && rosterIds.size === league.teams.length && league.teams.every(t=>rosterIds.has(t.rosterId)) && rosters.every(r=>[r.players,r.starters,r.reserve,r.taxi].every(value=>value==null || (Array.isArray(value)&&value.every(id=>typeof id==="string"))));
+  if (ownershipVerified) {
+    league = {...league, scoringSettings:leagueMeta?.scoring_settings || league.scoringSettings, rosterPositions:leagueMeta?.roster_positions || league.rosterPositions, teams:league.teams.map(team=>{
+      const r=rosters!.find(r=>r.roster_id===team.rosterId)!;
+      const sameOwner=r.owner_id===team.ownerId;
+      const owner=Array.isArray(leagueUsers)?leagueUsers.find(user=>user.user_id===r.owner_id):undefined;
+      const ownerAvatarUrl=owner?sleeperAvatarUrl(owner.avatar):sameOwner?team.ownerAvatarUrl:null;
+      const avatarUrl=owner?sleeperAvatarUrl(owner.metadata?.avatar)||ownerAvatarUrl:sameOwner?team.avatarUrl:null;
+      return {...team, avatarUrl, ownerAvatarUrl, ownerId:r.owner_id, ownerName:sameOwner?team.ownerName:`Roster ${r.roster_id}`,teamName:sameOwner?team.teamName:`Team ${r.roster_id}`,players:r.players||[],starters:r.starters||[],reserve:r.reserve||[],taxi:r.taxi||[],wins:r.settings?.wins??team.wins,losses:r.settings?.losses??team.losses,ties:r.settings?.ties??team.ties,pointsFor:r.settings?.fpts===undefined?team.pointsFor:r.settings.fpts+(r.settings.fpts_decimal||0)/100,pointsAgainst:r.settings?.fpts_against===undefined?team.pointsAgainst:r.settings.fpts_against+(r.settings.fpts_against_decimal||0)/100};
+    })};
+    leagueRecord={...leagueRecord,raw_data:league};
+  } else warnings.push("Current roster ownership could not be verified. Waiver availability is withheld; reconnect before acting.");
   const playerMap = playerMapPayload || {};
   const weeks = determineWeeks(league, leagueMeta, state);
-  const existingWeeks = await storedWeeks(leagueRecord.user_id, leagueRecord);
+  const existingWeeks = deferPersistence ? [] : await storedWeeks(leagueRecord.user_id, leagueRecord);
   const missingCompleted = Array.from({ length: weeks.latestCompletedWeek }, (_, index) => index + 1)
     .filter((week) => !existingWeeks.includes(week));
-  const backfillWeeks = missingCompleted.slice(-Math.max(0, backfillLimit));
-  const requestedWeeks = [...new Set([...backfillWeeks, weeks.projectionWeek])].sort((a, b) => a - b);
+  const backfillWeeks = deferPersistence || backfillLimit<=0 ? [] : missingCompleted.slice(-backfillLimit);
+  const requestedWeeks = [...new Set([...backfillWeeks, weeks.projectionWeek,...(weeks.latestCompletedWeek?[weeks.latestCompletedWeek]:[])])].sort((a, b) => a - b);
   const weekResults = new Map<number, { rows: SnapshotRow[]; profiles: Record<string, PlayerProfile> }>();
   let storageStatus: "saved" | "migration-required" | "unavailable" = "saved";
 
-  for (const week of requestedWeeks) {
+  const currentMatchupsRequest=weeklyScores(league.leagueId,weeks.projectionWeek,true);
+  const historicalScoresRequest=deferPersistence?Promise.resolve([]):weeklyScores(league.leagueId,weeks.latestCompletedWeek);
+  await Promise.all(requestedWeeks.map(async week => {
     const [projectionPayload, actualPayload] = await Promise.all([
       sleeperFetch<unknown>(
         `${SLEEPER_DATA_API}/projections/nfl/${weeks.season}/${week}?season_type=${encodeURIComponent(weeks.seasonType)}`,
@@ -407,9 +433,9 @@ export async function syncSleeperPlayerIntelligence({
       actualPayload
     );
     weekResults.set(week, result);
-    const status = await upsertRows(result.rows);
-    if (status !== "saved") storageStatus = status;
-  }
+    if(!deferPersistence){const status = await upsertRows(result.rows);if (status !== "saved") storageStatus = status;}
+  }));
+  if(deferPersistence)deferPersistence(async()=>{for(const result of weekResults.values())await upsertRows(result.rows);});
 
   const current = weekResults.get(weeks.projectionWeek) || await buildWeekRows(
     leagueRecord.user_id,
@@ -449,12 +475,12 @@ export async function syncSleeperPlayerIntelligence({
   }
 
   const allProfiles: Record<string, PlayerProfile> = {};
+  const rosteredIds = new Set(league.teams.flatMap((team) => team.players));
   Object.entries(playerMap).forEach(([playerId, player]) => {
-    if (league.teams.some((team) => team.players.includes(playerId))) allProfiles[playerId] = toProfile(playerId, player);
+    if (rosteredIds.has(playerId)) allProfiles[playerId] = toProfile(playerId, player);
   });
   Object.assign(allProfiles, current.profiles, accuracyResult?.profiles || {});
 
-  const rosteredIds = new Set(league.teams.flatMap((team) => team.players));
   const currentSnapshots = returnableRows(current.rows, rosteredIds);
   const accuracySnapshots = accuracyResult ? returnableRows(accuracyResult.rows, rosteredIds) : [];
   const priorMap = new Map(accuracySnapshots.map((snapshot) => [snapshot.playerId, snapshot]));
@@ -465,13 +491,17 @@ export async function syncSleeperPlayerIntelligence({
     snapshot.recentError = prior?.projectionError ?? null;
   });
 
-  const scores = await weeklyScores(league.leagueId, weeks.latestCompletedWeek);
-  const savedWeeks = storageStatus === "saved"
+  const [scores,currentMatchups] = await Promise.all([historicalScoresRequest,currentMatchupsRequest]);
+  const savedWeeks = !deferPersistence && storageStatus === "saved"
     ? await storedWeeks(leagueRecord.user_id, leagueRecord)
     : [...new Set<number>([...existingWeeks, ...requestedWeeks])].sort((a, b) => a - b);
 
   return {
     provider: "sleeper",
+    currentLeague: league,
+    rostersSyncedAt: ownershipVerified ? new Date().toISOString() : null,
+    activeSeason: Number(state?.season) === Number(league.season) && state?.season_type === "regular",
+    currentMatchups,
     leagueId: league.leagueId,
     season: weeks.season,
     projectionWeek: weeks.projectionWeek,
@@ -483,7 +513,7 @@ export async function syncSleeperPlayerIntelligence({
     weeklyScores: scores,
     accuracy: calculateProjectionAccuracy(accuracySnapshots, accuracyWeek || null),
     storedWeeks: savedWeeks,
-    storageStatus,
+    storageStatus: deferPersistence ? 'deferred' : storageStatus,
     syncedAt: new Date().toISOString(),
     warnings: [...new Set(warnings)]
   };

@@ -21,7 +21,7 @@ type SleeperRoster = {
 type BracketMatch = { r?: number; m?: number; w?: number | null; l?: number | null };
 
 async function sleeperFetch<T>(path: string): Promise<T> {
-  const response = await fetch(`${API}${path}`, { cache: "no-store" });
+  const response = await fetch(`${API}${path}`, { cache: "no-store", signal: AbortSignal.timeout(12000) });
   if (!response.ok) throw new Error(`Sleeper history request failed (${response.status}).`);
   return response.json() as Promise<T>;
 }

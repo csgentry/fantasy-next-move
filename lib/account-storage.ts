@@ -1,6 +1,7 @@
 import type { ImportedLeague, LeagueHistoryPayload } from "./types";
 
 export async function saveLeagueToAccount(league: ImportedLeague, selectedRosterId: number | null) {
+  if (league.provider === "yahoo") throw new Error("Yahoo information cannot be saved.");
   const response = await fetch("/api/account/leagues", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -10,8 +11,8 @@ export async function saveLeagueToAccount(league: ImportedLeague, selectedRoster
   if (!response.ok) throw new Error(payload.error || "Unable to save the league to your account.");
 }
 
-export async function loadActiveLeagueFromAccount() {
-  const response = await fetch("/api/account/leagues?active=1", { cache: "no-store" });
+export async function loadActiveLeagueFromAccount(signal?:AbortSignal) {
+  const response = await fetch("/api/account/leagues?active=1", { cache: "no-store",signal });
   if (response.status === 401) return null;
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(payload.error || "Unable to load your saved league.");

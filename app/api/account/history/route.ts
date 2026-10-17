@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
     const { supabase, user } = await authenticated();
     if (!user) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
     const provider = request.nextUrl.searchParams.get("provider");
+    if (provider === "yahoo") return NextResponse.json({ error: "Yahoo history is unavailable." }, { status: 410 });
     const leagueId = request.nextUrl.searchParams.get("leagueId");
     if (!provider || !leagueId) return NextResponse.json({ error: "Provider and league ID are required." }, { status: 400 });
     const { data, error } = await supabase.from("league_histories").select("raw_data").eq("user_id", user.id).eq("provider", provider).eq("current_league_id", leagueId).maybeSingle();
@@ -30,6 +31,7 @@ export async function POST(request: NextRequest) {
     if (!user) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
     const body = await request.json() as { history?: LeagueHistoryPayload };
     const history = body.history;
+    if (history?.provider === "yahoo") return NextResponse.json({ error: "Yahoo history storage is disabled." }, { status: 422 });
     if (!history?.provider || !history.currentLeagueId || !Array.isArray(history.seasons)) return NextResponse.json({ error: "Valid history data is required." }, { status: 400 });
     if (history.currentLeagueId.length > 180 || history.seasons.length > 25 || history.seasons.some((season) => season.teams.length > 40)) {
       return NextResponse.json({ error: "The imported history exceeds beta storage limits." }, { status: 400 });

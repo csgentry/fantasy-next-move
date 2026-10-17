@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { createInvite, type InviteActionState } from "@/app/admin/actions";
 import styles from "@/app/admin/admin.module.css";
@@ -23,20 +23,17 @@ function SubmitButton() {
 
 export function InviteCreator() {
   const [state, formAction] = useActionState(createInvite, initialState);
-  const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    setCopied(false);
-  }, [state.code]);
+  const [copiedCode, setCopiedCode] = useState("");
+  const copied = copiedCode === state.code && Boolean(state.code);
 
   async function copyCode() {
     if (!state.code) return;
 
     try {
       await navigator.clipboard.writeText(state.code);
-      setCopied(true);
+      setCopiedCode(state.code);
     } catch {
-      setCopied(false);
+      setCopiedCode("");
     }
   }
 

@@ -1,6 +1,8 @@
 "use client";
 
-import Link from "next/link";
+import {lineupProjection} from "@/lib/team-insights";
+import {PlayerDetails} from "./PlayerDetails";
+import {lineupEligibility} from "@/lib/player-intelligence";
 import { useEffect, useMemo, useState } from "react";
 import { demoPlayerPositions } from "@/lib/demo-data";
 import type {
@@ -22,74 +24,36 @@ function cleanSlot(slot: string | undefined, fallback: string) {
   return normalized;
 }
 
-function statusClass(status: string | null) {
-  const value = (status || "").toLowerCase();
-  if (value.includes("out") || value.includes("ir") || value.includes("pup") || value.includes("suspend")) return "danger";
-  if (value.includes("question") || value.includes("doubt")) return "warning";
-  return "";
-}
-
 export function RosterSnapshot({
   team,
   league,
   source,
-  intelligence
+  intelligence,
+  view="roster"
 }: {
   team: LeagueTeam;
   league: ImportedLeague;
   source: LeagueProvider;
   intelligence?: PlayerIntelligencePayload | null;
+  view?: "roster"|"projections"|"stats";
 }) {
-  const [playersById, setPlayersById] = useState<Record<string, PlayerProfile>>(
-    intelligence?.profiles || team.playerProfiles || {}
-  );
-  const [loading, setLoading] = useState(source === "sleeper" && !intelligence);
-  const [error, setError] = useState("");
-
+  const requestKey = `${source}:${team.rosterId}:${team.players.join(",")}`;
+  const [remote, setRemote] = useState<{key:string;players:Record<string,PlayerProfile>;error:string}|null>(null);
+  const needsFetch = source === "sleeper" && !intelligence;
+  const current = remote?.key === requestKey ? remote : null;
+  const playersById = useMemo(() => ({...(team.playerProfiles || {}), ...(intelligence?.profiles || (needsFetch ? current?.players : {}) || {})}), [team.playerProfiles, intelligence, needsFetch, current]);
+  const loading = needsFetch && !current;
+  const error = current?.error || "";
   useEffect(() => {
-    if (intelligence) {
-      setPlayersById({ ...(team.playerProfiles || {}), ...intelligence.profiles });
-      setLoading(false);
-      setError("");
-      return;
-    }
-    if (source === "yahoo") {
-      setPlayersById(team.playerProfiles || {});
-      setLoading(false);
-      setError("");
-      return;
-    }
-    if (source !== "sleeper") {
-      setLoading(false);
-      setError("");
-      setPlayersById({});
-      return;
-    }
-
+    if (!needsFetch) return;
     const controller = new AbortController();
-    const ids = team.players.slice(0, 120);
-    setLoading(true);
-    setError("");
-    fetch("/api/sleeper/players", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ids }),
-      signal: controller.signal
-    })
-      .then(async (response) => {
-        const payload = await response.json();
-        if (!response.ok) throw new Error(payload.error || "Unable to load player names.");
-        return payload as { players: Record<string, PlayerProfile> };
-      })
-      .then((payload) => setPlayersById(payload.players))
-      .catch((requestError) => {
-        if (requestError instanceof DOMException && requestError.name === "AbortError") return;
-        setError(requestError instanceof Error ? requestError.message : "Unable to load player names.");
-      })
-      .finally(() => setLoading(false));
-
-    return () => controller.abort();
-  }, [intelligence, source, team.playerProfiles, team.players, team.rosterId]);
+    let cancelled = false;
+    fetch("/api/sleeper/players", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ids:team.players.slice(0,120)}), signal:controller.signal})
+      .then(async response => {const payload = await response.json(); if (!response.ok) throw Error(payload.error || "Unable to load player names."); return payload as {players:Record<string,PlayerProfile>};})
+      .then(payload => {if(!cancelled) setRemote({key:requestKey, players:payload.players, error:""});})
+      .catch(error => {if(!cancelled) setRemote({key:requestKey, players:{}, error:error instanceof Error ? error.message : "Unable to load player names."});});
+    return () => {cancelled=true; controller.abort();};
+  }, [needsFetch, requestKey, team.players]);
 
   const snapshotMap = useMemo(
     () => new Map((intelligence?.currentSnapshots || []).map((snapshot) => [snapshot.playerId, snapshot])),
@@ -103,7 +67,7 @@ export function RosterSnapshot({
       playerId,
       lineupSlot,
       group,
-      fullName: source === "demo" ? playerId : profile?.fullName || snapshot?.playerName || playerId,
+      fullName: source === "demo" ? playerId : profile?.fullName || snapshot?.playerName || "Player details unavailable",
       position: source === "demo" ? demoPlayerPositions[playerId] || "—" : profile?.position || snapshot?.position || "—",
       nflTeam: source === "demo" ? null : profile?.team || snapshot?.nflTeam || null,
       status: source === "demo" ? null : profile?.injuryStatus || profile?.status || null,
@@ -119,10 +83,11 @@ export function RosterSnapshot({
     const starterSet = new Set(validStarters);
     const reserveSet = new Set(team.reserve || []);
     const taxiSet = new Set(team.taxi || []);
-    const starters = validStarters.map((playerId, index) => {
+    const starters = team.starters.map((playerId, index) => {
+      if (!playerId || playerId === "0") return null;
       const fallback = source === "demo" ? demoPlayerPositions[playerId] || "START" : playersById[playerId]?.position || "START";
-      return playerRow(playerId, cleanSlot(starterSlots[index], fallback), "starter");
-    });
+      return playerRow(playerId, cleanSlot(source === "yahoo" ? playersById[playerId]?.selectedPosition || undefined : starterSlots[index], fallback), "starter");
+    }).filter((row): row is NonNullable<typeof row> => Boolean(row));
     const nonStarters = team.players.filter((playerId) => !starterSet.has(playerId));
     const reserve = nonStarters.filter((id) => reserveSet.has(id)).map((id) => playerRow(id, "IR", "reserve"));
     const taxi = nonStarters.filter((id) => taxiSet.has(id)).map((id) => playerRow(id, "TAXI", "taxi"));
@@ -134,31 +99,30 @@ export function RosterSnapshot({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [league.rosterPositions, playersById, snapshotMap, source, team.players, team.reserve, team.starters, team.taxi]);
 
-  const lowestStarterProjection = Math.min(...groups.starters.map((row) => row.projectedPoints ?? Number.POSITIVE_INFINITY));
 
-  function LineupSection({ title, rows }: { title: string; rows: ReturnType<typeof playerRow>[] }) {
+  function renderLineupSection({ title, rows }: { title: string; rows: ReturnType<typeof playerRow>[] }) {
     if (!rows.length) return null;
     return (
       <div className="lineup-section">
         <div className="lineup-section-heading"><h3>{title}</h3><span>{rows.length} players</span></div>
         <div className="lineup-list">
           {rows.map((player) => {
-            const possibleUpgrade = player.group === "bench" && player.projectedPoints !== null && Number.isFinite(lowestStarterProjection) && player.projectedPoints > lowestStarterProjection + 1;
+            const possibleUpgrade = player.group === "bench" && player.projectedPoints !== null && groups.starters.some((starter, index) => starter.projectedPoints !== null && lineupEligibility(league.rosterPositions.filter(slot => !NON_STARTER_SLOTS.has(slot.toUpperCase()))[team.starters.indexOf(starter.playerId)] || groups.starters[index].lineupSlot).has(player.position) && player.projectedPoints! > starter.projectedPoints + 1);
             return (
               <article className={`lineup-row ${player.group}${possibleUpgrade ? " possible-upgrade" : ""}`} key={`${player.group}-${player.playerId}`}>
                 <span className="lineup-slot">{player.lineupSlot}</span>
                 <div className="lineup-player-main">
-                  <strong>{player.fullName}</strong>
+                  <PlayerDetails profile={playersById[player.playerId] || {playerId:player.playerId,fullName:player.fullName,position:player.position,team:player.nflTeam,status:player.status}} snapshot={snapshotMap.get(player.playerId)} source={source} showAvatar/>
                   <small>{player.position}{player.nflTeam ? ` · ${player.nflTeam}` : ""}{player.status ? ` · ${player.status}` : ""}</small>
-                  {possibleUpgrade && <em>Review start/sit: projects above at least one current starter.</em>}
+                  {possibleUpgrade && <em>Review start/sit: projects above a position-eligible starter.</em>}
                 </div>
-                {player.status && <span className={`lineup-status ${statusClass(player.status)}`}>{player.status}</span>}
+
                 <div className="lineup-projection">
-                  <strong>{player.projectedPoints === null ? "—" : player.projectedPoints.toFixed(2)}</strong>
-                  <span>projected</span>
-                  {player.previousActualPoints !== null && <small>Last: {player.previousActualPoints.toFixed(2)}{player.recentError !== null ? ` (${player.recentError >= 0 ? "+" : ""}${player.recentError.toFixed(2)})` : ""}</small>}
+                  <strong>{view === "stats" ? (player.previousActualPoints == null ? "—" : player.previousActualPoints.toFixed(1)) : player.projectedPoints === null ? "—" : player.projectedPoints.toFixed(1)}</strong>
+                  <span>{view === "stats" ? "last scored week" : "projected"}</span>
+
                 </div>
-                <Link className="lineup-trade-link" href={`/trade-lab?player=${encodeURIComponent(player.playerId)}`}>Trade Lab</Link>
+
               </article>
             );
           })}
@@ -167,20 +131,23 @@ export function RosterSnapshot({
     );
   }
 
+  const projection=lineupProjection(team,intelligence);
   const totalPlayers = groups.starters.length + groups.bench.length + groups.taxi.length + groups.reserve.length;
 
   return (
     <section className="panel roster-panel vertical-lineup-panel">
       <div className="panel-heading">
-        <div><span className="eyebrow">Your lineup</span><h2>{team.teamName}</h2><p>Imported lineup order with starters, bench, taxi squad, and injured reserve separated.</p></div>
+        <div><h2>{view === "stats" ? "Recent fantasy points" : view === "projections" ? `Week ${intelligence?.projectionWeek || "—"} projections` : "Roster"}</h2></div>
         <span className="pill">{totalPlayers} rostered</span>
       </div>
+
+      {view!=="stats"&&<div className="roster-projection-total"><span>{intelligence?`Week ${intelligence.projectionWeek}`:'Weekly projection'} · {projection.complete?'Starting lineup total':'Known starter projections'}</span><strong>{projection.total==null?'Unavailable':`${projection.total.toFixed(1)} pts`}</strong>{!projection.complete&&<small>{projection.known} of {projection.slots} starters have projections</small>}</div>}
 
       {loading && <div className="roster-state">Loading player details…</div>}
       {error && <div className="roster-state error">{error}</div>}
       {!loading && !totalPlayers && <div className="roster-state">No roster data is available yet.</div>}
 
-      {!!totalPlayers && <div className="vertical-lineup"><LineupSection title="Starting lineup" rows={groups.starters} /><LineupSection title="Bench" rows={groups.bench} /><LineupSection title="Taxi squad" rows={groups.taxi} /><LineupSection title="Injured reserve" rows={groups.reserve} /></div>}
+      {!!totalPlayers && <div className="vertical-lineup">{renderLineupSection({title: "Starting lineup", rows: groups.starters})}{renderLineupSection({title: "Bench", rows: groups.bench})}{renderLineupSection({title: "Taxi squad", rows: groups.taxi})}{renderLineupSection({title: "Injured reserve", rows: groups.reserve})}</div>}
     </section>
   );
 }

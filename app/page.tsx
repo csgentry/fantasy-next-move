@@ -1,33 +1,10 @@
+import {EventTracker} from "@/components/EventTracker";
 import Link from "next/link";
-
-export default function Home() {
-  return (
-    <main className="landing">
-      <header className="landing-nav">
-        <div className="brand"><span className="brand-mark">FNM</span><span>FantasyNextMove</span></div>
-        <div className="nav-actions"><Link href="/pricing">Pricing</Link><Link href="/login">Login</Link><Link className="button small" href="/signup">Create account</Link></div>
-      </header>
-      <section className="hero">
-        <div className="eyebrow">Sleeper import live · League-specific scoring</div>
-        <h1>Know your league.<br />Make the next move.</h1>
-        <p>Turn standings, rosters, weekly projections, manager history, dynasty draft capital, and league settings into a clearer plan.</p>
-        <div className="hero-actions"><Link className="button" href="/pricing">View plans</Link><Link className="button secondary" href="/demo">Explore sample league</Link></div>
-        <div className="trust-row"><span>Account-owned data</span><span>Read-only imports</span><span>Secure Stripe billing</span><span>League-aware values</span></div>
-      </section>
-      <section className="preview-grid">
-        <div className="preview-card large"><div className="preview-header"><span>Weekly Command Center</span><span className="pill">Win Now: 91.4</span></div><h3>Your clearest next move</h3><p>Compare roster needs, long-term player value, current projections, and draft capital before making an offer.</p><div className="mini-bars"><i style={{width:"88%"}}/><i style={{width:"72%"}}/><i style={{width:"61%"}}/></div></div>
-        <div className="preview-card"><span className="muted">Overall Power</span><strong className="huge">#2</strong><small>League-wide roster analysis</small></div>
-        <div className="preview-card"><span className="muted">Trade verdict</span><strong className="positive">Fair range</strong><small>Players, picks, packages, and roster fit</small></div>
-      </section>
-      <section className="feature-section">
-        <div><span className="eyebrow">One account, every decision</span><h2>More than another score dashboard.</h2></div>
-        <div className="feature-grid">
-          <article><b>01</b><h3>League memory</h3><p>Save connected seasons, preserve manager history, and build records and championships.</p></article>
-          <article><b>02</b><h3>League Analyzer</h3><p>Compare Overall Power, Win Now strength, and Dynasty Future value with visible explanations.</p></article>
-          <article><b>03</b><h3>Trade Lab 2.0</h3><p>Use locked 0–10,000 values that adapt to format, scoring, lineup depth, roster fit, and owned picks.</p></article>
-        </div>
-      </section>
-      <footer className="landing-footer"><span>FantasyNextMove</span><span className="footer-links"><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/pricing">Pricing</Link></span><span>Public sample. Subscription required for real leagues.</span></footer>
-    </main>
-  );
-}
+import {MarketingHeader} from "@/components/MarketingHeader";
+export default function Home(){return <main className="landing"><EventTracker event="homepage_viewed"/><MarketingHeader/>
+<section className="hero"><span className="eyebrow">Your fantasy decision assistant</span><h1>Know what to do next<br/>with your fantasy team.</h1><p>Early access for Sleeper fantasy football managers. Bring your league context into one focused place.</p><div className="hero-actions"><Link className="button" href="/connect">Connect Your League</Link><a className="button secondary" href="#how-it-works">See How It Works</a></div></section>
+<section className="decision-example" aria-labelledby="example-title"><span className="eyebrow">Built around your team</span><h2 id="example-title">Your team. Your next decision.</h2><p>Review your roster, understand positional needs, and explore lineup and trade decisions using your connected Sleeper league.</p><p>Recommendations explain the available evidence and its limits. Missing projections are never presented as guaranteed results.</p><Link className="button" href="/signup">Create your account</Link></section>
+<section className="feature-section" id="how-it-works"><span className="eyebrow">Three steps. One clearer decision.</span><div className="feature-grid"><article><b>01</b><h3>Connect your league</h3><p>Read-only access gives us the league context needed to understand your team.</p></article><article><b>02</b><h3>We analyze your team</h3><p>We compare starter strength, positional needs, depth, and league settings.</p></article><article><b>03</b><h3>See your next move</h3><p>Focus on a prioritized action and understand why it matters.</p></article></div></section>
+<section className="feature-section" id="product"><h2>Everything points to your next decision.</h2><div className="feature-grid"><article><h3>Next Move</h3><p>Prioritized recommendations for your team, with reasons and uncertainty.</p></article><article><h3>Team Analysis</h3><p>See where your roster is strong, weak, and how it compares with your league.</p></article><article id="trade-lab"><h3>Trade Lab</h3><p>Understand whether a trade improves your starting lineup and roster balance.</p></article></div></section>
+<section className="trust-section"><h2>Advice you can evaluate.</h2><p>Recommendations are estimates, never guaranteed wins. Connections are read-only, and we do not sell connected fantasy account information. Pro subscriptions and Yahoo connections are not yet available. No fantasy provider endorses FantasyNextMove.</p></section>
+<footer className="landing-footer"><span>FantasyNextMove</span><span className="footer-links"><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/pricing">Pricing</Link></span></footer></main>}

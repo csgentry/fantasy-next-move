@@ -1,3 +1,5 @@
+import "server-only";
+import { fetchWithBackoff } from "./retry";
 import { XMLParser } from "fast-xml-parser";
 import type { ImportedLeague, LeagueTeam, PlayerProfile } from "@/lib/types";
 import type { YahooToken } from "./auth";
@@ -6,7 +8,7 @@ const API = "https://fantasysports.yahooapis.com/fantasy/v2";
 const parser = new XMLParser({
   ignoreAttributes: false,
   removeNSPrefix: true,
-  parseTagValue: true,
+  parseTagValue: false,
   trimValues: true
 });
 
@@ -70,17 +72,6 @@ function findNodes(root: unknown, key: string, results: UnknownRecord[] = []): U
 }
 
 
-async function mapWithConcurrency<T>(items: T[], limit: number, worker: (item: T) => Promise<void>) {
-  let cursor = 0;
-  const runners = Array.from({ length: Math.min(limit, items.length) }, async () => {
-    while (cursor < items.length) {
-      const index = cursor++;
-      await worker(items[index]);
-    }
-  });
-  await Promise.all(runners);
-}
-
 function uniqueBy<T>(items: T[], selector: (item: T) => string) {
   const seen = new Set<string>();
   return items.filter((item) => {
@@ -91,29 +82,51 @@ function uniqueBy<T>(items: T[], selector: (item: T) => string) {
   });
 }
 
+const YAHOO_PROBLEMS = new Set(["invalid_token", "insufficient_scope", "token_expired", "token_rejected", "consumer_key_rejected", "consumer_key_unknown", "permission_denied", "signature_invalid", "nonce_used", "timestamp_refused"]);
+
+async function yahooProblem(response: Response) {
+  // Examine a bounded error response in memory. Never return or log raw bodies,
+  // authorization headers, provider URLs, or arbitrary provider descriptions.
+  let detail = (response.headers.get("www-authenticate") || "").slice(0, 8192);
+  const reader = response.body?.getReader();
+  if (reader) {
+    const decoder = new TextDecoder();
+    let remaining = 8192;
+    try {
+      while (remaining > 0) {
+        const {done, value} = await reader.read();
+        if (done) break;
+        const part = value.subarray(0, remaining);
+        detail += decoder.decode(part, {stream: true});
+        remaining -= part.byteLength;
+      }
+    } finally {
+      await reader.cancel().catch(() => {});
+      reader.releaseLock();
+    }
+  }
+  const code = detail.match(/(?:oauth_problem|error)["']?\s*[:=]\s*["']?([a-z_]+)/i)?.[1]?.toLowerCase();
+  return code && YAHOO_PROBLEMS.has(code) ? code : "unclassified";
+}
+
+export class YahooApiError extends Error {
+  constructor(public readonly status: number, public readonly providerCode = "unclassified") {
+    super(providerCode === "token_expired" ? "Yahoo authorization expired. Reconnect Yahoo." : status === 401 ? "Yahoo rejected this Fantasy Sports request. Reconnect Yahoo. If this continues, Fantasy Sports access needs verification." : status === 403 ? "Yahoo Fantasy access is not authorized for this application or account." : status === 429 ? "Yahoo is limiting requests. Wait before refreshing." : "Yahoo Fantasy is temporarily unavailable. Try again.");
+    this.name = "YahooApiError";
+  }
+}
+
 export async function yahooFantasyFetch(path: string, token: YahooToken) {
-  const response = await fetch(`${API}${path}`, {
+  const response = await fetchWithBackoff(`${API}${path}`, {
     headers: {
       Authorization: `Bearer ${token.accessToken}`,
       Accept: "application/xml"
     },
     cache: "no-store"
   });
+  if (!response.ok) throw new YahooApiError(response.status, await yahooProblem(response));
   const body = await response.text();
-  if (!response.ok) {
-    const message = body.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-    throw new Error(message || `Yahoo Fantasy request failed (${response.status}).`);
-  }
   return parser.parse(body) as UnknownRecord;
-}
-
-export async function yahooUserInfo(token: YahooToken) {
-  const response = await fetch("https://api.login.yahoo.com/openid/v1/userinfo", {
-    headers: { Authorization: `Bearer ${token.accessToken}` },
-    cache: "no-store"
-  });
-  if (!response.ok) return null;
-  return response.json() as Promise<{ sub?: string; name?: string; nickname?: string; email?: string; picture?: string }>;
 }
 
 function leagueKeyFromTeamKey(teamKey: string) {
@@ -121,17 +134,8 @@ function leagueKeyFromTeamKey(teamKey: string) {
   return match?.[1] ?? "";
 }
 
-function managerFromTeam(team: UnknownRecord) {
-  const managers = findNodes(team.managers, "manager");
-  const manager = managers[0] ?? {};
-  return {
-    ownerId: text(manager.guid) || null,
-    ownerName: text(manager.nickname || manager.email) || "Yahoo Manager"
-  };
-}
-
 function normalizeYahooPlayer(player: UnknownRecord): PlayerProfile & { starter: boolean } {
-  const playerId = text(player.player_key || player.player_id);
+  const playerId = text(player.player_key);
   const fullName = text(record(player.name).full) || [text(record(player.name).first), text(record(player.name).last)].filter(Boolean).join(" ") || playerId;
   const selectedPosition = text(record(player.selected_position).position) || null;
   const explicitAge = numberValue(player.age);
@@ -143,127 +147,83 @@ function normalizeYahooPlayer(player: UnknownRecord): PlayerProfile & { starter:
     team: text(player.editorial_team_abbr) || null,
     status: text(player.status) || null,
     selectedPosition,
+    eligiblePositions: asArray(record(player.eligible_positions).position).map(text).filter(Boolean),
     age: explicitAge || ageFromBirthDate(player.birth_date),
     yearsExperience: experience || null,
     searchRank: null,
-    starter: !["BN", "IR", "IR+", "NA"].includes(selectedPosition || "")
+    starter: Boolean(selectedPosition) && !["BN", "IR", "IR+", "NA"].includes(selectedPosition || "")
   };
 }
 
 async function fetchRoster(teamKey: string, token: YahooToken) {
   const payload = await yahooFantasyFetch(`/team/${encodeURIComponent(teamKey)}/roster/players`, token);
   const players = uniqueBy(findNodes(payload, "player"), (player) => text(player.player_key || player.player_id));
-  const profiles = players.map(normalizeYahooPlayer).filter((player) => player.playerId);
+  const profiles = players.map(normalizeYahooPlayer).filter((player) => /^\d+\.p\.\d+$/.test(player.playerId));
   return {
     players: profiles.map((player) => player.playerId),
     starters: profiles.filter((player) => player.starter).map((player) => player.playerId),
+    reserve: profiles.filter(player => ["IR", "IR+", "NA"].includes(player.selectedPosition || "")).map(player => player.playerId),
     playerProfiles: Object.fromEntries(profiles.map(({ starter: _starter, ...profile }) => [profile.playerId, profile]))
   };
 }
 
-function normalizeStandingTeam(team: UnknownRecord): LeagueTeam | null {
-  const teamKey = text(team.team_key);
-  if (!teamKey) return null;
-  const standings = record(team.team_standings);
-  const totals = record(standings.outcome_totals);
-  const manager = managerFromTeam(team);
-  return {
-    rosterId: numberValue(team.team_id) || Number(teamKey.split(".t.")[1]) || 0,
-    providerTeamKey: teamKey,
-    ownerId: manager.ownerId,
-    ownerName: manager.ownerName,
-    teamName: text(team.name) || `Yahoo Team ${text(team.team_id)}`,
-    wins: numberValue(totals.wins),
-    losses: numberValue(totals.losses),
-    ties: numberValue(totals.ties),
-    pointsFor: numberValue(standings.points_for),
-    pointsAgainst: numberValue(standings.points_against),
-    rank: numberValue(standings.rank) || null,
-    players: [],
-    starters: [],
-    playerProfiles: {}
-  };
+export function currentYahooSeason(now = new Date()) {
+  return String(now.getUTCFullYear() - (now.getUTCMonth() < 2 ? 1 : 0));
 }
 
-export async function importYahooSeason(token: YahooToken, season: string) {
-  let teamsPayload = await yahooFantasyFetch(`/users;use_login=1/games;game_codes=nfl;seasons=${encodeURIComponent(season)}/teams`, token);
-  let userTeamNodes = uniqueBy(findNodes(teamsPayload, "team"), (team) => text(team.team_key));
-  if (!userTeamNodes.length && season === String(new Date().getFullYear())) {
-    teamsPayload = await yahooFantasyFetch(`/users;use_login=1/games;game_keys=nfl/teams`, token);
-    userTeamNodes = uniqueBy(findNodes(teamsPayload, "team"), (team) => text(team.team_key));
-  }
-  const userTeamKeys = new Set(userTeamNodes.map((team) => text(team.team_key)).filter(Boolean));
-  const leagueKeys = uniqueBy(userTeamNodes.map((team) => leagueKeyFromTeamKey(text(team.team_key))).filter(Boolean), (item) => item);
-
-  const leagues: ImportedLeague[] = [];
-  for (const leagueKey of leagueKeys) {
-    const leaguePayload = await yahooFantasyFetch(`/league/${encodeURIComponent(leagueKey)};out=settings,standings,teams`, token);
-    const leagueNode = findNodes(leaguePayload, "league").find((node) => text(node.league_key) === leagueKey) ?? findNodes(leaguePayload, "league")[0] ?? {};
-    const standingNodes = uniqueBy(findNodes(record(leagueNode).standings, "team"), (team) => text(team.team_key));
-    const fallbackNodes = uniqueBy(findNodes(leaguePayload, "team"), (team) => text(team.team_key));
-    const teamNodes = standingNodes.length ? standingNodes : fallbackNodes;
-    const normalizedTeams = teamNodes.map(normalizeStandingTeam).filter((team): team is LeagueTeam => Boolean(team));
-
-    await mapWithConcurrency(normalizedTeams, 4, async (team) => {
-      if (!team.providerTeamKey) return;
-      try {
-        Object.assign(team, await fetchRoster(team.providerTeamKey, token));
-      } catch {
-        // Some archived leagues do not expose roster data. Standings remain usable.
-      }
-    });
-
-    const userTeam = normalizedTeams.find((team) => team.providerTeamKey && userTeamKeys.has(team.providerTeamKey));
-    const settings = record(leagueNode.settings);
-    const rosterPositions = findNodes(settings, "roster_position").flatMap((node) => {
-      const position = text(node.position);
-      const count = Math.max(numberValue(node.count), 1);
-      return position ? Array.from({ length: count }, () => position) : [];
-    });
-
-    const scoringSettings = Object.fromEntries(findNodes(settings, "stat").map((stat) => [text(stat.stat_id), numberValue(stat.value)]).filter(([statId]) => Boolean(statId)));
-    const renewKey = text(leagueNode.renew);
-
-    leagues.push({
-      provider: "yahoo",
-      leagueId: leagueKey,
-      providerLeagueKey: leagueKey,
-      name: text(leagueNode.name) || `Yahoo League ${leagueKey}`,
-      season: text(leagueNode.season) || season,
-      status: text(leagueNode.is_finished) === "1" ? "complete" : "active",
-      totalRosters: numberValue(leagueNode.num_teams) || normalizedTeams.length,
-      scoringSettings,
-      rosterPositions,
-      previousLeagueId: renewKey && renewKey !== "0" ? renewKey : null,
-      userRosterId: userTeam?.rosterId ?? null,
-      leagueType: yahooLeagueType(settings),
-      teams: normalizedTeams
-    });
-  }
-
-  return leagues;
+async function ownedTeams(token: YahooToken) {
+  const payload = await yahooFantasyFetch(`/users;use_login=1/games;game_codes=nfl;seasons=${currentYahooSeason()}/teams`, token);
+  return uniqueBy(findNodes(payload, "team"), team => text(team.team_key));
 }
 
-export async function importYahooLeagueByKey(token: YahooToken, leagueKey: string): Promise<ImportedLeague> {
-  const leaguePayload = await yahooFantasyFetch(`/league/${encodeURIComponent(leagueKey)};out=settings,standings,teams`, token);
-  const leagueNode = findNodes(leaguePayload, "league").find((node) => text(node.league_key) === leagueKey) ?? findNodes(leaguePayload, "league")[0] ?? {};
-  const standingNodes = uniqueBy(findNodes(record(leagueNode).standings, "team"), (team) => text(team.team_key));
-  const fallbackNodes = uniqueBy(findNodes(leaguePayload, "team"), (team) => text(team.team_key));
-  const normalizedTeams = (standingNodes.length ? standingNodes : fallbackNodes).map(normalizeStandingTeam).filter((team): team is LeagueTeam => Boolean(team));
-  const renewKey = text(leagueNode.renew);
-  return {
-    provider: "yahoo",
-    leagueId: leagueKey,
-    providerLeagueKey: leagueKey,
-    name: text(leagueNode.name) || `Yahoo League ${leagueKey}`,
-    season: text(leagueNode.season) || "",
-    status: text(leagueNode.is_finished) === "1" ? "complete" : "active",
-    totalRosters: numberValue(leagueNode.num_teams) || normalizedTeams.length,
-    scoringSettings: {},
-    rosterPositions: [],
-    previousLeagueId: renewKey && renewKey !== "0" ? renewKey : null,
-    userRosterId: null,
-    leagueType: "redraft",
-    teams: normalizedTeams
-  };
+async function leagueMetadata(token: YahooToken, leagueKey: string, settings = false) {
+  const payload = await yahooFantasyFetch(`/league/${encodeURIComponent(leagueKey)}${settings ? ";out=settings" : ""}`, token);
+  const node = findNodes(payload, "league").find(item => text(item.league_key) === leagueKey);
+  if (!node || text(node.season) !== currentYahooSeason()) throw new Error("Choose a current-season NFL league.");
+  return node;
+}
+
+export async function discoverYahooLeagues(token: YahooToken, onWarning?: (message: string) => void) {
+  const owned = await ownedTeams(token);
+  const choices = [];
+  let lastFailure: unknown;
+  for (const team of owned) {
+    const teamKey = text(team.team_key);
+    const leagueKey = leagueKeyFromTeamKey(teamKey);
+    if (!/^\d+\.l\.\d+$/.test(leagueKey)) continue;
+    try {
+      const node = await leagueMetadata(token, leagueKey);
+      choices.push({leagueKey, teamKey, name: text(node.name) || "Yahoo league", teamName: text(team.name) || "My team", season: currentYahooSeason()});
+    } catch (error) {
+      if (error instanceof YahooApiError && [401, 403, 429].includes(error.status)) throw error;
+      lastFailure = error;
+      onWarning?.("One Yahoo league could not be loaded. Refresh to try again.");
+    }
+  }
+  if (!choices.length && lastFailure) throw lastFailure;
+  return choices;
+}
+
+export async function selectYahooLeague(token: YahooToken, leagueKey: string, teamKey: string): Promise<ImportedLeague> {
+  if (!/^\d+\.l\.\d+$/.test(leagueKey) || !/^\d+\.l\.\d+\.t\.\d+$/.test(teamKey) || leagueKeyFromTeamKey(teamKey) !== leagueKey) throw new Error("Invalid league selection.");
+  const owned = await ownedTeams(token);
+  const teamNode = owned.find(team => text(team.team_key) === teamKey);
+  if (!teamNode) throw new Error("This team is not owned by the connected Yahoo account.");
+  const node = await leagueMetadata(token, leagueKey, true);
+  const settings = record(node.settings);
+  const rosterPositions = findNodes(settings, "roster_position").flatMap(item => Array.from({length: Math.min(Math.max(Math.floor(numberValue(item.count)), 0), 50)}, () => text(item.position))).filter(Boolean);
+  const scoringModifiers = Object.fromEntries(findNodes(record(settings.stat_modifiers), "stat").flatMap(stat => {
+    const id = text(stat.stat_id);
+    const raw = text(stat.value);
+    const value = Number(raw);
+    return /^\d+$/.test(id) && raw !== "" && Number.isFinite(value) ? [[id, value]] : [];
+  }));
+  const roster = await fetchRoster(teamKey, token);
+  const rosterId = Number(teamKey.split(".t.")[1]);
+  const team: LeagueTeam = {rosterId, providerTeamKey: teamKey, ownerId: null, ownerName: "You", teamName: text(teamNode.name) || "My team", wins: 0, losses: 0, ties: 0, pointsFor: 0, pointsAgainst: 0, rank: null, ...roster};
+  return {provider: "yahoo", leagueId: leagueKey, providerLeagueKey: leagueKey, name: text(node.name) || "Yahoo league", season: currentYahooSeason(), status: text(node.is_finished) === "1" ? "complete" : "active", totalRosters: numberValue(node.num_teams), scoringSettings: {}, rosterPositions, previousLeagueId: null, userRosterId: rosterId, leagueType: yahooLeagueType(settings), teams: [team], providerContext: {
+    provider: "yahoo", syncedAt: new Date().toISOString(),
+    currentWeek: numberValue(node.current_week) || null, scoringModifiers,
+    warnings: ["Only your authorized team roster is loaded. Opponent rosters and independent projections are unavailable.", "Yahoo scoring category identifiers are retained separately; they are not assumed to match another provider."]
+  }};
 }

@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import type { DraftPickAsset, ImportedLeague, LeagueTeam, LeagueType } from "@/lib/types";
 
+import { sleeperAvatarUrl } from "../../../../lib/sleeper-avatar";
+
 const API = "https://api.sleeper.app/v1";
 
 async function sleeperFetch<T>(path: string): Promise<T> {
-  const response = await fetch(`${API}${path}`, { next: { revalidate: 300 } });
+  const response = await fetch(`${API}${path}`, { next: { revalidate: 300 }, signal: AbortSignal.timeout(12000) });
   if (!response.ok) throw new Error(`Sleeper request failed (${response.status}).`);
   return response.json() as Promise<T>;
 }
@@ -81,9 +83,10 @@ function buildDraftPicks(league: SleeperLeague, teams: LeagueTeam[], traded: Sle
   return assets;
 }
 
-export async function GET(request: NextRequest) {
-  const username = request.nextUrl.searchParams.get("username")?.trim();
-  const season = request.nextUrl.searchParams.get("season")?.trim() || String(new Date().getFullYear());
+export async function POST(request: NextRequest) {
+  const body = await request.json().catch(() => ({})) as {username?:unknown;season?:unknown};
+  const username = typeof body.username === "string" ? body.username.trim() : "";
+  const season = typeof body.season === "string" ? body.season.trim() : String(new Date().getFullYear());
   if (!username) return NextResponse.json({ error: "A Sleeper username is required." }, { status: 400 });
   if (username.length > 80) return NextResponse.json({ error: "Sleeper username is too long." }, { status: 400 });
   if (!/^\d{4}$/.test(season)) return NextResponse.json({ error: "Season must be a four-digit year." }, { status: 400 });
@@ -113,6 +116,8 @@ export async function GET(request: NextRequest) {
           ownerId: roster.owner_id,
           ownerName: owner?.display_name || owner?.username || `Roster ${roster.roster_id}`,
           teamName: owner?.metadata?.team_name || owner?.display_name || `Team ${roster.roster_id}`,
+          avatarUrl: sleeperAvatarUrl(owner?.metadata?.avatar) || sleeperAvatarUrl(owner?.avatar),
+          ownerAvatarUrl: sleeperAvatarUrl(owner?.avatar),
           wins: roster.settings?.wins || 0,
           losses: roster.settings?.losses || 0,
           ties: roster.settings?.ties || 0,
@@ -156,6 +161,6 @@ export async function GET(request: NextRequest) {
       leagues: normalized
     });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to reach Sleeper." }, { status: 502 });
+    return NextResponse.json({ error: "We couldn’t refresh your Sleeper leagues. No saved league was changed. Try again shortly." }, { status: 502 });
   }
 }

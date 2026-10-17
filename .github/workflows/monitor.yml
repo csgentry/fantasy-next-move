@@ -1,0 +1,22 @@
+name: Application readiness
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/15 * * * *'
+permissions:
+  contents: read
+concurrency:
+  group: readiness-monitor
+  cancel-in-progress: true
+jobs:
+  readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node scripts/check-health.mjs
+        env:
+          FNM_MONITOR_URL: ${{ vars.FNM_MONITOR_URL }}

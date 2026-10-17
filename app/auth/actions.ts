@@ -1,5 +1,8 @@
 "use server";
 
+import {authenticatedDestination} from "@/lib/auth-destination";
+import { siteOrigin, safeNextPath } from "../../lib/site-origin";
+import {recordProductEvent} from "@/lib/billing/events";
 import { createHash } from "node:crypto";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -17,17 +20,17 @@ function withMessage(path: string, key: "error" | "message", message: string) {
 async function appOrigin() {
   const headerStore = await headers();
   const origin = headerStore.get("origin");
-  if (origin) return origin;
+  if (origin) return siteOrigin(origin);
   const host = headerStore.get("x-forwarded-host") || headerStore.get("host") || "localhost:3000";
   const protocol = headerStore.get("x-forwarded-proto") || (host.includes("localhost") ? "http" : "https");
-  return `${protocol}://${host}`;
+  return siteOrigin(`${protocol}://${host}`);
 }
 
 export async function signIn(formData: FormData) {
   const email = value(formData, "email").toLowerCase();
   const password = value(formData, "password");
   const requestedNext = value(formData, "next");
-  const next = requestedNext.startsWith("/") && !requestedNext.startsWith("//") ? requestedNext : "/dashboard";
+  const next = safeNextPath(requestedNext);
   if (!email || !password) redirect(withMessage("/login", "error", "Enter your email and password."));
   if (email.length > 254 || password.length > 256) redirect(withMessage("/login", "error", "The sign-in details are too long."));
 
@@ -38,6 +41,8 @@ export async function signIn(formData: FormData) {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error || !data.user) {
       failure = error?.message || "Unable to sign in.";
+    } else {
+      destination = await authenticatedDestination(supabase,data.user.id,next);
     }
   } catch (error) {
     failure = error instanceof Error ? error.message : "Unable to sign in.";
@@ -58,9 +63,9 @@ export async function signUp(formData: FormData) {
 
   let failure = "";
   try {
-    const admin = createAdminClient();
+    const admin = inviteCode ? createAdminClient() : null;
     let inviteHash = "";
-    if (inviteCode) {
+    if (inviteCode && admin) {
       if (inviteCode.length < 12) redirect(withMessage("/signup", "error", "That complimentary-access code is not valid."));
       inviteHash = createHash("sha256").update(inviteCode).digest("hex");
       const { data: invite, error: inviteError } = await admin.from("beta_invites")
@@ -80,11 +85,11 @@ export async function signUp(formData: FormData) {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: { emailRedirectTo: `${origin}/auth/confirm?next=${inviteCode ? "/dashboard" : "/pricing"}` }
+        options: { emailRedirectTo: `${origin}/auth/confirm?next=/dashboard` }
       });
       if (error || !data.user || data.user.identities?.length === 0) {
         failure = error?.message || "An account with that email may already exist. Try signing in instead.";
-      } else if (inviteCode) {
+      } else if (inviteCode && admin) {
         const { data: redeemed, error: redeemError } = await admin.rpc("redeem_beta_invite", {
           invite_hash: inviteHash,
           invite_email: email,
@@ -95,12 +100,27 @@ export async function signUp(formData: FormData) {
           failure = "That complimentary-access code was claimed before signup completed. Ask for a new code.";
         }
       }
+      if(!failure) await recordProductEvent({userId:data.user?.id,eventName:"signup_completed"});
     }
   } catch (error) {
     failure = error instanceof Error ? error.message : "Unable to create the account.";
   }
   if (failure) redirect(withMessage("/signup", "error", failure));
   redirect(`/check-email?email=${encodeURIComponent(email)}`);
+}
+
+export async function resendConfirmation(formData: FormData) {
+  const email = value(formData, "email").toLowerCase();
+  if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) redirect(withMessage("/check-email", "error", "Enter a valid email address."));
+  let failure = "";
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase.auth.resend({ type: "signup", email, options: { emailRedirectTo: `${await appOrigin()}/auth/confirm?next=/dashboard` } });
+    if (error?.status === 429) failure = "Please wait a minute before requesting another confirmation email.";
+    else if (error) failure = "We couldn’t send the confirmation email. Try again shortly.";
+  } catch { failure = "We couldn’t send the confirmation email. Try again shortly."; }
+  if (failure) redirect(withMessage("/check-email", "error", failure));
+  redirect(withMessage("/check-email", "message", "If this address has an unconfirmed account, a new confirmation email has been sent. Check your inbox and spam folder."));
 }
 
 export async function sendPasswordReset(formData: FormData) {
@@ -127,24 +147,32 @@ export async function updatePassword(formData: FormData) {
   if (password.length > 256) redirect(withMessage("/update-password", "error", "The password is too long."));
   if (password !== confirmPassword) redirect(withMessage("/update-password", "error", "The passwords do not match."));
   let failure = "";
+  let destination="/dashboard";
   try {
     const supabase = await createClient();
-    const { error } = await supabase.auth.updateUser({ password });
+    const { data, error } = await supabase.auth.updateUser({ password });
     if (error) failure = error.message;
+    else if(data.user)destination=await authenticatedDestination(supabase,data.user.id);
   } catch (error) {
     failure = error instanceof Error ? error.message : "Unable to update the password.";
   }
   if (failure) redirect(withMessage("/update-password", "error", failure));
-  redirect(withMessage("/account", "message", "Password updated."));
+  redirect(destination);
 }
 
-export async function signOut() {
+export async function endSession(): Promise<{error:string|null}> {
   try {
     const supabase = await createClient();
-    await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut({ scope: "local" });
+    if(error)return {error:"Unable to log out. Please try again."};
+    return {error:null};
   } catch {
-    // Redirect even if the local session was already cleared.
+    return {error:"Unable to log out. Please try again."};
   }
+}
+export async function signOut() {
+  const result=await endSession();
+  if(result.error)redirect(withMessage("/account","error",result.error));
   redirect("/");
 }
 
@@ -158,15 +186,18 @@ export async function deleteAccount(formData: FormData) {
       failure = "Your session expired. Sign in again before deleting the account.";
     } else {
       const admin = createAdminClient();
-      const { data: activeSubscription } = await admin.from("subscriptions")
+      const { data: activeSubscription, error: subscriptionError } = await admin.from("subscriptions")
         .select("status")
         .eq("user_id", data.user.id)
         .in("status", ["active", "trialing", "past_due", "incomplete"])
         .limit(1)
         .maybeSingle();
-      if (activeSubscription) {
+      if (subscriptionError) {
+        failure = "We couldn’t verify your subscription. Your account has not been deleted. Try again later.";
+      } else if (activeSubscription) {
         failure = "Cancel your active subscription in Manage Billing before deleting the account.";
       } else {
+        await supabase.auth.signOut({ scope: "global" });
         const { error } = await admin.auth.admin.deleteUser(data.user.id);
         if (error) failure = error.message;
         else await supabase.auth.signOut();
@@ -177,4 +208,24 @@ export async function deleteAccount(formData: FormData) {
   }
   if (failure) redirect(withMessage("/account", "error", failure));
   redirect(withMessage("/", "message", "Your FantasyNextMove account and stored beta data were deleted."));
+}
+
+export async function disconnectSleeper(formData: FormData) {
+  if(value(formData,"confirmation")!=="DISCONNECT")redirect(withMessage("/account","error","Confirm Sleeper disconnection."));
+  const supabase=await createClient();
+  const {data}=await supabase.auth.getUser();
+  if(!data.user)redirect("/login?next=/account");
+  let failed=false;
+  try {
+    const admin=createAdminClient();
+    // Weekly snapshot storage is Sleeper-only; every operation is account scoped.
+    const snapshots=await admin.from("player_weekly_snapshots").delete().eq("user_id",data.user.id);
+    if(snapshots.error)throw snapshots.error;
+    for(const table of ["league_histories","leagues","connected_accounts"]){
+      const result=await admin.from(table).delete().eq("user_id",data.user.id).eq("provider","sleeper");
+      if(result.error)throw result.error;
+    }
+  }catch{failed=true;}
+  if(failed)redirect(withMessage("/account","error","We couldn’t finish removing the Sleeper data. Try again or contact support."));
+  redirect(withMessage("/account","message","Sleeper disconnected and stored Sleeper league data removed."));
 }

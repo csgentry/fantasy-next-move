@@ -8,7 +8,7 @@ type StripeSubscription = Record<string, any>;
 
 function isoFromUnix(value: unknown) {
   const seconds = Number(value || 0);
-  return seconds > 0 ? new Date(seconds * 1000).toISOString() : null;
+  return Number.isFinite(seconds) && seconds > 0 && seconds < 8640000000000 ? new Date(seconds * 1000).toISOString() : null;
 }
 
 function customerId(value: unknown) {
@@ -20,44 +20,51 @@ function customerId(value: unknown) {
 export async function userIdForStripeCustomer(stripeCustomerId: string) {
   if (!stripeCustomerId) return null;
   const admin = createAdminClient();
-  const { data } = await admin.from("billing_customers").select("user_id").eq("stripe_customer_id", stripeCustomerId).maybeSingle();
+  const { data, error } = await admin.from("billing_customers").select("user_id").eq("stripe_customer_id", stripeCustomerId).maybeSingle();
+  if (error) throw error;
   return data?.user_id || null;
 }
 
 export async function syncStripeSubscriptionObject(subscription: StripeSubscription, stripeEventId?: string | null) {
   const admin = createAdminClient();
   const stripeCustomerId = customerId(subscription.customer);
-  const metadataUserId = subscription.metadata?.fantasy_next_move_user_id || subscription.metadata?.user_id || null;
-  const userId = metadataUserId || await userIdForStripeCustomer(stripeCustomerId);
-  if (!userId) throw new Error(`No FantasyNextMove user is linked to Stripe customer ${stripeCustomerId || "unknown"}.`);
-
   const item = subscription.items?.data?.[0] || {};
   const price = item.price || {};
   const mapped = planForPriceId(price.id);
-  const metadataPlan = subscription.metadata?.selected_plan as BillingPlan | undefined;
-  const plan: BillingPlan = mapped?.plan || (metadataPlan === "trade_lab" ? "trade_lab" : "all_access");
+  if (!mapped) throw new Error("Subscription price is not configured for this application.");
+  if (subscription.livemode === true) throw new Error("Live billing is disabled.");
+  const userId = await userIdForStripeCustomer(stripeCustomerId);
+  if (!userId) throw new Error("No application user is linked to this Stripe customer.");
+  const metadataUserId = subscription.metadata?.fantasy_next_move_user_id || subscription.metadata?.user_id;
+  if (metadataUserId && metadataUserId !== userId) throw new Error("Stripe customer ownership does not match subscription metadata.");
+  const plan: BillingPlan = mapped.plan;
   const interval = mapped?.interval || price.recurring?.interval || subscription.metadata?.billing_interval || "month";
   const periodStart = isoFromUnix(subscription.current_period_start || item.current_period_start);
   const periodEnd = isoFromUnix(subscription.current_period_end || item.current_period_end);
   const status = String(subscription.status || "incomplete");
+  const scheduledCancel = isoFromUnix(subscription.cancel_at);
+  const accessEnd = periodEnd && scheduledCancel && Date.parse(scheduledCancel) < Date.parse(periodEnd) ? scheduledCancel : periodEnd;
   const active = status === "active" || status === "trialing";
-  const graceActive = status === "past_due";
-  const accessLevel = active || graceActive ? plan : "none";
-  const { data: previous } = await admin.from("subscriptions")
+  let accessLevel = active ? plan : "none";
+  const { data: previous, error: previousError } = await admin.from("subscriptions")
     .select("status,plan,billing_interval,updated_at")
     .eq("stripe_subscription_id", subscription.id)
     .maybeSingle();
-  const { data: previousEntitlement } = await admin.from("entitlements")
-    .select("valid_until")
+  if (previousError) throw previousError;
+  const { data: previousEntitlement, error: previousEntitlementError } = await admin.from("entitlements")
+    .select("valid_until,access_source,updated_at")
     .eq("user_id", userId)
     .maybeSingle();
-  const validUntil = active
-    ? periodEnd
-    : graceActive
-      ? previous?.status === "past_due" && previousEntitlement?.valid_until
-        ? previousEntitlement.valid_until
-        : new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString()
-      : null;
+  if (previousEntitlementError) throw previousEntitlementError;
+  if (active && !periodEnd) throw new Error("Active subscription is missing a valid access expiration.");
+  // Payment retries belong to Stripe. Do not mint a custom grace period.
+  const paidThrough = status === "past_due" && previousEntitlement?.access_source === "stripe"
+    && previousEntitlement.valid_until && Date.parse(previousEntitlement.valid_until) > Date.now()
+    ? previousEntitlement.valid_until : null;
+  let validUntil = active ? accessEnd : paidThrough;
+  if (paidThrough) accessLevel = plan;
+  const preserveIndependentAccess = previousEntitlement && ["admin", "beta", "complimentary"].includes(previousEntitlement.access_source)
+    && (!previousEntitlement.valid_until || Date.parse(previousEntitlement.valid_until) > Date.now());
   const requestedFoundingMember = String(subscription.metadata?.founding_offer || "") === "true";
   let foundingMember = false;
   if (requestedFoundingMember) {
@@ -82,8 +89,8 @@ export async function syncStripeSubscriptionObject(subscription: StripeSubscript
     amount: price.unit_amount ?? null,
     currency: price.currency || "usd",
     current_period_start: periodStart,
-    current_period_end: periodEnd,
-    cancel_at_period_end: Boolean(subscription.cancel_at_period_end),
+    current_period_end: active ? accessEnd : periodEnd,
+    cancel_at_period_end: Boolean(subscription.cancel_at_period_end || (scheduledCancel && status !== "canceled")),
     canceled_at: isoFromUnix(subscription.canceled_at),
     founding_member: foundingMember,
     latest_invoice_id: typeof subscription.latest_invoice === "string" ? subscription.latest_invoice : subscription.latest_invoice?.id || null,
@@ -91,18 +98,41 @@ export async function syncStripeSubscriptionObject(subscription: StripeSubscript
   }, { onConflict: "stripe_subscription_id" });
   if (error) throw error;
 
-  const { error: entitlementError } = await admin.from("entitlements").upsert({
+  // An old subscription cancellation must not revoke a separate paid subscription.
+  const { data: otherPaid, error: otherPaidError } = await admin.from("subscriptions")
+    .select("plan,current_period_end").eq("user_id", userId).neq("stripe_subscription_id", subscription.id)
+    .in("status", ["active", "trialing"]).gt("current_period_end", new Date().toISOString());
+  if (otherPaidError) throw otherPaidError;
+  for (const other of otherPaid || []) {
+    if (other.plan !== "all_access" && other.plan !== "trade_lab") continue;
+    const stronger = accessLevel === "none" || (other.plan === "all_access" && accessLevel === "trade_lab");
+    if (stronger || (other.plan === accessLevel && Date.parse(other.current_period_end) > Date.parse(validUntil || ""))) {
+      accessLevel = other.plan;
+      validUntil = other.current_period_end;
+    }
+  }
+  const entitlementValues = {
     user_id: userId,
     access_level: accessLevel,
     access_source: "stripe",
     trade_lab_access: accessLevel === "trade_lab" || accessLevel === "all_access",
     all_access: accessLevel === "all_access",
-    max_connected_leagues: accessLevel === "none" ? 0 : PLAN_LIMITS[plan],
+    max_connected_leagues: accessLevel === "none" ? 0 : PLAN_LIMITS[accessLevel as BillingPlan],
     valid_until: validUntil,
     founding_member: foundingMember,
     updated_at: new Date().toISOString()
-  }, { onConflict: "user_id" });
-  if (entitlementError) throw entitlementError;
+  };
+  if (!preserveIndependentAccess) {
+    if (previousEntitlement) {
+      const { data: updated, error: entitlementError } = await admin.from("entitlements").update(entitlementValues)
+        .eq("user_id", userId).eq("updated_at", previousEntitlement.updated_at).select("user_id").maybeSingle();
+      if (entitlementError) throw entitlementError;
+      if (!updated) throw new Error("Entitlement changed during synchronization; retry required.");
+    } else {
+      const { error: entitlementError } = await admin.from("entitlements").insert(entitlementValues);
+      if (entitlementError) throw entitlementError;
+    }
+  }
 
   await recordBillingAudit({
     userId,

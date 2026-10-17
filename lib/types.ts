@@ -8,6 +8,7 @@ export type PlayerProfile = {
   team: string | null;
   status: string | null;
   selectedPosition?: string | null;
+  eligiblePositions?: string[];
   age?: number | null;
   yearsExperience?: number | null;
   searchRank?: number | null;
@@ -41,6 +42,8 @@ export type LeagueTeam = {
   ownerId: string | null;
   ownerName: string;
   teamName: string;
+  avatarUrl?: string | null;
+  ownerAvatarUrl?: string | null;
   wins: number;
   losses: number;
   ties: number;
@@ -64,6 +67,13 @@ export type ImportedLeague = {
   totalRosters: number;
   scoringSettings: Record<string, number>;
   rosterPositions: string[];
+  providerContext?: {
+    provider: "yahoo";
+    syncedAt: string;
+    currentWeek: number | null;
+    scoringModifiers: Record<string, number>;
+    warnings: string[];
+  };
   previousLeagueId: string | null;
   userRosterId: number | null;
   leagueType?: LeagueType;
@@ -173,6 +183,12 @@ export type ProjectionAccuracy = {
 };
 
 export type PlayerIntelligencePayload = {
+  currentLeague?: ImportedLeague;
+  rostersSyncedAt?: string | null;
+  currentMatchups?: WeeklyTeamScore[];
+  activeSeason?: boolean;
+  nextMoves?: PlayerRecommendation[];
+  pro?: boolean;
   provider: "sleeper";
   leagueId: string;
   season: number;
@@ -185,7 +201,7 @@ export type PlayerIntelligencePayload = {
   weeklyScores: WeeklyTeamScore[];
   accuracy: ProjectionAccuracy;
   storedWeeks: number[];
-  storageStatus: "saved" | "migration-required" | "unavailable";
+  storageStatus: "saved" | "migration-required" | "unavailable" | "deferred";
   syncedAt: string;
   warnings: string[];
 };

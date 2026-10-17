@@ -1,25 +1,12 @@
+import {authenticatedDestination} from "../auth-destination";
+import { PRODUCTION_ORIGIN } from "../site-origin";
+import { getUserEntitlement, entitlementAllows } from "@/lib/billing/entitlements";
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const tradeLabPrefixes = [
-  "/connect",
-  "/leagues",
-  "/trade-lab",
-  "/api/account",
-  "/api/market",
-  "/api/sleeper",
-  "/api/yahoo"
-];
-
-const allAccessPrefixes = [
-  "/dashboard",
-  "/record-book",
-  "/api/account/history",
-  "/api/sleeper/history",
-  "/api/sleeper/power-data",
-  "/api/yahoo/history"
-];
-const authenticationOnlyPrefixes = ["/account", "/billing/success", "/api/billing"];
+const tradeLabPrefixes = ["/trade-lab", "/api/market"];
+const allAccessPrefixes = ["/api/account/history", "/api/sleeper/history", "/api/sleeper/power-data", "/api/yahoo/history", "/api/account/player-snapshots"];
+const authenticationOnlyPrefixes = ["/admin", "/more", "/waivers", "/account", "/billing/success", "/api/billing", "/dashboard", "/team", "/leagues", "/connect", "/api/account", "/api/sleeper/import", "/api/sleeper/intelligence", "/api/sleeper/players", "/api/yahoo"];
 const publicApiPrefixes = ["/api/stripe/webhook", "/api/cron"];
 const browserNavigationApis = new Set(["/api/yahoo/connect", "/api/yahoo/callback"]);
 
@@ -53,6 +40,21 @@ function deniedResponse(request: NextRequest, response: NextResponse, message: s
 
 export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
+  if (process.env.VERCEL_ENV === "production" && request.nextUrl.hostname.endsWith(".vercel.app")) {
+    return NextResponse.redirect(new URL(request.nextUrl.pathname + request.nextUrl.search, PRODUCTION_ORIGIN), 308);
+  }
+  if (process.env.VERCEL_ENV === "production" && matchesPrefix(pathname, ["/demo"])) {
+    return NextResponse.redirect(new URL("/connect", request.url));
+  }
+  // Production billing is a separate release milestone. This gate also blocks
+  // configured test keys and webhook/reconciliation writes on the public host.
+  if (process.env.VERCEL_ENV === "production" && matchesPrefix(pathname, ["/api/billing", "/api/stripe/webhook", "/api/cron/billing-reconcile"])) {
+    return NextResponse.json({ error: "Subscriptions are not available yet. No payment has been taken." }, { status: 503, headers: { "Cache-Control": "no-store" } });
+  }
+  if (["POST", "PUT", "PATCH", "DELETE"].includes(request.method) && !matchesPrefix(pathname, publicApiPrefixes)) {
+    const origin = request.headers.get("origin");
+    if (!origin || origin !== request.nextUrl.origin) return NextResponse.json({error: "Request origin could not be verified."}, {status: 403});
+  }
   if (matchesPrefix(pathname, publicApiPrefixes)) return NextResponse.next({ request });
 
   const tradeLabRequired = matchesPrefix(pathname, tradeLabPrefixes);
@@ -89,28 +91,26 @@ export async function updateSession(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser();
 
+  if(pathname==="/login"&&user&&request.method==="GET") {
+    const next=await authenticatedDestination(supabase,user.id,request.nextUrl.searchParams.get("next"));
+    return applySession(NextResponse.redirect(new URL(next,request.url)),response);
+  }
+
   if (protectedRoute && !user) {
     if (jsonApi) return applySession(NextResponse.json({ error: "Sign in required." }, { status: 401 }), response);
     const login = request.nextUrl.clone();
     login.pathname = "/login";
-    login.searchParams.set("next", pathname === "/api/yahoo/callback" ? "/connect" : pathname);
+    login.search = "";
+    login.searchParams.set("next", pathname === "/api/yahoo/callback" ? "/connect" : pathname + request.nextUrl.search);
     return applySession(NextResponse.redirect(login), response);
   }
 
   if ((tradeLabRequired || allAccessRequired) && user) {
-    const [{ data: profile }, { data: entitlement }] = await Promise.all([
-      supabase.from("profiles").select("beta_access").eq("id", user.id).maybeSingle(),
-      supabase.from("entitlements")
-        .select("access_level,trade_lab_access,all_access,valid_until")
-        .eq("user_id", user.id)
-        .maybeSingle()
-    ]);
-    const unexpired = !entitlement?.valid_until || new Date(entitlement.valid_until).getTime() > Date.now();
-    const beta = Boolean(profile?.beta_access);
-    const tradeAccess = beta || (unexpired && Boolean(entitlement?.trade_lab_access || entitlement?.all_access || entitlement?.access_level === "admin"));
-    const allAccess = beta || (unexpired && Boolean(entitlement?.all_access || entitlement?.access_level === "admin"));
-    if (allAccessRequired && !allAccess) return deniedResponse(request, response, "All Access is required for this feature.");
-    if (tradeLabRequired && !tradeAccess) return deniedResponse(request, response, "A Trade Lab or All Access subscription is required to connect real leagues.");
+    const entitlement = await getUserEntitlement(supabase, user.id);
+    const tradeAccess = entitlementAllows(entitlement, "trade_lab");
+    const allAccess = entitlementAllows(entitlement, "all_access");
+    if (allAccessRequired && !allAccess) return deniedResponse(request, response, "Pro is required for this detail.");
+    if (tradeLabRequired && !tradeAccess) return deniedResponse(request, response, "Pro access is required for full Trade Lab. Paid subscriptions are not available yet.");
   }
 
   return response;

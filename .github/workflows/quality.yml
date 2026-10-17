@@ -1,0 +1,54 @@
+name: Release quality
+concurrency:
+  group: release-quality-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+on:
+  pull_request:
+  push:
+    branches: [simplify-next-move, next-move-release]
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: node tests/http-smoke.cjs
+      - name: Verify production safety against the exact build
+        run: node scripts/verify-production-release.cjs
+      - run: npx playwright install --with-deps chromium webkit
+      - run: npx playwright test
+      - name: Test deployed Preview
+        if: github.event_name == 'push' && github.repository == 'csgentry/fantasy-next-move' && github.ref == 'refs/heads/simplify-next-move'
+        run: |
+          node scripts/verify-preview-commit.cjs
+          npx playwright test
+        env:
+          FNM_PREVIEW_AUTOMATION_SECRET: ${{ secrets.FNM_PREVIEW_AUTOMATION_SECRET }}
+          PLAYWRIGHT_BASE_URL: https://fantasy-next-move-git-simplify-next-move-team-gentry1.vercel.app
+      - name: Check whether this release is live
+        id: live
+        env:
+          RELEASE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node scripts/check-live-release.cjs
+      - name: Test current public production release
+        if: steps.live.outputs.current == 'true'
+        run: npx playwright test
+        env:
+          FNM_PRODUCTION_ACCEPTANCE: '1'
+          PLAYWRIGHT_BASE_URL: https://fantasynextmove.com
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: preview-browser-evidence
+          path: test-results/

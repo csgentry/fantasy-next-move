@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
+import {LogoutControl} from "@/components/LogoutControl";
 import { PortalButton } from "@/components/billing/PortalButton";
 import { RefundRequest } from "@/components/billing/RefundRequest";
-import { deleteAccount, signOut } from "@/app/auth/actions";
+import { deleteAccount, disconnectSleeper } from "@/app/auth/actions";
 import { getUserEntitlement } from "@/lib/billing/entitlements";
 import { PLAN_NAMES, type BillingPlan } from "@/lib/billing/config";
 import { isAdminEmail } from "@/lib/admin";
@@ -36,20 +37,22 @@ function date(value: string | null) {
 
 export default async function AccountPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams;
+  const billingAvailable = process.env.VERCEL_ENV !== "production";
   const supabase = await createClient();
   const { data } = await supabase.auth.getUser();
   if (!data.user) redirect("/login");
 
   const [profileResult, accountsResult, leaguesResult, subscriptionResult, foundingResult, customerResult, entitlement] = await Promise.all([
     supabase.from("profiles").select("display_name,beta_access,created_at").eq("id", data.user.id).maybeSingle(),
-    supabase.from("connected_accounts").select("provider,provider_username,created_at").order("created_at", { ascending: false }),
-    supabase.from("leagues").select("provider,name,season,synced_at").order("synced_at", { ascending: false }),
+    supabase.from("connected_accounts").select("provider,provider_username,created_at").eq("user_id", data.user.id).order("created_at", { ascending: false }),
+    supabase.from("leagues").select("provider,name,season,synced_at").eq("user_id", data.user.id).order("synced_at", { ascending: false }),
     supabase.from("subscriptions").select("plan,billing_interval,status,amount,currency,current_period_end,cancel_at_period_end,founding_member").eq("user_id", data.user.id).order("updated_at", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("founding_members").select("founding_number").eq("user_id", data.user.id).maybeSingle(),
     supabase.from("billing_customers").select("stripe_customer_id").eq("user_id", data.user.id).maybeSingle(),
     getUserEntitlement(supabase, data.user.id)
   ]);
 
+  const accountLoadFailed = [profileResult, accountsResult, leaguesResult, subscriptionResult, foundingResult, customerResult].some(result => result.error);
   const profile = profileResult.data;
   const accountRows = (accountsResult.data || []) as AccountRow[];
   const leagueRows = (leaguesResult.data || []) as LeagueRow[];
@@ -57,15 +60,16 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
   const error = typeof params.error === "string" ? params.error : "";
   const message = typeof params.message === "string" ? params.message : "";
   const showAdmin = isAdminEmail(data.user.email);
-  const planName = entitlement.accessLevel === "admin" ? "Administrator" : entitlement.accessLevel === "all_access" ? "All Access" : entitlement.accessLevel === "trade_lab" ? "Trade Lab" : "No active plan";
+  const planName = entitlement.accessLevel === "admin" ? "Administrator" : entitlement.accessLevel === "all_access" ? "Pro" : entitlement.accessLevel === "trade_lab" ? "Trade Lab" : "Free";
 
   return (
     <AppShell showAdmin={showAdmin}>
       <div className="page-heading">
         <div><span className="eyebrow">Membership and account</span><h1>Account</h1><p>Manage billing, membership access, connected providers, and saved leagues.</p></div>
-        <div className="heading-actions">{showAdmin && <Link className="button secondary small" href="/admin">FantasyNextMove Admin</Link>}<form action={signOut}><button className="button secondary small" type="submit">Sign out</button></form></div>
+        <div className="heading-actions">{showAdmin && <Link className="button secondary small" href="/admin">FantasyNextMove Admin</Link>}<LogoutControl className="button secondary small"/></div>
       </div>
 
+      {accountLoadFailed && <div className="connection-message error" role="alert">Some account information could not be loaded. Refresh this page before making changes.</div>}
       {error && <div className="connection-message error">{error}</div>}
       {message && <div className="connection-message success">{message}</div>}
 
@@ -73,50 +77,48 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
         <article className="panel account-panel membership-panel">
           <span className="eyebrow">Current membership</span>
           <h2>{planName}</h2>
-          <p>{entitlement.accessSource === "beta" ? "Complimentary beta access" : entitlement.accessSource === "stripe" ? "Paid Stripe subscription" : "Choose a plan to connect real leagues"}</p>
-          <div className="account-status"><span>Trade Lab</span><strong>{entitlement.tradeLabAccess || entitlement.allAccess ? "Unlocked" : "Locked"}</strong></div>
-          <div className="account-status"><span>All Access</span><strong>{entitlement.allAccess ? "Unlocked" : "Locked"}</strong></div>
+          <p>{entitlement.accessSource === "beta" ? "Complimentary beta access" : entitlement.accessSource === "stripe" ? "Paid Stripe subscription" : "One connected league and your highest-priority Next Move"}</p>
           <div className="account-status"><span>Connected leagues</span><strong>{leagueRows.length} of {entitlement.maxConnectedLeagues || 0}</strong></div>
           {foundingResult.data?.founding_number && <div className="founding-badge">Founding Member #{foundingResult.data.founding_number}</div>}
           {entitlement.accessLevel === "none" && <Link className="button small account-panel-link" href="/pricing">Choose a plan</Link>}
-          {entitlement.accessLevel === "trade_lab" && <Link className="button small account-panel-link" href="/pricing">Upgrade to All Access</Link>}
+          {entitlement.accessLevel === "trade_lab" && <Link className="button small account-panel-link" href="/pricing">Explore Pro</Link>}
         </article>
 
-        <article className="panel account-panel billing-panel">
+        <article className="panel account-panel billing-panel" id="billing">
           <span className="eyebrow">Billing</span>
           {subscription ? <>
             <h2>{PLAN_NAMES[subscription.plan]}</h2>
             <div className="account-status"><span>Billing</span><strong>{subscription.billing_interval === "year" ? "Annual" : "Monthly"} · {money(subscription.amount, subscription.currency)}</strong></div>
             <div className="account-status"><span>Status</span><strong>{subscription.status}</strong></div>
-            <div className="account-status"><span>{subscription.cancel_at_period_end ? "Access ends" : "Next renewal"}</span><strong>{date(subscription.current_period_end)}</strong></div>
-            {customerResult.data?.stripe_customer_id && <PortalButton />}
-            <RefundRequest />
+            <div className="account-status"><span>{subscription.cancel_at_period_end ? "Subscription ends" : "Next renewal"}</span><strong>{date(subscription.cancel_at_period_end && entitlement.accessSource === "stripe" ? entitlement.validUntil : subscription.current_period_end)}</strong></div>
+            {billingAvailable ? <>{customerResult.data?.stripe_customer_id && <PortalButton />}<RefundRequest /></> : <p>Online billing management is unavailable while paid subscriptions are closed. No payment can be started here.</p>}
           </> : <><h2>No Stripe subscription</h2><p>Complimentary beta access does not create a billing record.</p><Link className="button small account-panel-link" href="/pricing">View pricing</Link></>}
         </article>
 
-        <article className="panel account-panel">
+        <details className="panel account-panel"><summary>Profile</summary>
           <span className="eyebrow">Profile</span>
           <h2>{profile?.display_name || data.user.email}</h2>
           <p>{data.user.email}</p>
           <div className="account-status"><span>Account created</span><strong>{date(profile?.created_at || null)}</strong></div>
           <div className="account-status"><span>Complimentary access</span><strong>{profile?.beta_access ? "Approved" : "No"}</strong></div>
-        </article>
+        </details>
 
         <article className="panel account-panel">
           <span className="eyebrow">Connected providers</span><h2>{accountRows.length} connected</h2>
           {accountRows.length ? <div className="account-list">{accountRows.map((account, index) => <div key={`${account.provider}-${index}`}><strong>{account.provider}</strong><span>{account.provider_username || "Connected account"}</span></div>)}</div> : <p>No provider account has been saved yet.</p>}
+          {accountRows.some(a=>a.provider==="sleeper") && <form action={disconnectSleeper}><input type="hidden" name="confirmation" value="DISCONNECT"/><p>Remove the connection and your stored Sleeper league data.</p><button className="button secondary small" type="submit">Disconnect Sleeper and remove data</button></form>}
         </article>
 
-        <article className="panel account-panel">
+        <details className="panel account-panel"><summary>Saved leagues</summary>
           <span className="eyebrow">Saved leagues</span><h2>{leagueRows.length} saved</h2>
-          {leagueRows.length ? <><div className="account-list">{leagueRows.slice(0, 6).map((league, index) => <div key={`${league.provider}-${league.name}-${index}`}><strong>{league.name}</strong><span>{league.provider} · {league.season}</span></div>)}</div><Link className="text-button account-panel-link" href="/leagues">Open My Leagues →</Link></> : <p>Connect Sleeper or Yahoo to save a league.</p>}
-        </article>
+          {leagueRows.length ? <><div className="account-list">{leagueRows.slice(0, 6).map((league, index) => <div key={`${league.provider}-${league.name}-${index}`}><strong>{league.name}</strong><span>{league.provider} · {league.season}</span></div>)}</div><Link className="text-button account-panel-link" href="/leagues">Open My Leagues →</Link></> : <p>Connect Sleeper to save a league.</p>}
+        </details>
       </section>
 
-      <section className="panel danger-zone">
+      <details className="panel danger-zone"><summary>Delete account</summary>
         <div><span className="eyebrow">Danger zone</span><h2>Delete account and stored data</h2><p>Cancel an active paid subscription in Manage Billing before deleting your account. Deletion permanently removes Supabase account data.</p></div>
         <form action={deleteAccount}><label>Type DELETE<input name="confirmation" autoComplete="off" /></label><button className="button danger-button" type="submit">Delete account</button></form>
-      </section>
+      </details>
     </AppShell>
   );
 }

@@ -7,16 +7,13 @@ export default function TermsPage() {
       <article className="panel legal-page">
         <span className="eyebrow">Service terms</span>
         <h1>FantasyNextMove Terms</h1>
-        <p className="legal-updated">Last updated August 2, 2026</p>
+        <p className="legal-updated">Draft for professional review · October 16, 2026</p>
 
         <h2>Account access</h2>
         <p>You are responsible for keeping your account credentials private and for activity performed through your account. Do not share paid access, attempt to access another user&apos;s league data, or bypass subscription controls.</p>
 
         <h2>Subscriptions and renewal</h2>
         <p>Paid plans renew automatically at the displayed monthly or annual price until canceled. A cancellation takes effect at the end of the current paid billing period unless a refund is approved. Current plan, renewal, cancellation, and invoice information is available through Manage Billing.</p>
-
-        <h2>Founding pricing</h2>
-        <p>A founding discount applies only to the first eligible annual invoice. The subscription renews at the normal annual price shown at checkout. A Founding Member badge does not create permanent product access or a permanent discounted renewal rate.</p>
 
         <h2>Seven-day money-back guarantee</h2>
         <p>A first-time subscription may request a refund within seven days of its first successful payment. The guarantee does not apply to renewals, later subscriptions, or repeated refund requests. An approved refund ends paid access. Refund eligibility and final processing remain subject to payment records and applicable law.</p>

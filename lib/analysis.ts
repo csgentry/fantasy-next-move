@@ -22,14 +22,13 @@ export function contenderScore(team: LeagueTeam, league: ImportedLeague) {
 }
 
 export function recommendationsFor(team: LeagueTeam, league: ImportedLeague): Recommendation[] {
-  const ranked = rankTeams(league).find((candidate) => candidate.rosterId === team.rosterId);
   const leagueAverage = league.teams.reduce((sum, item) => sum + item.pointsFor, 0) / Math.max(league.teams.length, 1);
   const recs: Recommendation[] = [];
 
   if (team.pointsFor < leagueAverage) {
     recs.push({
       title: "Shop for a weekly ceiling upgrade",
-      reason: `Your scoring is ${(leagueAverage - team.pointsFor).toFixed(2)} points below the league average. Package depth for one dependable starter.`,
+      reason: `Your scoring is ${(leagueAverage - team.pointsFor).toFixed(2)} points below the league average. Review starter projections and injuries before deciding whether a trade is justified.`,
       impact: "High",
       category: "Trade"
     });
@@ -51,21 +50,11 @@ export function recommendationsFor(team: LeagueTeam, league: ImportedLeague): Re
     });
   }
 
-  if ((ranked?.rank ?? league.teams.length) <= 3) {
-    recs.push({
-      title: "Use bench value to insure your stars",
-      reason: "As a contender, prioritize high-upside backups and direct handcuffs over low-ceiling depth you will never start.",
-      impact: "Medium",
-      category: "Waiver"
-    });
-  } else {
-    recs.push({
-      title: "Create trade leverage before the market moves",
-      reason: "Target players whose role may expand before their cost rises. Your biggest gain comes from buying one week early.",
-      impact: "Medium",
-      category: "Waiver"
-    });
-  }
+  if (team.wins + team.losses + team.ties === 0) return [{
+    title: "Review your starting lineup",
+    reason: "No completed matchups are available. Check current injuries and starter eligibility before making a trade; standings alone cannot identify a positional upgrade.",
+    impact: "Medium", category: "Strategy"
+  }];
 
   return recs;
 }

@@ -1,4 +1,5 @@
 import "server-only";
+import { siteOrigin } from "../site-origin";
 
 export type BillingPlan = "trade_lab" | "all_access";
 export type BillingInterval = "month" | "year";
@@ -11,7 +12,7 @@ export const PLAN_LIMITS: Record<BillingPlan, number> = {
 
 export const PLAN_NAMES: Record<BillingPlan, string> = {
   trade_lab: "Trade Lab",
-  all_access: "All Access"
+  all_access: "FantasyNextMove Pro"
 };
 
 export function priceIdFor(plan: BillingPlan, interval: BillingInterval) {
@@ -38,14 +39,12 @@ export function planForPriceId(priceId: string | null | undefined): { plan: Bill
 }
 
 export function siteUrl() {
-  return (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, "");
+  return siteOrigin();
 }
 
 export function stripeConfigured() {
   return Boolean(
     process.env.STRIPE_SECRET_KEY &&
-    process.env.STRIPE_PRICE_TRADE_MONTHLY &&
-    process.env.STRIPE_PRICE_TRADE_ANNUAL &&
     process.env.STRIPE_PRICE_ALL_ACCESS_MONTHLY &&
     process.env.STRIPE_PRICE_ALL_ACCESS_ANNUAL
   );

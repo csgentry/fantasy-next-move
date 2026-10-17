@@ -18,7 +18,7 @@ export const NO_ENTITLEMENT: UserEntitlement = {
   accessSource: "none",
   tradeLabAccess: false,
   allAccess: false,
-  maxConnectedLeagues: 0,
+  maxConnectedLeagues: 1,
   validUntil: null,
   foundingMember: false
 };
@@ -34,13 +34,14 @@ export async function getUserEntitlement(supabase: SupabaseClient, userId: strin
 
   if (entitlementResult.data) {
     const row = entitlementResult.data;
-    const expired = Boolean(row.valid_until && new Date(row.valid_until).getTime() <= Date.now());
+    const expiresAt = row.valid_until ? Date.parse(row.valid_until) : null;
+    const expired = expiresAt !== null ? !Number.isFinite(expiresAt) || expiresAt <= Date.now() : row.access_source === "stripe";
     if (!expired && (row.trade_lab_access || row.all_access || row.access_level === "admin")) {
       return {
         accessLevel: row.access_level as AccessLevel,
         accessSource: row.access_source,
-        tradeLabAccess: Boolean(row.trade_lab_access),
-        allAccess: Boolean(row.all_access),
+        tradeLabAccess: row.access_level === "admin" || Boolean(row.trade_lab_access),
+        allAccess: row.access_level === "admin" || Boolean(row.all_access),
         maxConnectedLeagues: Number(row.max_connected_leagues || 0),
         validUntil: row.valid_until,
         foundingMember: Boolean(row.founding_member)

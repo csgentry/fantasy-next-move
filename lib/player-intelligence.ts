@@ -10,7 +10,7 @@ import type {
 
 const FLEX_POSITIONS = new Set(["RB", "WR", "TE"]);
 const SUPERFLEX_POSITIONS = new Set(["QB", "RB", "WR", "TE"]);
-const BENCH_SLOTS = new Set(["BN", "BENCH", "IR", "IR+", "RESERVE", "TAXI", "NA"]);
+const BENCH_SLOTS = new Set(["BN", "BE", "BENCH", "IR", "IR+", "RESERVE", "TAXI", "NA"]);
 
 function round(value: number, places = 1) {
   const multiplier = 10 ** places;
@@ -96,9 +96,11 @@ function projectedPoints(
   return snapshotMap.get(playerId)?.projectedPoints ?? null;
 }
 
-function lineupEligibility(slot: string) {
+export function lineupEligibility(slot: string) {
   const normalized = slot.toUpperCase();
-  if (["FLEX", "W/R/T", "WRT", "WRRB_FLEX", "REC_FLEX"].includes(normalized)) {
+  if (normalized === "WRRB_FLEX") return new Set(["WR", "RB"]);
+  if (normalized === "REC_FLEX") return new Set(["WR", "TE"]);
+  if (["FLEX", "W/R/T", "WRT"].includes(normalized)) {
     return FLEX_POSITIONS;
   }
   if (["SUPER_FLEX", "SF", "OP", "Q/W/R/T", "FLEX_QB"].includes(normalized)) {
@@ -124,7 +126,8 @@ export function optimizeProjectedLineup(
   snapshots: PlayerWeeklySnapshot[]
 ) {
   const snapshotMap = snapshotsByPlayer(snapshots);
-  const candidates = team.players.map((playerId) => {
+  const inactive = new Set([...(team.reserve || []), ...(team.taxi || [])]);
+  const candidates = team.players.filter(id=>!inactive.has(id)).map((playerId) => {
     const profile = profileFor(playerId, profiles, snapshotMap);
     return {
       playerId,
@@ -246,10 +249,10 @@ export function buildPersonalizedPlayerRecommendations(
             playerId,
             profile,
             position: normalizeFantasyPosition(profile.position),
-            points: projectedPoints(playerId, snapshotMap) || 0
+            points: projectedPoints(playerId, snapshotMap)
           };
         })
-        .filter((starter) => starter.position === player.position)
+        .filter((starter): starter is typeof starter & {points: number} => starter.position === player.position && starter.points !== null)
         .sort((a, b) => a.points - b.points)[0];
       return replaced
         ? { player, replaced, gain: player.projectedPoints - replaced.points }
@@ -262,7 +265,7 @@ export function buildPersonalizedPlayerRecommendations(
     recommendations.push({
       id: recommendationId("lineup", bestPromotion.player.playerId),
       title: `Start ${bestPromotion.player.profile.fullName}`,
-      reason: `${bestPromotion.player.profile.fullName} projects for ${bestPromotion.player.projectedPoints.toFixed(2)} points, ${bestPromotion.gain.toFixed(2)} more than ${bestPromotion.replaced.profile.fullName} in the same position group.`,
+      reason: `${bestPromotion.player.profile.fullName} projects for ${bestPromotion.player.projectedPoints.toFixed(1)} points, ${bestPromotion.gain.toFixed(1)} more than ${bestPromotion.replaced.profile.fullName} in the same position group.`,
       category: "Lineup",
       impact: bestPromotion.gain >= 3 ? "High" : "Medium",
       confidence: confidenceFor(snapshotMap.get(bestPromotion.player.playerId)),
@@ -306,7 +309,7 @@ export function buildPersonalizedPlayerRecommendations(
       recommendations.push({
         id: recommendationId("waiver", waiverTarget.playerId),
         title: `Add ${waiverTarget.playerName}`,
-        reason: `${waiverTarget.playerName} is unrostered and projects for ${waiverTarget.projectedPoints?.toFixed(2)} points at ${normalizeFantasyPosition(waiverTarget.position)}, your lowest league-relative position group (ranked #${weakness.rank} of ${league.totalRosters}). That is a ${gain.toFixed(2)}-point improvement over the bottom of your current depth chart.`,
+        reason: `${waiverTarget.playerName} is unrostered and projects for ${waiverTarget.projectedPoints?.toFixed(1)} points at ${normalizeFantasyPosition(waiverTarget.position)}, your lowest league-relative position group (ranked #${weakness.rank} of ${league.totalRosters}). That is a ${gain.toFixed(1)}-point improvement over the bottom of your current depth chart.`,
         category: "Waiver",
         impact: gain >= 3 ? "High" : "Medium",
         confidence: confidenceFor(waiverTarget),
@@ -342,7 +345,7 @@ export function buildPersonalizedPlayerRecommendations(
     recommendations.push({
       id: recommendationId("trade-target", tradeTarget.playerId),
       title: `Explore a trade for ${tradeTarget.profile.fullName}`,
-      reason: `${tradeTarget.profile.fullName} projects for ${tradeTarget.points.toFixed(2)} points and is currently outside ${tradeTarget.otherTeam.teamName}'s imported starting lineup. The fit addresses your #${weakness.rank}-ranked ${weakestPosition} group without revealing that manager's private recommendations.`,
+      reason: `${tradeTarget.profile.fullName} projects for ${tradeTarget.points.toFixed(1)} points and is currently outside ${tradeTarget.otherTeam.teamName}'s imported starting lineup. The fit addresses your #${weakness.rank}-ranked ${weakestPosition} group without revealing that manager's private recommendations.`,
       category: "Trade",
       impact: "Medium",
       confidence: confidenceFor(tradeTarget.snapshot),
@@ -366,7 +369,7 @@ export function buildPersonalizedPlayerRecommendations(
       (candidate) =>
         candidate.recentError !== null &&
         candidate.recentError >= 7 &&
-        candidate.current?.projectedPoints !== null
+        candidate.current?.projectedPoints != null
     )
     .sort((a, b) => (b.recentError || 0) - (a.recentError || 0))[0];
 
@@ -374,7 +377,7 @@ export function buildPersonalizedPlayerRecommendations(
     recommendations.push({
       id: recommendationId("sell-high", sellHigh.playerId),
       title: `Test the market on ${sellHigh.profile.fullName}`,
-      reason: `${sellHigh.profile.fullName} beat last week's Sleeper projection by ${sellHigh.recentError?.toFixed(2)} points, while the current projection is ${sellHigh.current?.projectedPoints?.toFixed(2)}. That performance spike may create a temporary selling window; do not move him unless the return improves your starting lineup.`,
+      reason: `${sellHigh.profile.fullName} beat last week's Sleeper projection by ${sellHigh.recentError?.toFixed(1)} points, while the current projection is ${sellHigh.current?.projectedPoints?.toFixed(1)}. That performance spike may create a temporary selling window; do not move him unless the return improves your starting lineup.`,
       category: "Trade",
       impact: "Medium",
       confidence: confidenceFor(sellHigh.current),
@@ -384,12 +387,12 @@ export function buildPersonalizedPlayerRecommendations(
   }
 
   if (!recommendations.length) {
-    const bestProjected = projected.starters[0];
+    const bestProjected = projected.starters.filter(p => snapshotMap.get(p.playerId)?.projectedPoints != null && p.projectedPoints > 0).sort((a,b)=>b.projectedPoints-a.projectedPoints)[0];
     recommendations.push({
       id: recommendationId("strategy"),
       title: "Protect your projected starting lineup",
       reason: bestProjected
-        ? `${bestProjected.profile.fullName} leads your optimized lineup at ${bestProjected.projectedPoints.toFixed(2)} projected points. No clear lineup or waiver upgrade currently clears the model's action threshold.`
+        ? `${bestProjected.profile.fullName} leads your optimized lineup at ${bestProjected.projectedPoints.toFixed(1)} projected points. No clear lineup or waiver upgrade currently clears the model's action threshold.`
         : "Sleeper projections are not populated for enough of this roster yet. FantasyNextMove will replace this message with player-specific moves as the weekly feed fills in.",
       category: "Strategy",
       impact: "Low",
@@ -397,7 +400,8 @@ export function buildPersonalizedPlayerRecommendations(
     });
   }
 
-  return recommendations.slice(0, 4);
+  const impactWeight = { High: 3, Medium: 2, Low: 1 };
+  return recommendations.sort((a, b) => impactWeight[b.impact] - impactWeight[a.impact] || (b.projectedGain ?? 0) - (a.projectedGain ?? 0)).slice(0, 4);
 }
 
 export function projectedTeamTotal(

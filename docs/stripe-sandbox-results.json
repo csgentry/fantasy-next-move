@@ -1,0 +1,30 @@
+{
+  "scope": "Stripe sandbox API checks; not application E2E",
+  "account": "[private sandbox reference]",
+  "product": "prod_VSDcKN954PHZ2D",
+  "monthlyPrice": "price_1URJBdP0oZFu1pPOYKMwTnOG",
+  "annualPrice": "price_1URJBpP0oZFu1pPOt29OMIr5",
+  "checkout": {
+    "id": "[private sandbox reference]",
+    "status": "open",
+    "paymentStatus": "unpaid",
+    "livemode": false
+  },
+  "subscription": {
+    "id": "[private sandbox reference]",
+    "statusWhenCreated": "active",
+    "invoice": "[private sandbox reference]",
+    "invoiceStatus": "paid",
+    "amountPaid": 799,
+    "currency": "usd",
+    "livemode": false,
+    "finalStatus": "canceled"
+  },
+  "portal": {
+    "id": "[private sandbox reference]",
+    "sessionCreated": true
+  },
+  "applicationWebhookDeliveryVerified": false,
+  "applicationEntitlementTransitionVerified": false,
+  "portalUIActionVerified": false
+}

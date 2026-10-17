@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 type StatusPayload = {
+  signedIn?: boolean;
+  checkout?: {status?:string;paymentStatus?:string}|null;
   entitlement?: { accessLevel?: string } | null;
   subscription?: { status?: string; plan?: string } | null;
   foundingNumber?: number | null;
@@ -16,14 +18,18 @@ export function ActivationStatus() {
   useEffect(() => {
     let canceled = false;
     let attempts = 0;
+    const sessionId = new URLSearchParams(window.location.search).get("session_id");
+    let timer: ReturnType<typeof setTimeout> | undefined;
     async function check() {
       attempts += 1;
       try {
-        const response = await fetch("/api/billing/status", { cache: "no-store" });
+        const response = await fetch(`/api/billing/status${sessionId ? `?session_id=${encodeURIComponent(sessionId)}` : ""}`, { cache: "no-store" });
         const result = await response.json() as StatusPayload;
         if (canceled) return;
+        if (!response.ok) throw new Error("Status unavailable");
         setPayload(result);
-        const active = result.entitlement?.accessLevel === "trade_lab" || result.entitlement?.accessLevel === "all_access" || result.entitlement?.accessLevel === "admin";
+        const access = result.entitlement?.accessLevel === "trade_lab" || result.entitlement?.accessLevel === "all_access" || result.entitlement?.accessLevel === "admin";
+        const active = sessionId && result.checkout?.status === "complete" && ["paid","no_payment_required"].includes(result.checkout.paymentStatus || "") && ["active","trialing"].includes(result.subscription?.status || "") && access;
         if (active) {
           setState("active");
           return;
@@ -31,11 +37,11 @@ export function ActivationStatus() {
       } catch {
         // Keep polling briefly; Stripe webhook delivery is asynchronous.
       }
-      if (attempts < 12 && !canceled) window.setTimeout(check, 1500);
+      if (sessionId && attempts < 12 && !canceled) timer = setTimeout(check, 1500);
       else if (!canceled) setState("waiting");
     }
     void check();
-    return () => { canceled = true; };
+    return () => { canceled = true; if (timer) clearTimeout(timer); };
   }, []);
 
   return (
@@ -44,7 +50,7 @@ export function ActivationStatus() {
         {state === "active"
           ? <>Membership active{payload?.foundingNumber ? ` · Founding Member #${payload.foundingNumber}` : ""}.</>
           : state === "waiting"
-            ? "Stripe received the payment, but the membership webhook is still processing. Check Account again in a moment."
+            ? payload?.checkout?.status === "expired" ? "This checkout expired without activating a subscription. Return to pricing to try again." : "Your subscription is not confirmed yet. Check Account or contact support before trying another payment."
             : "Confirming the subscription and activating access…"}
       </div>
       <div className="billing-success-actions">

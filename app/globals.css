@@ -37,3 +37,6 @@
 .roster-player{grid-template-columns:auto minmax(0,1fr) auto}.roster-player-copy{min-width:0}.roster-player-points{align-items:flex-end!important;text-align:right;min-width:82px}.roster-player-points strong{color:var(--accent);font-size:20px}.roster-player-points span,.roster-player-points small{color:var(--muted);font-size:9px}.roster-player-points small{margin-top:3px}
 @media(max-width:650px){.roster-player{grid-template-columns:auto 1fr}.roster-player-points{grid-column:2;align-items:flex-start!important;text-align:left}}
 .trade-intelligence-strip{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 18px}.trade-intelligence-strip span{padding:9px 12px;border:1px solid var(--line);border-radius:999px;color:var(--muted);font-size:11px;background:rgba(255,255,255,.02)}.trade-intelligence-strip b{color:var(--accent);margin-right:4px}
+
+/* Keep the initial mobile layout stable without disabling user zoom. */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}body{min-width:0}

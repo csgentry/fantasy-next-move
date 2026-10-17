@@ -1,4 +1,4 @@
-import Link from "next/link";
+import {Brand} from "@/components/Brand";
 import { updatePassword } from "@/app/auth/actions";
 
 export default async function UpdatePasswordPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
@@ -6,7 +6,7 @@ export default async function UpdatePasswordPage({ searchParams }: { searchParam
   const error = typeof params.error === "string" ? params.error : "";
   return (
     <main className="auth-page"><section className="auth-card">
-      <Link className="brand auth-brand" href="/"><span className="brand-mark">FNM</span><span>FantasyNextMove</span></Link>
+      <Brand href="/"/>
       <div><span className="eyebrow">Account security</span><h1>Choose a new password</h1><p>Use at least eight characters.</p></div>
       {error && <div className="connection-message error">{error}</div>}
       <form className="auth-form" action={updatePassword}>

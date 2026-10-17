@@ -25,10 +25,12 @@ function appendParams(target: URLSearchParams, value: unknown, prefix = "") {
 
 export async function stripeRequest<T>(
   path: string,
-  options: { method?: "GET" | "POST" | "DELETE"; params?: StripeParams } = {}
+  options: { method?: "GET" | "POST" | "DELETE"; params?: StripeParams; idempotencyKey?: string } = {}
 ): Promise<T> {
+  if (process.env.VERCEL_ENV === "production") throw new Error("Production billing is disabled pending separate acceptance and authorization.");
   const secret = process.env.STRIPE_SECRET_KEY;
   if (!secret) throw new Error("Stripe is not configured.");
+  if (!secret.startsWith("sk_test_") && !secret.startsWith("rk_test_")) throw new Error("Live billing is disabled pending explicit launch authorization.");
   const method = options.method || "GET";
   const params = new URLSearchParams();
   appendParams(params, options.params || {});
@@ -38,20 +40,23 @@ export async function stripeRequest<T>(
     method,
     headers: {
       Authorization: `Bearer ${secret}`,
+      ...(options.idempotencyKey ? { "Idempotency-Key": options.idempotencyKey } : {}),
       ...(method === "GET" ? {} : { "Content-Type": "application/x-www-form-urlencoded" })
     },
     body: method === "GET" ? undefined : encoded,
-    cache: "no-store"
+    cache: "no-store",
+    signal: AbortSignal.timeout(15000)
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const message = payload?.error?.message || payload?.message || `Stripe request failed (${response.status}).`;
+    const message = `Stripe request failed (${response.status}; ${String(payload?.error?.code || "upstream_error")}).`;
     throw new Error(message);
   }
   return payload as T;
 }
 
 export function verifyStripeWebhook(payload: string, signatureHeader: string | null) {
+  if (process.env.VERCEL_ENV === "production") throw new Error("Production billing is disabled pending separate acceptance and authorization.");
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!secret) throw new Error("Stripe webhook secret is not configured.");
   if (!signatureHeader) throw new Error("Missing Stripe-Signature header.");

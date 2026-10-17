@@ -1,31 +1,30 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+import { yahooConnectionEnabled } from "@/lib/yahoo/availability";
 import { getValidYahooToken } from "@/lib/yahoo/auth";
-import { importYahooSeason, yahooUserInfo } from "@/lib/yahoo/api";
+import { discoverYahooLeagues, selectYahooLeague, YahooApiError } from "@/lib/yahoo/api";
 import { createClient } from "@/lib/supabase/server";
-
-export async function GET(request: NextRequest) {
-  const season = request.nextUrl.searchParams.get("season")?.trim() || String(new Date().getFullYear());
-  if (!/^\d{4}$/.test(season)) return NextResponse.json({ error: "Season must be a four-digit year." }, { status: 400 });
-
+async function handle(request?: Request) {
   try {
     const supabase = await createClient();
-    const { data } = await supabase.auth.getUser();
-    if (!data.user) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
+    const {data} = await supabase.auth.getUser();
+    if (!data.user) return NextResponse.json({error: "Sign in required."}, {status: 401});
+    if (!yahooConnectionEnabled(data.user.id)) return NextResponse.json({error: "Yahoo connection is not available for this account yet."}, {status: 503});
     const token = await getValidYahooToken(data.user.id);
-    if (!token) return NextResponse.json({ error: "Connect Yahoo before importing leagues." }, { status: 401 });
-    const [leagues, info] = await Promise.all([importYahooSeason(token, season), yahooUserInfo(token)]);
-    return NextResponse.json({
-      provider: "yahoo",
-      user: {
-        userId: info?.sub || "yahoo-user",
-        displayName: info?.name || info?.nickname || "Yahoo Manager",
-        email: info?.email || null,
-        avatar: info?.picture || null
-      },
-      season,
-      leagues
-    });
+    if (!token) return NextResponse.json({error: "Reconnect Yahoo before selecting a league."}, {status: 401});
+    if (!request) {
+      const warnings: string[] = [];
+      const leagues = await discoverYahooLeagues(token, message => warnings.push(message));
+      return NextResponse.json({leagues, warnings});
+    }
+    let body;
+    try { body = await request.json(); } catch { return NextResponse.json({error: "Choose a valid league and team."}, {status: 400}); }
+    if (!body || typeof body !== "object") return NextResponse.json({error: "Choose a valid league and team."}, {status: 400});
+    if (typeof body.leagueKey !== "string" || typeof body.teamKey !== "string") return NextResponse.json({error: "Choose a league and your team."}, {status: 400});
+    return NextResponse.json({ownerId: data.user.id, league: await selectYahooLeague(token, body.leagueKey, body.teamKey)});
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to import Yahoo leagues." }, { status: 502 });
+    if (error instanceof YahooApiError) return NextResponse.json({error: error.message, providerStatus: error.status, providerCode: error.providerCode}, {status: [401, 403, 429].includes(error.status) ? error.status : 502});
+    return NextResponse.json({error: "Unable to load your current Yahoo team. Retry or reconnect Yahoo."}, {status: 502});
   }
 }
+export async function GET() { return handle(); }
+export async function POST(request: Request) { return handle(request); }

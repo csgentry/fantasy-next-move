@@ -26,24 +26,27 @@ export async function POST(request: Request) {
     if (!priceId) return NextResponse.json({ error: "This Stripe price has not been configured yet." }, { status: 503 });
 
     const admin = createAdminClient();
-    const { data: activeSubscription } = await admin.from("subscriptions")
+    const { data: activeSubscription, error: subscriptionReadError } = await admin.from("subscriptions")
       .select("stripe_subscription_id,status")
       .eq("user_id", data.user.id)
       .in("status", ["active", "trialing", "past_due", "incomplete"])
       .limit(1)
       .maybeSingle();
+    if (subscriptionReadError) throw subscriptionReadError;
     if (activeSubscription) {
       return NextResponse.json({ error: "You already have an active subscription. Use Manage Billing to change it." }, { status: 409 });
     }
 
-    const { data: existingCustomer } = await admin.from("billing_customers")
+    const { data: existingCustomer, error: customerReadError } = await admin.from("billing_customers")
       .select("stripe_customer_id")
       .eq("user_id", data.user.id)
       .maybeSingle();
+    if (customerReadError) throw customerReadError;
     let stripeCustomerId = existingCustomer?.stripe_customer_id || "";
     if (!stripeCustomerId) {
       const customer = await stripeRequest<StripeCustomer>("/customers", {
         method: "POST",
+        idempotencyKey: `fnm-customer-${data.user.id}`,
         params: {
           email: data.user.email || undefined,
           metadata: { fantasy_next_move_user_id: data.user.id }
@@ -69,6 +72,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "You already have an active Stripe subscription. Use Manage Billing to change it." }, { status: 409 });
     }
 
+    const openSessions = await stripeRequest<{data?: Array<{id:string;status?:string;url:string|null;metadata?:Record<string,string>}>}>("/checkout/sessions", {params:{customer:stripeCustomerId,limit:10}});
+    for (const open of openSessions.data || []) {
+      if (open.status !== "open") continue;
+      if (open.metadata?.fantasy_next_move_user_id !== data.user.id) continue;
+      if (open.metadata.selected_plan === plan && open.metadata.billing_interval === interval && open.url) return NextResponse.json({url:open.url});
+      await stripeRequest(`/checkout/sessions/${open.id}/expire`,{method:"POST"});
+    }
     let foundingOffer = false;
     const coupon = interval === "year" ? foundingCouponFor(plan) : "";
     if (coupon) {
@@ -82,6 +92,7 @@ export async function POST(request: Request) {
 
     const session = await stripeRequest<CheckoutSession>("/checkout/sessions", {
       method: "POST",
+      idempotencyKey: `fnm-checkout-${data.user.id}-${openSessions.data?.[0]?.id || "initial"}`,
       params: {
         mode: "subscription",
         customer: stripeCustomerId,
@@ -110,12 +121,13 @@ export async function POST(request: Request) {
       }
     });
 
+    if (!session.url) throw new Error("Checkout URL unavailable.");
     if (foundingOffer) {
       await admin.from("founding_reservations").update({ checkout_session_id: session.id }).eq("user_id", data.user.id).eq("status", "reserved");
     }
     await recordProductEvent({ userId: data.user.id, eventName: "checkout_started", properties: { plan, interval, foundingOffer } });
     return NextResponse.json({ url: session.url, foundingOffer });
-  } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to start checkout." }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: "Unable to open secure checkout right now. Please try again or contact support." }, { status: 500 });
   }
 }

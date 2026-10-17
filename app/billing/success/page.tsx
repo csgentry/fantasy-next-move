@@ -5,8 +5,8 @@ export default function BillingSuccessPage() {
   return (
     <AppShell>
       <section className="panel billing-success-panel">
-        <span className="eyebrow">Secure checkout complete</span>
-        <h1>Welcome to FantasyNextMove.</h1>
+        <span className="eyebrow">Subscription confirmation</span>
+        <h1>Confirming your membership.</h1>
         <p>Access is granted only after the verified Stripe webhook confirms the subscription.</p>
         <ActivationStatus />
       </section>
