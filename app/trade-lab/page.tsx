@@ -13,7 +13,7 @@ import { demoPlayerPositions, tradePlayers } from "@/lib/demo-data";
 import { isSuperflex, normalizePosition, tradeValueForPick, tradeValueForPlayer } from "@/lib/trade-values";
 import { marketKey, type MarketValueSignal } from "@/lib/market-values";
 import type { AssetTier, PickTier, TradeFormat, ValueConfidence } from "@/lib/trade-values";
-import type { DraftPickAsset, LeagueTeam, PlayerProfile } from "@/lib/types";
+import type { DraftPickAsset, LeagueTeam, PlayerProfile, PlayerWeeklySnapshot } from "@/lib/types";
 
 type PlayerAsset = {
   id: string;
@@ -138,11 +138,14 @@ function pickName(pick: DraftPickAsset) {
   return pick.draftSlot ? `${pick.season} ${pick.round}.${String(pick.draftSlot).padStart(2, "0")}` : `${pick.season} ${ordinal(pick.round)}`;
 }
 
-function TradeSide({ title, subtitle, available, selected, onAdd, onRemove }: {
+function TradeSide({ title, subtitle, available, selected, profiles, snapshots, source, onAdd, onRemove }: {
   title: string;
   subtitle: string;
   available: Asset[];
   selected: Asset[];
+  profiles: Record<string, PlayerProfile>;
+  snapshots: ReadonlyMap<string, PlayerWeeklySnapshot>;
+  source: string;
   onAdd: (assetId: string) => void;
   onRemove: (assetId: string) => void;
 }) {
@@ -172,7 +175,7 @@ function TradeSide({ title, subtitle, available, selected, onAdd, onRemove }: {
           <article className={`trade-asset ${asset.kind === "pick" ? "pick-asset" : ""}`} key={asset.id}>
             <button className="asset-remove" onClick={() => onRemove(asset.id)} aria-label={`Remove ${asset.name}`}>×</button>
             <div className="trade-asset-copy">
-              {asset.kind === "player" ? <PlayerDetails profile={{playerId:asset.playerId,fullName:asset.name,position:asset.position,team:asset.nflTeam,status:null}} source="sleeper"/> : <b>{asset.name}</b>}
+              {asset.kind === "player" ? <PlayerDetails profile={profiles[asset.playerId] || {playerId:asset.playerId,fullName:asset.name,position:asset.position,team:asset.nflTeam,status:null}} snapshot={snapshots.get(asset.playerId)} source={source}/> : <b>{asset.name}</b>}
               {asset.kind === "player" ? (
                 <>
                   <small>{asset.position}{asset.nflTeam ? ` · ${asset.nflTeam}` : ""}</small>
@@ -388,13 +391,13 @@ function TradeLabWorkspace({selected}: {selected: ReturnType<typeof useSelectedL
       {format !== "redraft" && !(league.draftPicks?.length) && <div className="connection-message dynasty-pick-note">No owned draft picks were supplied for this league. Player values remain active, but draft-pick analysis is incomplete.</div>}
 
       <div className="trade-grid trade-grid-clean">
-        <TradeSide title="You send" subtitle={`Players from ${teamA.teamName}`} available={availableForB} selected={sideB} onAdd={(id) => setSideBIds((current) => [...current, id])} onRemove={(id) => setSideBIds((current) => current.filter((assetId) => assetId !== id))} />
+        <TradeSide title="You send" subtitle={`Players from ${teamA.teamName}`} available={availableForB} selected={sideB} profiles={profiles} snapshots={snapshotMap} source={source} onAdd={(id) => setSideBIds((current) => [...current, id])} onRemove={(id) => setSideBIds((current) => current.filter((assetId) => assetId !== id))} />
         <div className={`trade-verdict ${isComplete && Math.abs(difference) > tolerance ? "has-advantage" : ""}`}>
           <span>Your team impact</span><strong>{analyzed ? (!hasCurrentAnalysis(intelligenceState.data) ? "Not enough current data" : rosterImpact.gain === null ? "Not enough data" : rosterImpact.gain >= 1 ? "Benefits your team" : rosterImpact.gain <= -1 ? "Hurts your team" : "Approximately balanced") : "Build a trade"}</strong><p>{analyzed ? (!hasCurrentAnalysis(intelligenceState.data) ? "Current-season rosters and projections need verification before we estimate an advantage." : rosterImpact.reason) : "Select players on both sides to compare the effect on your team."}</p>{analyzed && <small>{rosterImpact.confidence}</small>}{analyzed && hasCurrentAnalysis(intelligenceState.data) && rosterImpact.gain !== null && <p>Projected lineup change: {rosterImpact.gain > 0 ? "+" : ""}{rosterImpact.gain.toFixed(1)} points</p>}<button className="button" disabled={!isComplete || loadingPlayers} onClick={()=>setAnalyzedKey(selectionKey)}>Analyze trade</button>{analyzed && <details><summary>Supporting value comparison</summary><p>{marketVerdict}</p><div className="verdict-score"><b>{formatNumber(adjustedA)}</b><i>vs.</i><b>{formatNumber(adjustedB)}</b></div>
           {isComplete ? <p>{Math.abs(difference) <= tolerance ? `Inside the ±${formatNumber(tolerance)} fair-market range.` : `${advantage.toFixed(1)}% modeled difference after roster fit and package value.`}</p> : <p>Add assets to both sides to complete the comparison.</p>}
           <div className="verdict-breakdown"><span>Players {formatNumber(playerValueA)}–{formatNumber(playerValueB)}</span><span>Weekly projection {projectedA.toFixed(1)}–{projectedB.toFixed(1)}</span>{format !== "redraft" && <span>Picks {formatNumber(pickValueA)}–{formatNumber(pickValueB)}</span>}<span>Roster fit {fitDeltaA >= 0 ? "+" : ""}{formatNumber(fitDeltaA)} / {fitDeltaB >= 0 ? "+" : ""}{formatNumber(fitDeltaB)}</span><span>Package adjustment {packageA >= 0 ? "+" : ""}{formatNumber(packageA)} / {packageB >= 0 ? "+" : ""}{formatNumber(packageB)}</span></div>
         </details>}</div>
-        <TradeSide title="You receive" subtitle={`Players from ${teamB.teamName}`} available={availableForA} selected={sideA} onAdd={(id) => setSideAIds((current) => [...current, id])} onRemove={(id) => setSideAIds((current) => current.filter((assetId) => assetId !== id))} />
+        <TradeSide title="You receive" subtitle={`Players from ${teamB.teamName}`} available={availableForA} selected={sideA} profiles={profiles} snapshots={snapshotMap} source={source} onAdd={(id) => setSideAIds((current) => [...current, id])} onRemove={(id) => setSideAIds((current) => current.filter((assetId) => assetId !== id))} />
       </div>
 
       <details className="panel trade-method-panel"><summary>How this analysis works</summary>
