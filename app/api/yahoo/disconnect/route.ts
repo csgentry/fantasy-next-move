@@ -11,7 +11,7 @@ export async function POST() {
     const { error } = await supabase.from("connected_accounts").delete().eq("user_id", data.user.id).eq("provider", "yahoo");
     if (error) throw error;
     return NextResponse.json({ disconnected: true });
-  } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to disconnect Yahoo." }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: "Unable to disconnect Yahoo. Try again." }, { status: 500 });
   }
 }
