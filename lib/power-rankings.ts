@@ -123,6 +123,8 @@ function playerRating(
 
 function slotEligibility(slot: string) {
   const normalized = slot.toUpperCase();
+  if (normalized === "WRRB_FLEX") return new Set(["RB", "WR"]);
+  if (normalized === "REC_FLEX") return new Set(["WR", "TE"]);
   if (FLEX_SLOTS.has(normalized)) return new Set(["RB", "WR", "TE"]);
   if (SUPERFLEX_SLOTS.has(normalized)) return new Set(["QB", "RB", "WR", "TE"]);
   if (["WR/RB", "W/R"].includes(normalized)) return new Set(["RB", "WR"]);
