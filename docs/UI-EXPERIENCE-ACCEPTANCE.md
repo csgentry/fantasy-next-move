@@ -56,3 +56,7 @@ P0/P1 gates above remain open. Release recommendation remains NOT READY.
 ## Brand source correction
 
 The developer handoff directive and archive inventory were reviewed after final application verification. The package contains no authentic standalone logo asset. Removed the approximate inline SVG rather than publish it as an approved original; retained a readable text identity, green NEXT, tagline and all screen functionality. This correction requires Preview redeployment and targeted shared-component verification. Main and production remain unchanged.
+
+## Availability consistency follow-up
+
+Found and corrected a gap between optimized lineups and manual comparisons: the comparison picker previously included reserve/taxi players and players marked unavailable. Both now share slot-aware, finite-projection eligibility. Injury designation and general status are checked independently, so a Questionable designation cannot hide an Inactive status. Waiver targets also exclude known unavailable players. Previously selected players that become ineligible after refresh cannot retain a comparison verdict. Added two regression scenarios and a shared-tool browser comparison check. This does not add provider write access or change billing, Yahoo activation, main or production.
