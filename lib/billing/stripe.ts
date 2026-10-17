@@ -43,7 +43,8 @@ export async function stripeRequest<T>(
       ...(method === "GET" ? {} : { "Content-Type": "application/x-www-form-urlencoded" })
     },
     body: method === "GET" ? undefined : encoded,
-    cache: "no-store"
+    cache: "no-store",
+    signal: AbortSignal.timeout(15000)
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
