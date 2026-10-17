@@ -20,7 +20,8 @@ test.describe('shared authenticated application shell',()=>{
    const brand=page.getByRole('link',{name:'FantasyNextMove home'}).locator('img');
    await expect(brand).toHaveAttribute('src','/brand/approved-header.svg');
    const bottom=page.getByRole('navigation',{name:'Primary navigation',exact:true});
-   await expect(bottom.getByRole('link')).toHaveCount(5);
+   await expect(bottom.getByRole('link')).toHaveText(['My Team','Trade Lab','Next Move','Start/Sit','League']);
+   await expect(bottom.getByRole('link').nth(2)).toHaveClass(/signature-destination/);
    await menu.click();
    const dialog=page.getByRole('dialog',{name:'Navigation',exact:true});
    await expect(dialog).toBeVisible();
@@ -31,7 +32,7 @@ test.describe('shared authenticated application shell',()=>{
    for(const name of ['Next Move','My Team','Trade Lab','Start/Sit','Waivers','My Leagues','Connected Fantasy Accounts','Account Settings','Subscription & Billing','Help & Support'])await expect(dialog.getByRole('link',{name,exact:true})).toBeVisible();
    await expect(dialog.getByRole('button',{name:'Log Out',exact:true})).toBeVisible();
    await dialog.getByRole('button',{name:'Close navigation menu'}).press('Shift+Tab');
-   await expect(dialog.getByRole('navigation',{name:'Legal information'}).getByRole('link',{name:'Pricing',exact:true})).toBeFocused();
+   await expect(dialog.getByRole('button',{name:'Log Out',exact:true})).toBeFocused();
    await page.keyboard.press('Tab');
    await expect(dialog.getByRole('button',{name:'Close navigation menu'})).toBeFocused();
    await page.keyboard.press('Escape');

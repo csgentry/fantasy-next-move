@@ -201,7 +201,7 @@ async function weeklyScores(leagueId: string, completedWeek: number, currentOnly
         true
       );
       return (Array.isArray(payload) ? payload : [])
-        .filter((row) => Number.isInteger(Number(row.roster_id)))
+        .filter((row) => Number.isInteger(Number(row.roster_id)) && typeof (row.custom_points ?? row.points) === "number" && Number.isFinite(row.custom_points ?? row.points))
         .map((row) => ({
           week,
           rosterId: Number(row.roster_id),

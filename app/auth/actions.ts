@@ -1,5 +1,6 @@
 "use server";
 
+import {authenticatedDestination} from "@/lib/auth-destination";
 import { siteOrigin, safeNextPath } from "../../lib/site-origin";
 import {recordProductEvent} from "@/lib/billing/events";
 import { createHash } from "node:crypto";
@@ -40,6 +41,8 @@ export async function signIn(formData: FormData) {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error || !data.user) {
       failure = error?.message || "Unable to sign in.";
+    } else {
+      destination = await authenticatedDestination(supabase,data.user.id,next);
     }
   } catch (error) {
     failure = error instanceof Error ? error.message : "Unable to sign in.";
@@ -82,7 +85,7 @@ export async function signUp(formData: FormData) {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: { emailRedirectTo: `${origin}/auth/confirm?next=/connect` }
+        options: { emailRedirectTo: `${origin}/auth/confirm?next=/dashboard` }
       });
       if (error || !data.user || data.user.identities?.length === 0) {
         failure = error?.message || "An account with that email may already exist. Try signing in instead.";
@@ -112,7 +115,7 @@ export async function resendConfirmation(formData: FormData) {
   let failure = "";
   try {
     const supabase = await createClient();
-    const { error } = await supabase.auth.resend({ type: "signup", email, options: { emailRedirectTo: `${await appOrigin()}/auth/confirm?next=/connect` } });
+    const { error } = await supabase.auth.resend({ type: "signup", email, options: { emailRedirectTo: `${await appOrigin()}/auth/confirm?next=/dashboard` } });
     if (error?.status === 429) failure = "Please wait a minute before requesting another confirmation email.";
     else if (error) failure = "We couldn’t send the confirmation email. Try again shortly.";
   } catch { failure = "We couldn’t send the confirmation email. Try again shortly."; }
@@ -144,27 +147,32 @@ export async function updatePassword(formData: FormData) {
   if (password.length > 256) redirect(withMessage("/update-password", "error", "The password is too long."));
   if (password !== confirmPassword) redirect(withMessage("/update-password", "error", "The passwords do not match."));
   let failure = "";
+  let destination="/dashboard";
   try {
     const supabase = await createClient();
-    const { error } = await supabase.auth.updateUser({ password });
+    const { data, error } = await supabase.auth.updateUser({ password });
     if (error) failure = error.message;
+    else if(data.user)destination=await authenticatedDestination(supabase,data.user.id);
   } catch (error) {
     failure = error instanceof Error ? error.message : "Unable to update the password.";
   }
   if (failure) redirect(withMessage("/update-password", "error", failure));
-  redirect(withMessage("/account", "message", "Password updated."));
+  redirect(destination);
 }
 
-export async function signOut() {
-  let failed = false;
+export async function endSession(): Promise<{error:string|null}> {
   try {
     const supabase = await createClient();
     const { error } = await supabase.auth.signOut({ scope: "local" });
-    failed = Boolean(error);
+    if(error)return {error:"Unable to log out. Please try again."};
+    return {error:null};
   } catch {
-    failed = true;
+    return {error:"Unable to log out. Please try again."};
   }
-  if (failed) redirect(withMessage("/account", "error", "Unable to log out. Please try again."));
+}
+export async function signOut() {
+  const result=await endSession();
+  if(result.error)redirect(withMessage("/account","error",result.error));
   redirect("/");
 }
 

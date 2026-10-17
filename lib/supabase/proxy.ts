@@ -1,3 +1,4 @@
+import {authenticatedDestination} from "../auth-destination";
 import { PRODUCTION_ORIGIN } from "../site-origin";
 import { getUserEntitlement, entitlementAllows } from "@/lib/billing/entitlements";
 import { createServerClient } from "@supabase/ssr";
@@ -90,11 +91,17 @@ export async function updateSession(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser();
 
+  if(pathname==="/login"&&user&&request.method==="GET") {
+    const next=await authenticatedDestination(supabase,user.id,request.nextUrl.searchParams.get("next"));
+    return applySession(NextResponse.redirect(new URL(next,request.url)),response);
+  }
+
   if (protectedRoute && !user) {
     if (jsonApi) return applySession(NextResponse.json({ error: "Sign in required." }, { status: 401 }), response);
     const login = request.nextUrl.clone();
     login.pathname = "/login";
-    login.searchParams.set("next", pathname === "/api/yahoo/callback" ? "/connect" : pathname);
+    login.search = "";
+    login.searchParams.set("next", pathname === "/api/yahoo/callback" ? "/connect" : pathname + request.nextUrl.search);
     return applySession(NextResponse.redirect(login), response);
   }
 

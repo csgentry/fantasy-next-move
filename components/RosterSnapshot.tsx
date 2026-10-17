@@ -1,5 +1,6 @@
 "use client";
 
+import {lineupProjection} from "@/lib/team-insights";
 import {PlayerDetails} from "./PlayerDetails";
 import {lineupEligibility} from "@/lib/player-intelligence";
 import { useEffect, useMemo, useState } from "react";
@@ -130,6 +131,7 @@ export function RosterSnapshot({
     );
   }
 
+  const projection=lineupProjection(team,intelligence);
   const totalPlayers = groups.starters.length + groups.bench.length + groups.taxi.length + groups.reserve.length;
 
   return (
@@ -138,6 +140,8 @@ export function RosterSnapshot({
         <div><h2>{view === "stats" ? "Recent fantasy points" : view === "projections" ? `Week ${intelligence?.projectionWeek || "—"} projections` : "Roster"}</h2></div>
         <span className="pill">{totalPlayers} rostered</span>
       </div>
+
+      {view!=="stats"&&<div className="roster-projection-total"><span>{intelligence?`Week ${intelligence.projectionWeek}`:'Weekly projection'} · {projection.complete?'Starting lineup total':'Known starter projections'}</span><strong>{projection.total==null?'Unavailable':`${projection.total.toFixed(1)} pts`}</strong>{!projection.complete&&<small>{projection.known} of {projection.slots} starters have projections</small>}</div>}
 
       {loading && <div className="roster-state">Loading player details…</div>}
       {error && <div className="roster-state error">{error}</div>}

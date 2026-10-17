@@ -1,3 +1,4 @@
+import {authenticatedDestination} from "@/lib/auth-destination";
 import { safeNextPath, siteOrigin } from "../../../lib/site-origin";
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
@@ -17,14 +18,20 @@ export async function GET(request: NextRequest) {
     const supabase = await createClient();
 
     if (code) {
-      const { error } = await supabase.auth.exchangeCodeForSession(code);
-      if (!error) return NextResponse.redirect(new URL(next, origin));
+      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+      if (!error && data.user) {
+        const destination=next==='/update-password'?next:await authenticatedDestination(supabase,data.user.id,next);
+        return NextResponse.redirect(new URL(destination, origin));
+      }
       return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(type === "recovery" ? "This reset link is invalid or expired. Request a new password-reset email." : "This confirmation link is invalid or expired. Request a new confirmation email.")}`, origin));
     }
 
     if (tokenHash && type) {
-      const { error } = await supabase.auth.verifyOtp({ type, token_hash: tokenHash });
-      if (!error) return NextResponse.redirect(new URL(next, origin));
+      const { data, error } = await supabase.auth.verifyOtp({ type, token_hash: tokenHash });
+      if (!error && data.user) {
+        const destination=next==='/update-password'?next:await authenticatedDestination(supabase,data.user.id,next);
+        return NextResponse.redirect(new URL(destination, origin));
+      }
       return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(type === "recovery" ? "This reset link is invalid or expired. Request a new password-reset email." : "This confirmation link is invalid or expired. Request a new confirmation email.")}`, origin));
     }
 

@@ -3,8 +3,8 @@
 import Link from "next/link";
 import {usePathname, useSearchParams} from "next/navigation";
 import {useEffect, useId, useRef, useState, Suspense} from "react";
-import {createPortal, useFormStatus} from "react-dom";
-import {signOut} from "@/app/auth/actions";
+import {createPortal} from "react-dom";
+import {LogoutControl} from "./LogoutControl";
 import {ToolIcon} from "./ToolIcon";
 
 const primary = [
@@ -22,7 +22,6 @@ const account = [
   {label:"Help & Support", href:"/more#help"}
 ];
 
-function Logout(){const {pending}=useFormStatus();return <button type="submit" disabled={pending} className="drawer-logout">{pending?"Logging out…":"Log Out"}<span aria-hidden="true">↗</span></button>}
 function DrawerLinks({close}:{close:()=>void}){
   const path=usePathname();const params=useSearchParams();
   return <nav aria-label="All application tools">{primary.map(item=>{
@@ -50,9 +49,9 @@ export function AppMenu({showAdmin=false}:{showAdmin?:boolean}){
         else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first?.focus()}
       }} onCancel={close} onClose={close} onClick={event=>{if(event.target===event.currentTarget){const box=event.currentTarget.getBoundingClientRect();if(event.clientX<box.left||event.clientX>box.right||event.clientY<box.top||event.clientY>box.bottom)close()}}}>
       <header className="drawer-heading"><div><span className="eyebrow">Your playbook</span><h2 id={heading}>Navigation</h2></div><button autoFocus className="drawer-close" onClick={close} aria-label="Close navigation menu">×</button></header>
-      <Suspense fallback={<p role="status">Loading navigation…</p>}><DrawerLinks close={close}/></Suspense>
-      <section className="drawer-section" aria-label="Account and application"><h3>Account & application</h3>{account.map(item=><Link key={item.href} href={item.href} onClick={close} aria-current={path===item.href?'page':undefined}>{item.label}<span aria-hidden="true">›</span></Link>)}{showAdmin&&<Link href="/admin" onClick={close}>FantasyNextMove Admin</Link>}</section>
-      <div className="drawer-bottom"><form action={signOut}><Logout/></form><nav className="drawer-legal" aria-label="Legal information"><Link href="/privacy" onClick={close}>Privacy</Link><Link href="/terms" onClick={close}>Terms</Link><Link href="/pricing" onClick={close}>Pricing</Link></nav><p>Read-only analysis. Lineups, waivers and trades are never submitted to your provider.</p></div>
+      <section className="drawer-section drawer-tools" aria-label="Fantasy Tools"><h3>Fantasy Tools</h3><Suspense fallback={<p role="status">Loading navigation…</p>}><DrawerLinks close={close}/></Suspense></section>
+      <section className="drawer-section" aria-label="Account & Services"><h3>Account & Services</h3>{account.map(item=><Link key={item.href} href={item.href} onClick={close} aria-current={path===item.href?'page':undefined}>{item.label}<span aria-hidden="true">›</span></Link>)}{showAdmin&&<Link href="/admin" onClick={close}>FantasyNextMove Admin</Link>}</section>
+      <div className="drawer-bottom"><h3>Legal & Session</h3><nav className="drawer-legal" aria-label="Legal & Session"><Link href="/privacy" onClick={close}>Privacy Policy</Link><Link href="/terms" onClick={close}>Terms of Service</Link></nav><LogoutControl/><p>Read-only analysis. Lineups, waivers and trades are never submitted to your provider.</p></div>
     </dialog>,document.body)}
   </>;
 }

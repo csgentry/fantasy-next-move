@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
+import {LogoutControl} from "@/components/LogoutControl";
 import { PortalButton } from "@/components/billing/PortalButton";
 import { RefundRequest } from "@/components/billing/RefundRequest";
-import { deleteAccount, disconnectSleeper, signOut } from "@/app/auth/actions";
+import { deleteAccount, disconnectSleeper } from "@/app/auth/actions";
 import { getUserEntitlement } from "@/lib/billing/entitlements";
 import { PLAN_NAMES, type BillingPlan } from "@/lib/billing/config";
 import { isAdminEmail } from "@/lib/admin";
@@ -65,7 +66,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
     <AppShell showAdmin={showAdmin}>
       <div className="page-heading">
         <div><span className="eyebrow">Membership and account</span><h1>Account</h1><p>Manage billing, membership access, connected providers, and saved leagues.</p></div>
-        <div className="heading-actions">{showAdmin && <Link className="button secondary small" href="/admin">FantasyNextMove Admin</Link>}<form action={signOut}><button className="button secondary small" type="submit">Sign out</button></form></div>
+        <div className="heading-actions">{showAdmin && <Link className="button secondary small" href="/admin">FantasyNextMove Admin</Link>}<LogoutControl className="button secondary small"/></div>
       </div>
 
       {accountLoadFailed && <div className="connection-message error" role="alert">Some account information could not be loaded. Refresh this page before making changes.</div>}
