@@ -34,8 +34,8 @@ export async function syncStripeSubscriptionObject(subscription: StripeSubscript
   const item = subscription.items?.data?.[0] || {};
   const price = item.price || {};
   const mapped = planForPriceId(price.id);
-  const metadataPlan = subscription.metadata?.selected_plan as BillingPlan | undefined;
-  const plan: BillingPlan = mapped?.plan || (metadataPlan === "trade_lab" ? "trade_lab" : "all_access");
+  if (!mapped) throw new Error("Subscription price is not configured for this application.");
+  const plan: BillingPlan = mapped.plan;
   const interval = mapped?.interval || price.recurring?.interval || subscription.metadata?.billing_interval || "month";
   const periodStart = isoFromUnix(subscription.current_period_start || item.current_period_start);
   const periodEnd = isoFromUnix(subscription.current_period_end || item.current_period_end);
