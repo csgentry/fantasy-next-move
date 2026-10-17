@@ -1,123 +1,164 @@
-# Staging release verification — 16 October 2026
+# Staging acceptance evidence — October 16, 2026
 
-**Decision: NOT READY.** No staging deployment or PR exists. Production/main remain unchanged. This report distinguishes source/fixture checks from real customer-journey verification.
+Release decision: **NOT READY**. This is an interim acceptance report. The full new-customer and Stripe application lifecycle is not verified. PR #1 stays open and unmerged; main and production are unchanged. Yahoo and live Stripe billing remain disabled.
 
-## Source and publication
+This report supersedes earlier release reports on current publication, Yahoo agreement completion, browser access and staging QA status. It contains no confidential agreement, provider credentials, private test identifiers or account email addresses.
 
-Repository: https://github.com/csgentry/fantasy-next-move. Branch: simplify-next-move. Parent release e391b45437f3132d8ed45b2c2dc73da569825136 preserved; cleanup commit recorded in Git. Main baseline 97d86b042d2a0e04344e28d301363ce7c8d5d34f unchanged. No force push/history rewrite. Remote branch query returned no branch. No PR URL.
+## Release references
 
-Original ZIP CRC passes; SHA256 74b4dabd3a4a6c3f5d57af6df892bd60322d28d94d1f8a3dc4ea2e860376a766. Repository HEAD matched authoritative release before cleanup. This is archive integrity, not independent origin authentication.
+- Repository: csgentry/fantasy-next-move
+- Branch: simplify-next-move
+- PR: https://github.com/csgentry/fantasy-next-move/pull/1
+- Preview: https://fantasy-next-move-git-simplify-next-move-team-gentry1.vercel.app/
+- Main baseline: 97d86b042d2a0e04344e28d301363ce7c8d5d34f
+- Original published source tree: 9ed86590e760afd4703894b546caa13ada874624, exactly matching release 4df68e47340da8fef4ea27ba48e6a68e4ca34a8e.
+- QA code commits: d789d418fc77bde44090403f1a04e1383a5ab13b; 16621d8eac81d67dbb325dba51bb00c1a411b7c8; b78fbb9474d6192c2e3a5a90b5d0c8e83d590345.
+- Browser evidence workflow commit: fff92ef6cc31637faac7648a038075d41e078003.
+- Preview for that commit: dpl_2tw9T9DxMVQtVMUnV7y9u3dNZT9D, Ready. Later documentation commits may redeploy without changing application behavior.
 
-Removed sandbox account/Checkout/subscription/invoice/Portal references from current publication docs and replaced an unnecessary personal admin email with a placeholder. Removed obsolete install/billing/package instructions that advertised retired tiers or unsafe production SQL replay. Preserved migrations, technical setup and historical release notes. Private test evidence kept outside tracked source. Explicit pattern scan covered tracked files and 387 reachable Git blobs: credential matches were empty assignments or documented placeholders after review; no credentials detected. This is a heuristic scan, not proof of absence. Earlier commits still contain nonsecret sandbox IDs; preserving history means tip sanitization does not erase them.
+## Defects fixed
 
-### Exact access diagnosis
+1. Sleeper player analysis required a privileged admin key and failed in Preview. When that key is absent, optional snapshot persistence now uses the authenticated RLS client. A storage denial does not prevent current player analysis. Real Preview retesting restored profiles, projections, recommendations and Trade Lab player names. Existing admin-backed scheduled behavior is preserved when configured.
+2. A missing starter projection could be treated as zero in lineup advice. Missing values are now excluded from replacement comparisons. A regression verifies that missing data cannot create a fabricated lineup gain.
+3. Tied positional signals could name the same position as both strongest and weakest. The explanation now says there is no clear distinction.
+4. Removed retired founding-price terms and historical-feature marketing from legal copy. Corrected stale Yahoo approval/agreement wording while keeping activation disabled.
+5. Expanded public browser QA to Privacy, Terms and password recovery, added an actual Preview target and retained screenshot/trace artifacts on every result. This revealed protected-deployment authentication as a genuine test blocker, not an application UI failure.
 
-GitHub authenticated identity: csgentry. Accessible GitHub App installations: empty list, allow-all-repositories testing false. Repository collaborator-permission endpoint returns 403 Resource not accessible by integration. Earlier branch creation returned the same error. Local Git has no authenticated credential helper/write credentials. Owner identity authentication does not establish App installation access. Cannot inspect installation permission grants because none are exposed; cannot prove whether missing selection versus missing grant is the sole cause. No evidence of branch-protection rejection.
+## Public routes and navigation
 
-Required owner action: in GitHub Settings → Applications → Installed GitHub Apps, configure the ChatGPT/Codex integration used by this connection to include csgentry/fantasy-next-move; approve requested Contents and Pull requests write access (and Workflows if workflow-file publication requires it), then reconnect GitHub in ChatGPT. If that app installation is absent, complete the connector's install/authorization flow for the existing repository. Do not create a repository or paste a token into chat.
+| Area | Status | Evidence / limitation |
+| --- | --- | --- |
+| Homepage / | PASS | Actual deployed DOM and desktop screenshot; central promise, fictional Upgrade RB2 label, three steps, three capabilities, minimal public navigation. |
+| Pricing /pricing | PASS | Actual monthly/annual controls and test-only disclosures render. Monthly Checkout fails on missing staging price configuration, below. |
+| Signup /signup | PASS | Actual form renders with labeled email/password/confirmation fields. This does not verify submission or email. |
+| Login /login | PASS | Actual form renders. Owner subsequently signed in manually. |
+| Privacy /privacy | PASS | Actual deployed document and footer links inspected; stale copy corrected in source. Professional review remains outstanding. |
+| Terms /terms | PASS | Actual deployed document and navigation inspected; retired founding terms removed. |
+| How It Works /#how-it-works | PASS | Existing homepage anchor, not a separate route. Local browser assertion verifies navigation. |
+| Demo /demo | PASS | Local multi-engine public suite. Deployed mobile inspection blocked by protection. |
+| Forgot password /forgot-password | PASS | Local multi-engine render test only; email submission unverified. |
+| Contact / About | NOT TESTED | No retained public navigation links to these routes were observed. No route was invented. |
+| Obsolete primary navigation | PASS | Authenticated navigation remains Next Move, My Team, Trade Lab, League, Account. No Record Book or standalone calculator exposed. |
 
-Vercel identity: csgentry-5458. Existing project fantasy-next-move, prj_DUpxUxV0Rx7sDOc35WoSOL7r1O3z; owning scope team-gentry1, team_hbRFgP2cmXR11oHew6b1dZqL. Git namespace csgentry is visible with admin viewer and unrestricted namespace metadata. Explicit owning-team member/project operations return 403 Not authorized under scope team-gentry1; response reports no SAML/SSO enforcement. Unscoped project metadata works. No local Vercel CLI credentials are available. Project-level GitHub repository installation permission cannot be confirmed from namespace visibility.
+## Mobile and visual QA
 
-Required owner action: reconnect/authorize Vercel for existing team-gentry1 and its existing project; verify the Vercel GitHub installation includes this repository under Project Settings → Git. Confirm the connected identity can deploy Preview to this project. Reconnection must actually grant scope; repeating login alone is not evidence of repair.
+| Target | Status | What actually ran |
+| --- | --- | --- |
+| Desktop Chrome cloud browser | PASS | Authenticated dashboard, roster, trade form, league and account inspected by DOM; dashboard screenshot manually viewed. No major desktop overflow observed. |
+| iPhone 13-sized Chromium | BLOCKED | Local public suite passed; actual Preview suite hit Vercel login rather than the app. No mobile staging acceptance claimed. |
+| Pixel 7-sized Chrome | BLOCKED | Same deployed protection blocker. |
+| iPhone-sized WebKit | BLOCKED | Same deployed protection blocker. |
+| Public deployed four-project suite | FAIL | 8 tests failed because their clean browser contexts reached Vercel Authentication. This is retained evidence, not hidden or suppressed. |
+| Authenticated mobile screens | NOT TESTED | Requires accepted test-runner access and a disposable test identity. |
 
-## Staging / production
+Run https://github.com/csgentry/fantasy-next-move/actions/runs/38985761000 has downloadable preview-browser-evidence. Artifact SHA256 e932e0ecc0ecbdf148bda731607c4fe2525020a9e3440c36407fd2745facfd29 was verified after download. Traces/error contexts show Vercel login. The artifact is not evidence of mobile application rendering. Do not disable Preview protection to make tests green. No CLI Vercel token or development OIDC token is available in this runtime.
 
-Staging URL: NONE. Deployment ID: NONE. Preview build: BLOCKED by access. Local production build: PASS. Returned Vercel environment metadata had Production targets, no Preview credentials; safe Preview setup still required. Use isolated synthetic Supabase accounts in the existing project, sandbox Stripe keys/webhook, test-safe email and isolated GA4. Yahoo flags false. No production deployment or live charge performed.
+## Authentication
 
-## Tests rerun
+| Check | Status | Evidence / next requirement |
+| --- | --- | --- |
+| Signed-in application state | PASS | Owner completed sign-in; authenticated Account and saved league rendered. |
+| New synthetic signup | BLOCKED | Current session is an existing owner account, created before this test, with complimentary Pro. A disposable account is required. |
+| Verification email / callback | NOT TESTED | No test verification email received or inspected. |
+| Login form | PASS | Actual deployed form render; owner-assisted existing sign-in observed. |
+| Logout / wrong password | NOT TESTED | Existing session retained to finish read-only QA. |
+| Reset request / reset email / password update | BLOCKED | Authorized disposable inbox and secure user interaction required. |
+| Session persistence on refresh | PASS | Authenticated account and selected league survive route navigation and page reload. Expiration/multiple-session behavior unverified. |
+| Account deletion | NOT TESTED | Existing owner account was not deleted. Requires disposable identity and confirmation at deletion time. |
 
-| Check | Result |
-|---|---|
-| npm run lint | PASS |
-| npm run typecheck | PASS |
-| npm test | PASS — 27, zero failures |
-| npm run build | PASS |
-| node tests/http-smoke.cjs | PASS |
-| git diff --check | PASS |
-| Browser/mobile/WebKit screenshots | BLOCKED — not successfully captured |
+## Real Sleeper and product acceptance
 
-HTTP results: /, /demo, /pricing 200; /dashboard and /team redirect to login with next path; account leagues API 401; cross-origin mutation 403. No fresh rendered QA of privacy/terms/login/signup or authenticated screens. Browser-engine installation previously failed; available cloud browser rejected local-site access with an explicit no-workaround security restriction. No circumvention attempted. Checked-in browser tests require a permitted staging URL/runner. No mobile accessibility/performance acceptance claimed.
+| Check | Status | Evidence / limitation |
+| --- | --- | --- |
+| Username discovery / league discovery | PASS | Actual owner-provided account username returned the expected saved 12-team league. |
+| Automatic owner/team selection | PASS | UI explicitly showed Your team found; owner team selected. |
+| Manual team selection | NOT TESTED | Automatic identification succeeded; manual team picker renders. |
+| Saved connection / reload | PASS | Existing saved league and selected team render after refresh. |
+| Provider refresh | PASS | Actual Find Sleeper leagues completed; current roster/projection signals subsequently rendered. |
+| Multiple leagues / switching | NOT TESTED | Only one league returned for this username/season. |
+| Disconnect / data removal / reconnect | NOT TESTED | Existing owner account retained; no destructive cleanup attempted. |
+| Real provider outage | NOT TESTED | Safe-error regression passed; no live outage deliberately caused. |
+| Next Move | PASS | Real connected roster produced named-player advice with reasons, confidence, team snapshot and working My Team/Trade Lab links. After missing-projection safeguard, primary move was a conditional suggestion to test the market on a rostered WR after an outlier prior week. No guaranteed trade return claimed. |
+| My Team | PASS | Real roster rendered names, positions, 9 starters and bench, imported slot order and statuses. Projection gaps displayed as em dashes. Cross-league stale-state and mobile rendering remain unverified. |
+| League | PASS | 12 teams, owner marker, starter/depth comparison, positional ranks and explanatory text rendered. Owner team ranked first with strongest RB and weakest WR, consistent with the displayed positional comparison. These are estimates, not externally validated outcomes. |
 
-## Authentication — actual customer flow
+## Actual hypothetical trade scenarios
 
-| Flow | Result |
-|---|---|
-| Signup / email verification | BLOCKED |
-| Login / wrong password / logout | BLOCKED |
-| Password reset / expired link | BLOCKED |
-| Session expiry / multiple sessions | BLOCKED |
-| Delete account | BLOCKED |
+No provider trade was submitted. All are UI-only hypothetical comparisons using league players.
 
-Public Supabase REST probe previously timed out; no actual email-confirmed synthetic browser user was created. Fixture proves free signup does not require service-role initialization. Fixtures do not verify delivery or sessions.
+| Scenario | Status | Returned output |
+| --- | --- | --- |
+| Bench RB for receiving TE depth | PASS | Fair / Situational; 0.0 projected lineup change. Large generic-value difference did not force a favorable starting-lineup verdict. |
+| Starting elite WR for low-projected WR | PASS | Poor Fit; -11.5 projected lineup points. |
+| Bench RB for receiving WR depth | PASS | Fair / Situational; 0.0 projected lineup change. |
+| Bench RB for higher-projected QB | PASS | Strong Improvement; +5.1 projected lineup points; moderate confidence. |
+| Two bench players for QB + WR | PASS | Strong Improvement; +5.9 projected lineup points; moderate confidence. |
+| Genuinely missing live projection | NOT TESTED | Regression confirms missing coverage suppresses strong verdicts and numeric gains; no live missing-data trade scenario verified. |
+| Superflex | NOT TESTED | Connected league is not Superflex. Eligibility regression passed, not live E2E. |
 
-## Sleeper — actual authenticated flow
+## Free plan
 
-| Flow | Result |
-|---|---|
-| Connect / league discovery / team selection / save | BLOCKED |
-| Next Move / My Team / connected-roster Trade Lab / League | BLOCKED |
-| League switch / refresh / disconnect / reconnect / deletion | BLOCKED |
+| Check | Status | Evidence / limitation |
+| --- | --- | --- |
+| First/second league using actual free account | BLOCKED | Owner has complimentary Pro; cannot validate free gating with this identity. |
+| Limit explanation / direct API bypass / concurrency | NOT TESTED | Previous rolled-back database quota tests are not live free-account/API E2E. |
+| Database quota / ownership logic | PASS | Prior isolated rollback verification; migrations retained. Concurrent application attempts still unverified. |
+| Complimentary Pro | PASS | Actual Account shows complimentary beta access and unlocked Pro/Trade Lab without a Stripe subscription. |
+| Upgrade / cancellation changing quota | BLOCKED | Application billing is not configured. |
 
-Source and fixture coverage exists for discovery, owner/team selection, malformed season, unauthenticated rejection and upstream outage. Real connected-team recommendations, roster rendering, trade verdicts and rankings are not verified. Existing five-section navigation preserved. No product redesign or expansion in this cleanup.
+## Stripe application lifecycle
 
-## Stripe — application lifecycle
+| Check | Status | Evidence / next requirement |
+| --- | --- | --- |
+| Pricing interval selection | PASS | Actual monthly and annual display controls work. |
+| Monthly Checkout session | BLOCKED | Actual app returned This Stripe price has not been configured yet. |
+| Hosted Checkout / payment / return | BLOCKED | Requires sandbox price IDs, secret key and server billing configuration in branch Preview. |
+| Webhook delivery / subscription record / entitlement activation / Pro UI / persistence | BLOCKED | No application Checkout completed. Existing complimentary Pro is not payment verification. |
+| Signature / forged / expired payloads | PASS | Regression cryptographic checks; not a live deployed webhook E2E claim. |
+| Portal / cancellation / cancellation webhook | BLOCKED | No application-linked test subscription created. |
+| Period-end access / downgrade / failed payment / renewal | BLOCKED | Sandbox lifecycle and timing not exercised in the app. |
+| Duplicate webhook / reconciliation | NOT TESTED | No deployed lifecycle event sequence tested. |
+| Annual Checkout / canceled Checkout | NOT TESTED | Monthly initialization must work first. |
 
-| Flow | Result |
-|---|---|
-| App Checkout / hosted payment | BLOCKED |
-| Delivered webhook / entitlement / immediate UI transition | BLOCKED |
-| Portal UI / cancellation / period-end limits | BLOCKED |
-| Failed payment / renewal / duplicate event / reconciliation | BLOCKED |
-| Forged and expired signature unit checks | PASS |
-| Live-key rejection unit check | PASS |
+Do not add live keys or enable live billing. Sandbox provider API activity from an earlier run does not satisfy these application gates. Private billing identifiers must never be added to public documentation.
 
-Prior provider-only sandbox checks created Checkout and Portal sessions, paid a synthetic API subscription invoice, then canceled the subscription. Those are not app E2E. No active QA subscription remains. Sandbox IDs omitted from public logs. Application needs test secret, webhook endpoint registration/secret and authorized browser flow. No live keys accepted or configured by this work.
+## Email, analytics, monitoring and recovery
 
-## Email / analytics / monitoring
+| Area | Status | Actual evidence |
+| --- | --- | --- |
+| Verification/reset/account/provider/billing emails | NOT TESTED | No message actually received or opened in this run. No delivery claim. |
+| Sender/SPF/DKIM/DMARC/mobile email formatting | NOT TESTED | Needs authorized test inbox and sender configuration inspection. |
+| GA4 receipt: all funnel events | BLOCKED | Preview GA4 explicitly disabled; no staging measurement property/events received. |
+| Analytics privacy | PASS | Source allowlist tests exclude roster data, raw identifiers and client-side billing completion. Real event forwarding and consent receipt still unverified. |
+| Monitor execution / safe failure / human alert delivery | NOT TESTED | Workflow alone is not verified monitoring. No human destination tested. Preview health URL was blocked by this cloud browser client; this is not evidence of service downtime. |
+| Database backup frequency / retention / PITR / restore | BLOCKED | Supabase connector reports project healthy but not plan/backup details; dashboard requires sign-in. No restore attempted or performed. |
 
-Actual verification/reset/provider/billing notices delivered: NONE VERIFIED. Sender SPF/DKIM/DMARC, links and mobile email layout: BLOCKED by sender/inbox access. No bulk email sent.
+## Security and database
 
-Actual GA4 received events: NONE VERIFIED. Consent, canonical-path forwarding and allowlist source controls exist; GA4 disabled until an isolated property is configured. No PII/roster transmission test at the destination has run.
+| Check | Status | Evidence / limitation |
+| --- | --- | --- |
+| Public-table RLS enabled | PASS | Fresh database aggregate: 17 public tables, all 17 RLS enabled. |
+| Five security migrations | PASS | Fresh migration-history query confirms all five October 16 versions remain applied. |
+| Fresh security advisor | PASS | No high-severity findings reported; five default-deny no-policy informational findings and one warning remain. |
+| Leaked-password protection | BLOCKED | Advisor still reports disabled; existing plan/support and safe dashboard change not verified. |
+| Two-user API isolation across all private state | BLOCKED | Requires two disposable authenticated accounts; not proven by an owner session or RLS-enabled count. |
+| Authorization / same-origin / OAuth / webhook controls | PASS | Existing regression/source verification retained; production OAuth and actual deployed webhook lifecycle not exercised. |
+| Tracked-source secret scan | PASS | Heuristic credential/private-key patterns scanned 163 tracked files, no matches. This is not proof against every possible secret format. |
+| Account deletion remnants / revoked session tokens | NOT TESTED | No disposable account deletion performed. |
+| Browser-side secret exposure / sensitive logs | NOT TESTED | Source boundaries reviewed; exhaustive deployed bundle/log examination not completed. |
 
-Actual alert delivered: NONE VERIFIED. Health route/workflow source exists; workflow not published/active. Database reachability, provider/auth spikes, webhooks, email failures and exceptions still need deployed monitoring and tested destination. A workflow file is not delivery evidence.
+## Yahoo — corrected authoritative status
 
-## Database / security
+Agreement: **COMPLETED / FULLY EXECUTED**, confirmed by owner evidence. Countersignature is not a blocker. The executed agreement remains private and outside source control.
 
-Five security migrations already applied and preserved. Prior transaction tests passed first-free-league acceptance, second-league rejection, owner-only provider references, unrelated-user invisibility and invoker entitlement lookup; synthetic SQL users rolled back. RLS enabled on all public tables. Simultaneous independent transactions, upgrade/cancellation quota changes and full two-user API coverage of trades/settings/entitlements remain UNVERIFIED. Trigger uses per-user transaction advisory locking; design review does not count as race test.
+Yahoo remains disabled in Preview and production. Remaining tasks: verify actual API activation and credentials; production OAuth; transient nonpersistent league/roster/matchup processing; token refresh/revocation; rate limits; attribution/branding; verify no payload persistence. No broad Yahoo implementation was started in this run.
 
-Remaining advisor warning: leaked-password protection disabled. Auth dashboard/plan availability not verified; no supported configuration-write capability found. No claim it is resolved. Five RLS-without-policy informational findings intentionally deny browser access. Applied function-privilege warnings were resolved and tested previously.
+## Remaining gates and owner participation
 
-Backups: plan-specific frequency, retention, PITR and restore availability NOT VERIFIED. Restore rehearsal NOT PERFORMED. Confirm in existing project Dashboard → Database → Backups, capture retention/restore options, reconcile baseline migrations, then rehearse only on an approved isolated target. Do not restore active production or provision a billable target without approval.
+Technical: disposable-account signup/reset/free quota/multi-user tests; secure sandbox billing configuration and full lifecycle; authenticated Preview test-runner access; actual mobile screenshots and authenticated mobile QA; analytics receipt; email/monitor delivery; backup and restore evidence.
 
-## Yahoo / business
+External/business: LLC/EIN/bank/Stripe production verification remain unverified; no live billing authorization.
 
-Yahoo stays disabled. Developer-signed agreement does not verify countersignature, final activation or working production OAuth. Separate temporary/session onboarding and contract architecture review remain before either flag can be enabled. Persistence guard and disabled history endpoint remain; no restricted history storage added.
+Legal/compliance: professional review of public legal drafts and retention/deletion practices; Yahoo transient architecture review before future activation. Executed agreement completion is resolved.
 
-LLC approval, EIN if required, bank, Stripe production verification, legal/privacy/subscription review, support readiness and explicit live-billing authorization are unverified external gates. Vercel identity metadata shows Hobby billing; actual owning-team commercial plan needs confirmation. Official Hobby terms restrict commercial use; a suitable paid plan may require spend approval before commercial launch.
-
-## Pricing recommendation — no changes activated
-
-Keep $7.99 monthly as a test hypothesis. Recommend evaluating $49.99 annual first, not finalizing it before useful connected-team beta evidence. It is closer to FantasyPros PRO's observed $47.88/year reference; that product includes more established breadth, so $59.99/$69.99 require stronger differentiated value evidence. Willingness to pay is unproven.
-
-| Annual price | Discount vs 12 × $7.99 | Illustrative net/annual payment | Approx fixed-cost break-even subscribers |
-|---|---:|---:|---:|
-| $39.99 current sandbox | 58.3% | $38.25 | 39 |
-| $49.99 | 47.9% | $47.89 | 33 |
-| $59.99 | 37.4% | $57.53 | 29 |
-| $69.99 | 27.0% | $67.17 | 25 |
-
-Illustrative fees assume 2.9% + $0.30 Payments and 0.7% Billing, not verified account rates. Break-even uses existing model assumptions: 70% annual / 30% monthly, $116 monthly fixed, $1.35 variable/support/replacement acquisition per subscriber plus 2% refunds. Excludes owner salary, tax, initial acquisition and unvalidated data licensing. Estimates are projections, not revenue. Sources: https://www.fantasypros.com/premium/plans/fp-ft/ and https://stripe.com/pricing . No production price changed.
-
-## Repository privacy recommendation
-
-Recommend PRIVATE for commercial source and internal operations, subject to owner approval. This does not repair existing credential authorization. GitHub integrations/development tools must be granted private repository access; Actions minutes/features can differ by plan, and workflows must be rechecked. Personal private GitHub repositories can use Vercel; Hobby has restrictions for private organization repositories and requires recognized owner commit authorship. Current local commits use Codex identity: verify legitimate author-to-Vercel association before relying on Git-triggered deployment; do not falsify authorship. Existing public forks/copies cannot be recalled by changing visibility. No visibility change performed.
-
-Sources: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/managing-repository-settings/setting-repository-visibility ; https://vercel.com/docs/git ; https://vercel.com/docs/deployments/troubleshoot-project-collaboration ; https://vercel.com/docs/plans/hobby .
-
-## Owner actions required now
-
-1. Repair existing GitHub App repository scope/write grants and Vercel owning-team/project authorization as above.
-2. Securely configure Preview-only Stripe test credentials/webhook and test-safe privileged Supabase/email settings; provide authorized test inbox and isolated GA4/alert destination. Do not paste secrets into chat.
-3. Verify backup/plan controls in Supabase dashboard. Decide repository privacy separately; no visibility change is required to continue safe staging work.
-
-After access: publish branch/PR without merging, deploy Preview, run actual customer journey and screenshots, fix defects, then request production merge approval. Until that evidence exists the decision remains NOT READY.
+Minimum next participation: create/verify a disposable staging account, authenticate Supabase dashboard for backup/Auth settings inspection, and authorize an appropriate project-scoped authenticated Preview automation path. Configure sandbox credentials only in secure service settings, never chat or public source. No production merge is requested.
