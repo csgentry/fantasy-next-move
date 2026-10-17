@@ -1,6 +1,8 @@
 # Staging acceptance evidence — October 16, 2026
 
-Release decision: **NOT READY**. This is an interim acceptance report. The full new-customer and Stripe application lifecycle is not verified. PR #1 stays open and unmerged; main and production are unchanged. Yahoo and live Stripe billing remain disabled.
+Release decision: **NOT READY**.
+
+Latest verified update: approved automation credential configured; actual deployed public mobile/browser suite now PASS (12/12). Run 38987515067, attempt 2, job 117263672794. Public screenshots inspected. Code commit e50a45615380726a568b104c55169ce80cd0d9b1. Authentication customer E2E and application billing remain incomplete. This is an interim acceptance report. The full new-customer and Stripe application lifecycle is not verified. PR #1 stays open and unmerged; main and production are unchanged. Yahoo and live Stripe billing remain disabled.
 
 This report supersedes earlier release reports on current publication, Yahoo agreement completion, browser access and staging QA status. It contains no confidential agreement, provider credentials, private test identifiers or account email addresses.
 
@@ -35,8 +37,8 @@ This report supersedes earlier release reports on current publication, Yahoo agr
 | Privacy /privacy | PASS | Actual deployed document and footer links inspected; stale copy corrected in source. Professional review remains outstanding. |
 | Terms /terms | PASS | Actual deployed document and navigation inspected; retired founding terms removed. |
 | How It Works /#how-it-works | PASS | Existing homepage anchor, not a separate route. Local browser assertion verifies navigation. |
-| Demo /demo | PASS | Local multi-engine public suite. Deployed mobile inspection blocked by protection. |
-| Forgot password /forgot-password | PASS | Local multi-engine render test only; email submission unverified. |
+| Demo /demo | PASS | Actual deployed multi-engine public suite and screenshot overview inspected. |
+| Forgot password /forgot-password | PASS | Actual deployed multi-engine render tests passed; email submission unverified. |
 | Contact / About | NOT TESTED | No retained public navigation links to these routes were observed. No route was invented. |
 | Obsolete primary navigation | PASS | Authenticated navigation remains Next Move, My Team, Trade Lab, League, Account. No Record Book or standalone calculator exposed. |
 
@@ -45,13 +47,13 @@ This report supersedes earlier release reports on current publication, Yahoo agr
 | Target | Status | What actually ran |
 | --- | --- | --- |
 | Desktop Chrome cloud browser | PASS | Authenticated dashboard, roster, trade form, league and account inspected by DOM; dashboard screenshot manually viewed. No major desktop overflow observed. |
-| iPhone 13-sized Chromium | BLOCKED | Local public suite passed; actual Preview suite hit Vercel login rather than the app. No mobile staging acceptance claimed. |
-| Pixel 7-sized Chrome | BLOCKED | Same deployed protection blocker. |
-| iPhone-sized WebKit | BLOCKED | Same deployed protection blocker. |
-| Public deployed four-project suite | FAIL | 8 tests failed because their clean browser contexts reached Vercel Authentication. This is retained evidence, not hidden or suppressed. |
+| iPhone 13-sized Chromium | PASS | Actual deployed public suite passed; eight route screenshots captured and overview visually inspected. Authenticated mobile flows remain unverified. |
+| Pixel 7-sized Chrome | PASS | Actual deployed public suite passed; eight screenshots captured and overview visually inspected. |
+| iPhone-sized WebKit | PASS | Actual deployed public suite passed; eight screenshots captured and overview visually inspected. |
+| Public deployed four-project suite | PASS | 12/12 passed on authenticated rerun: page checks, homepage action and unauthenticated protection control in each project. Original missing-auth failures remain in earlier run history. |
 | Authenticated mobile screens | NOT TESTED | Requires accepted test-runner access and a disposable test identity. |
 
-Run https://github.com/csgentry/fantasy-next-move/actions/runs/38985761000 has downloadable preview-browser-evidence. Artifact SHA256 e932e0ecc0ecbdf148bda731607c4fe2525020a9e3440c36407fd2745facfd29 was verified after download. Traces/error contexts show Vercel login. The artifact is not evidence of mobile application rendering. Do not disable Preview protection to make tests green. No CLI Vercel token or development OIDC token is available in this runtime.
+Run https://github.com/csgentry/fantasy-next-move/actions/runs/38985761000 has downloadable preview-browser-evidence. Artifact SHA256 e932e0ecc0ecbdf148bda731607c4fe2525020a9e3440c36407fd2745facfd29 was verified after download. Traces/error contexts show Vercel login. That original failed artifact is not evidence of mobile application rendering. The successful rerun artifact below supersedes this blocker. Preview protection was not disabled. No CLI Vercel token or development OIDC token is available in this runtime.
 
 ## Authentication
 
@@ -111,7 +113,7 @@ No provider trade was submitted. All are UI-only hypothetical comparisons using 
 | Check | Status | Evidence / next requirement |
 | --- | --- | --- |
 | Pricing interval selection | PASS | Actual monthly and annual display controls work. |
-| Monthly Checkout session | BLOCKED | Actual app returned This Stripe price has not been configured yet. |
+| Monthly Checkout session | BLOCKED | Both existing sandbox price IDs are now saved to simplify-next-move Preview only. Sandbox secret key, webhook signing configuration and server database credential remain missing; full Checkout not verified. |
 | Hosted Checkout / payment / return | BLOCKED | Requires sandbox price IDs, secret key and server billing configuration in branch Preview. |
 | Webhook delivery / subscription record / entitlement activation / Pro UI / persistence | BLOCKED | No application Checkout completed. Existing complimentary Pro is not payment verification. |
 | Signature / forged / expired payloads | PASS | Regression cryptographic checks; not a live deployed webhook E2E claim. |
@@ -155,10 +157,29 @@ Yahoo remains disabled in Preview and production. Remaining tasks: verify actual
 
 ## Remaining gates and owner participation
 
-Technical: disposable-account signup/reset/free quota/multi-user tests; secure sandbox billing configuration and full lifecycle; authenticated Preview test-runner access; actual mobile screenshots and authenticated mobile QA; analytics receipt; email/monitor delivery; backup and restore evidence.
+Technical: disposable-account signup/reset/free quota/multi-user tests; secure sandbox billing configuration and full lifecycle; authenticated mobile QA; analytics receipt; email/monitor delivery; backup and restore evidence.
 
 External/business: LLC/EIN/bank/Stripe production verification remain unverified; no live billing authorization.
 
 Legal/compliance: professional review of public legal drafts and retention/deletion practices; Yahoo transient architecture review before future activation. Executed agreement completion is resolved.
 
-Minimum next participation: create/verify a disposable staging account, authenticate Supabase dashboard for backup/Auth settings inspection, and authorize an appropriate project-scoped authenticated Preview automation path. Configure sandbox credentials only in secure service settings, never chat or public source. No production merge is requested.
+Minimum next participation: provide an authorized test inbox/create and verify a disposable staging account; authenticate the existing Stripe sandbox and Supabase dashboards for secure billing credentials and backup/Auth settings inspection. Preview automation authorization and public mobile screenshots are resolved. Configure sandbox credentials only in secure service settings, never chat or public source. No production merge is requested.
+
+
+## Approved protected-Preview automation — verified update
+
+One existing-project Vercel automation bypass credential was created under explicit owner authorization and saved as the encrypted GitHub repository Actions secret FNM_PREVIEW_AUTOMATION_SECRET. No raw value is in this report, source, screenshots or URLs. It was not saved to a scratch file. Vercel automatically designates its first bypass as a server-side system variable; the application does not reference it or expose it through NEXT_PUBLIC variables. Production was not deployed.
+
+The credential is project-wide in Vercel. CI enforces use only on push events for csgentry/fantasy-next-move at refs/heads/simplify-next-move. Pull-request runs do not receive it. The browser route supplies the documented x-vercel-protection-bypass header only to the exact authorized Preview origin, and rejects other origins. Tracing is off whenever the secret is present.
+
+Run https://github.com/csgentry/fantasy-next-move/actions/runs/38987515067 (attempt 2) completed successfully. Deployed step: 12 passed in 22.5 seconds, including four fresh contexts without the credential that reached Vercel login. Authentication therefore remains enforced for unauthenticated visitors.
+
+Successful artifact digest: f90f069f5d85f13cf508dcd0c5dccfbc14f90fbc331724f0747e9b3e27645aa8, verified after UI download. It contains 32 public page PNGs and no trace archives. iPhone Chromium, Pixel 7 Chrome, desktop Chrome and iPhone WebKit overviews were manually inspected for hierarchy, forms, readability and overflow; no material defect was observed. This is public visual QA, not authenticated mobile acceptance.
+
+The two active existing FantasyNextMove Pro sandbox prices are USD 7.99/month and USD 39.99/year, livemode false. Their IDs were saved as STRIPE_PRICE_ALL_ACCESS_MONTHLY and STRIPE_PRICE_ALL_ACCESS_ANNUAL in branch-only Preview configuration. No live or Production variables changed. Existing Stripe endpoints contain no FantasyNextMove endpoint; an unrelated project endpoint was left untouched. The sandbox key dashboard requires authentication.
+
+### Revocation / rotation gate
+
+Official Vercel documentation states the secret works for all project deployments until revoked: https://vercel.com/docs/deployment-protection/methods-to-bypass-deployment-protection/protection-bypass-automation . It does not automatically expire.
+
+After staging acceptance, before merging or closing this release: stop the deployed Preview automation job, open existing Vercel project Settings > Deployment Protection > Protection Bypass for Automation, identify the note FNM simplify-next-move Preview QA, and revoke that single bypass through its menu. Delete FNM_PREVIEW_AUTOMATION_SECRET from existing GitHub repository Settings > Secrets and variables > Actions. Verify the old header no longer grants access, and that unauthenticated protection remains enabled. If tests must continue, rotate through authorized encrypted storage and rerun both positive and negative controls. This cleanup remains pending because staging is not yet accepted. No automatic future revocation is claimed.
