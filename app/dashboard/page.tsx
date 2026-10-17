@@ -1,91 +1,22 @@
 "use client";
-
-import {EventTracker} from "@/components/EventTracker";
 import Link from "next/link";
-import {YahooAttribution} from "@/components/YahooAttribution";
-import { AppShell } from "@/components/AppShell";
-import { useSelectedLeague } from "@/components/LeaguePicker";
-import { PowerRankingsEngine } from "@/components/PowerRankingsEngine";
-import { usePlayerIntelligence } from "@/components/usePlayerIntelligence";
-import { recommendationsFor } from "@/lib/analysis";
-import {
-  buildPersonalizedPlayerRecommendations
-} from "@/lib/player-intelligence";
-import type { PlayerRecommendation } from "@/lib/types";
-
-function leagueTypeLabel(type: "redraft" | "keeper" | "dynasty" | undefined) {
-  if (type === "dynasty") return "Dynasty";
-  if (type === "keeper") return "Keeper";
-  return "Redraft";
-}
-
-export default function DashboardPage() {
-  const { league, source, teamRosterId, resetLeague, hydrated, error } = useSelectedLeague();
-  const intelligenceState = usePlayerIntelligence(league, source, teamRosterId);
-
-  if (!hydrated) {
-    return <AppShell><div className="panel empty-state"><strong>Loading your league…</strong></div></AppShell>;
-  }
-
-  if (source === "demo") return <AppShell><section className="panel empty-state"><h1>No league connected</h1><p>{error || "Connect your fantasy league to understand your team and see your highest-priority move."}</p><Link className="button" href="/connect">Connect League</Link><Link className="text-button" href="/demo">See the fictional preview</Link></section></AppShell>;
-
-  const ownerRosterId = teamRosterId;
-  const myTeam = league.teams.find((team) => team.rosterId === ownerRosterId) ?? league.teams[0];
-  if (!myTeam) {
-    return <AppShell><div className="panel empty-state"><strong>No rosters found.</strong><p>Reconnect the league after rosters have been created.</p></div></AppShell>;
-  }
-
-  const data = intelligenceState.data;
-  const genericRecommendations = recommendationsFor(myTeam, league).slice(0,1).map((recommendation, index) => ({
-    ...recommendation,
-    id: `fallback:${index}`,
-    confidence: "Limited" as const
-  }));
-  const recommendations: PlayerRecommendation[] = data
-    ? data.nextMoves ?? buildPersonalizedPlayerRecommendations(league, myTeam, data)
-    : source === "yahoo" ? [{id: "yahoo-review", category: "Lineup", impact: "Medium", confidence: "Limited", title: "Review your starting lineup", reason: "Check the starter and bench statuses in your current Yahoo roster. Independent weekly projections are not available yet, so we cannot estimate a lineup gain.", projectedGain: null}] : genericRecommendations;
-
-  return (
-    <AppShell><EventTracker event="dashboard_viewed"/>{data?.nextMoves?.length ? <EventTracker event="first_recommendation_shown"/> : null}
-
-      <div className="page-heading">
-        <div><span className="eyebrow">{`${source} league`}</span><h1>Your Next Move</h1><p>{league.name} · {league.season} · {leagueTypeLabel(league.leagueType)}</p></div>
-        <div className="source-actions"><div className="pill">Data source: {source === "yahoo" ? "Yahoo" : "Sleeper"}</div>{<button className="text-button" onClick={resetLeague}>Close league</button>}</div>
-      </div>
-
-      {intelligenceState.loading && <p role="status">Analyzing your roster…</p>}{intelligenceState.error && <p role="alert">{intelligenceState.error} <Link href="/connect">Refresh your league</Link></p>}
-      <section className="panel next-moves dashboard-priority-panel">
-        <div className="panel-heading">
-          <div><span className="eyebrow">Your priority board</span><h2>{myTeam.teamName}&apos;s Next Moves</h2></div>
-
-        </div>
-        <div className="priority-grid">
-          {recommendations.map((recommendation, index) => (
-            <article className="move-card intelligence-move-card" key={recommendation.id}>
-              <div className="move-number">{index + 1}</div>
-              <div>
-
-                <h3>{recommendation.title}</h3>
-                <p>{recommendation.reason.split(/(?<=[.!?])\s/)[0]}</p><details><summary>Why this move?</summary><p>{recommendation.reason}</p><small>{recommendation.confidence === "Limited" ? "Limited" : recommendation.confidence} confidence</small></details><Link className="button small" href={recommendation.category === "Trade" && data?.pro ? "/trade-lab" : "/team"}>{recommendation.category === "Trade" && data?.pro ? "Open Trade Lab" : "Review My Team"}</Link>
-                {recommendation.projectedGain !== null && recommendation.projectedGain !== undefined && <small className="projected-gain">Projected gain: +{recommendation.projectedGain.toFixed(1)} points</small>}
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      {source === "yahoo" && <YahooAttribution/>}{data?.pro === false && <p>Your free plan includes your highest-priority move. <Link href="/pricing">Explore Pro</Link> for the full recommendation stack.</p>}
-      {source !== "yahoo" && <details className="panel"><summary>Team strength and league context</summary>
-      <PowerRankingsEngine
-        league={league}
-        source={source}
-        myRosterId={myTeam.rosterId}
-        intelligence={data}
-        intelligenceLoading={intelligenceState.loading}
-        intelligenceError={intelligenceState.error}
-      />
-
-      </details>}
-    </AppShell>
-  );
+import {EventTracker} from "@/components/EventTracker";
+import {AppShell} from "@/components/AppShell";
+import {useSelectedLeague} from "@/components/LeaguePicker";
+import {usePlayerIntelligence} from "@/components/usePlayerIntelligence";
+import {LeagueContext} from "@/components/LeagueContext";
+import {ToolIcon} from "@/components/ToolIcon";
+import {PlayerDetails} from "@/components/PlayerDetails";
+import {hasCurrentAnalysis} from "@/lib/decision-tools";
+import type {PlayerRecommendation} from "@/lib/types";
+const tools=[{name:'Start/Sit',description:'Choose your best lineup',href:'/team?view=lineup',icon:'lineup'},{name:'Waiver Help',description:'Find available additions',href:'/waivers',icon:'waiver'},{name:'Trade Lab',description:'Understand a trade',href:'/trade-lab',icon:'trade'},{name:'My Team',description:'Review your roster',href:'/team',icon:'team'}] as const;
+function destination(move:PlayerRecommendation){return move.category==='Trade'?{href:'/trade-lab',label:'Analyze a trade'}:move.category==='Waiver'?{href:'/waivers',label:'Review waiver options'}:{href:'/team?view=lineup',label:'Review Start/Sit'}}
+export default function DashboardPage(){
+ const selected=useSelectedLeague();const state=usePlayerIntelligence(selected.league,selected.source,selected.teamRosterId);const data=state.data;const league=data?.currentLeague||selected.league;const team=league.teams.find(t=>t.rosterId===selected.teamRosterId);
+ if(!selected.hydrated)return <AppShell><section className="panel empty-state" role="status"><h1>Loading your league…</h1><p>Your next decision starts with your team.</p></section></AppShell>;
+ if(selected.source==='demo'||!team)return <AppShell><section className="panel empty-state"><span className="eyebrow">Your fantasy team. Your next move.</span><h1>Make your next move count.</h1><p>{selected.error||'Connect a league for recommendations based on your actual roster and scoring.'}</p><Link className="button" href="/connect">Connect your league</Link><Link className="text-button" href="/demo">Explore the fictional demo</Link></section></AppShell>;
+ const current=hasCurrentAnalysis(data);const moves=current?data?.nextMoves||[]:[];const primary=moves[0];const action=primary?destination(primary):null;
+ const matchup=data?.currentMatchups?.find(m=>m.rosterId===team.rosterId&&m.week===data.projectionWeek);const opponent=matchup?.matchupId?data?.currentMatchups?.find(m=>m.week===data.projectionWeek&&m.matchupId===matchup.matchupId&&m.rosterId!==team.rosterId):null;
+ const concerns=team.players.map(id=>data?.profiles[id]).filter(p=>p?.injuryStatus).slice(0,3);
+ return <AppShell><EventTracker event="dashboard_viewed"/>{primary&&<EventTracker event="first_recommendation_shown"/>}<div className="page-heading"><div><span className="eyebrow">Your fantasy team. Your next move.</span><h1>Next Move</h1><p>{team.teamName}{opponent?` · vs ${league.teams.find(t=>t.rosterId===opponent.rosterId)?.teamName||'current opponent'}`:''}</p></div></div><LeagueContext selected={selected} data={data}/><section className="next-move-hero" aria-labelledby="next-move-title"><span className="eyebrow">{primary?'Your priority':'Your next step'}</span><h2 id="next-move-title">{state.loading?'Finding your next move…':primary?.title||'Get a current view of your team'}</h2><p>{primary?primary.reason.split(/(?<=[.!?])\s/)[0]:state.loading?'Checking your roster, projections and league context.':selected.source==='yahoo'?'Your Yahoo roster is available. Independent weekly projections are not verified, so a projected advantage is withheld.':'A current-season roster check and reliable projections are required before we recommend a move.'}</p>{primary&&primary.projectedGain!=null&&primary.projectedGain>0&&primary.category==='Lineup'&&<p className="supported-benefit">About +{primary.projectedGain.toFixed(1)} projected lineup points</p>}{action?<Link className="button" href={action.href}>{action.label}<span aria-hidden="true"> →</span></Link>:!state.loading&&<Link className="button" href="/connect">Refresh league connection</Link>}{primary&&<details><summary>Why this move?</summary><p>{primary.reason}</p><p className="source-note">Based on Sleeper data and your league’s scoring. Projections are estimates, not guaranteed outcomes.</p>{primary.playerId&&data?.profiles[primary.playerId]&&<PlayerDetails profile={data.profiles[primary.playerId]} snapshot={data.currentSnapshots.find(p=>p.playerId===primary.playerId)} source={selected.source}>View player details</PlayerDetails>}</details>}</section><nav className="quick-tools" aria-label="Fantasy tools">{tools.map(t=><Link key={t.name} href={t.href}><ToolIcon name={t.icon}/><span><strong>{t.name}</strong><small>{t.description}</small></span><span aria-hidden="true">→</span></Link>)}</nav><div className="sync-row"><span>{data?`Last successful analysis: ${new Date(data.syncedAt).toLocaleString()}`:'No successful analysis yet'}</span><button className="text-button" disabled={state.loading} onClick={state.refresh}>Refresh analysis</button></div>{state.error&&<p className="connection-message error" role="alert">{state.error}</p>}{data?.warnings.length? <details className="data-notes"><summary>Data availability</summary>{data.warnings.map(w=><p key={w}>{w}</p>)}</details>:null}{concerns.length>0&&<section className="roster-concerns"><h2>Before kickoff</h2>{concerns.map(p=><p key={p!.playerId}><strong>{p!.fullName}</strong> · {p!.injuryStatus}</p>)}<span className="source-note">Provider designations; verify game-day availability in Sleeper.</span></section>}{moves.length>1&&<section className="secondary-moves"><h2>Also worth a look</h2>{moves.slice(1).map(move=><details key={move.id}><summary>{move.title}</summary><p>{move.reason}</p><Link className="text-button" href={destination(move).href}>{destination(move).label} →</Link></details>)}</section>}</AppShell>;
 }
