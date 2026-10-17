@@ -47,10 +47,10 @@ export default function MyLeaguesPage() {
   return (
     <AppShell>
       <div className="page-heading"><div><span className="eyebrow">Your league context</span><h1>League</h1><p>See how your team compares. Switch connected leagues below.</p></div><a className="button small" href="/connect">Connect another league</a></div>
-      {error && <div className="connection-message error">{error}</div>}
+      {source === "yahoo" && <section className="panel"><h2>League comparisons need independent data</h2><p>Your Yahoo roster is available in My Team. Opponent rosters are not retrieved or saved.</p></section>}{error && <div className="connection-message error">{error}</div>}
       {loading && <div className="panel empty-state"><strong>Loading saved leagues…</strong></div>}
       {!loading && !leagues.length && <div className="panel empty-state"><strong>No saved leagues yet.</strong><p>Connect Sleeper to add your first league. Yahoo is pending activation.</p><a className="button small" href="/connect">Connect a league</a></div>}
-      {source !== "demo" && <PowerRankingsEngine league={league} source={source} myRosterId={teamRosterId} intelligence={intelligence.data}/>}
+      {source === "sleeper" && <PowerRankingsEngine league={league} source={source} myRosterId={teamRosterId} intelligence={intelligence.data}/>}
       {!!leagues.length && <section className="saved-league-grid">{leagues.map((record) => (
         <article className={`panel saved-league-card ${record.is_active ? "active" : ""}`} key={record.id}>
           <div><span className="eyebrow">{record.provider} · {record.season}</span><h2>{record.name}</h2><p>{formatLabel(record.raw_data.leagueType)} · {record.raw_data.totalRosters} teams{record.raw_data.draftPicks?.length ? ` · ${record.raw_data.draftPicks.length} picks tracked` : ""}</p></div>
