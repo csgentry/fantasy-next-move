@@ -6,6 +6,8 @@ import type { ReactNode } from "react";
 import {MarketingHeader} from "@/components/MarketingHeader";
 import {Brand} from "./Brand";
 import {ToolIcon} from "./ToolIcon";
+import {useYahooSession} from "./YahooSession";
+import {YahooAttribution} from "./YahooAttribution";
 import { AuthStatus } from "@/components/AuthStatus";
 
 const nav = [
@@ -18,6 +20,7 @@ const nav = [
 
 export function AppShell({ children, showAdmin = false, tone="dark" }: { children: ReactNode; showAdmin?: boolean; tone?:"dark"|"light" }) {
   const pathname = usePathname();
+  const yahoo = useYahooSession();
   const navigation = showAdmin ? [...nav, ["FantasyNextMove Admin", "/admin"]] : nav;
 
   if (["/pricing","/privacy","/terms","/demo"].includes(pathname)) return <div className="landing"><MarketingHeader/><main className="public-content">{children}</main><footer className="landing-footer"><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><span>Read-only decision support. No guaranteed outcomes.</span></footer></div>;
@@ -38,7 +41,7 @@ export function AppShell({ children, showAdmin = false, tone="dark" }: { childre
         {children}
         <footer className="app-footer">
           <span>FantasyNextMove</span>
-          <span><a href="https://fantasy.yahoo.com/" target="_blank" rel="noopener noreferrer">Fantasy data provided by Yahoo Fantasy</a> when Yahoo is connected.</span>
+          {yahoo.selection && <YahooAttribution/>}
           <span>Read-only analysis. No lineup, waiver, or trade actions are submitted.</span>
           <span className="footer-links"><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/pricing">Pricing</Link></span>
           <AuthStatus compact />
