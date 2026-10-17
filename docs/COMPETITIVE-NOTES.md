@@ -1,3 +1,39 @@
+# Current consumer comparison — October 17, 2026
+
+Public official pages reviewed; paid accounts, proprietary rankings and protected designs were not accessed. This is a comparison of described offerings and our verified implementation, not proof of competitor accuracy or speed.
+
+| Decision / category | FantasyPros public offering | FantasyNextMove implementation / acceptance |
+| --- | --- | --- |
+| My Playbook / roster advice | Connected-league advice hub | Next Move plus My Team; correct saved Sleeper roster and personalized action verified on desktop. |
+| Trade Analyzer | Whole-roster, scoring-aware evaluation, with dynasty players/picks | Trade Lab sends/receives, explicit Analyze action, lineup verdict and expandable model; live hypothetical negative trade and stale-result invalidation verified. |
+| Trade calculator | Their analyzer distinguishes generic isolated values from roster-aware analysis | No accepted independent standalone Quick Calculator yet; legitimate data and uncertainty must be established first. |
+| Trade Finder | Suggested opportunities to improve the roster | Existing Next Move trade targets; no separate tab or new automated trade-finder category. |
+| Start/Sit Assistant | Suggested optimal starting lineup | Position-eligible roster review and Next Move; restricted FLEX defects corrected. Current live start/sit recommendation acceptance remains incomplete. |
+| Waiver Assistant | Suggested adds and drops | Existing Next Move waiver path; current real waiver recommendation acceptance remains incomplete. |
+| League analysis / Power Rankings | Team and opponent comparisons | League ranks with expandable positional detail; desktop navigation and detail expansion verified. |
+| Premium plans | Multi-feature paid access and app access | One Pro offering, existing monthly/annual sandbox prices; application billing acceptance remains blocked. |
+| Mobile | Unified FantasyPros app combining draft and in-season tools | Five-section responsive website; public mobile automation passed for verified code. Authenticated redesigned mobile usability remains unaccepted. |
+
+The highest-frequency decisions worth matching are lineup selection, available-player upgrades and evaluating actual trade offers. This prioritization is our product judgment, not measured usage research. FantasyPros has much broader draft and research coverage; feature count is not our target.
+
+Only three competitive improvements are recommended:
+
+1. Show one useful next action first, with a short reason and optional evidence. Implemented through screen simplification; recommendation quality still needs broader real-world evaluation.
+2. Make trades easy to construct and explain actual starting-lineup/depth effects. Implemented simpler controls and explicit analysis; independent quick-calculator data remains a gate.
+3. Keep position-eligible lineup and waiver help inside Next Move and My Team. Eligibility fixes implemented; no extra navigation or major category approved.
+
+Intentionally excluded: DFS, betting, podcasts, social features, historical record books, extensive niche tools, additional sports/providers, native-app work and additional pricing tiers. No competitor paid data, source code, rankings or protected design copied.
+
+Sources:
+- https://www.fantasypros.com/nfl/myplaybook/intro
+- https://www.fantasypros.com/nfl/myplaybook/trade-analyzer.php
+- https://support.fantasypros.com/hc/en-us/articles/26339853774107-Do-you-have-Mobile-Apps
+- https://www.fantasypros.com/premium/plans/fp-ft/
+
+---
+
+Earlier comparison notes follow as historical context.
+
 # Competitive research — preliminary, incomplete
 
 Official materials reviewed 16 October 2026:
