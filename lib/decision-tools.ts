@@ -21,11 +21,12 @@ export function lineupReview(league:ImportedLeague,team:LeagueTeam,data:PlayerIn
   }).sort((a,b)=>a.index-b.index);
 }
 export function waiverCandidates(league:ImportedLeague,team:LeagueTeam,data:PlayerIntelligencePayload) {
+  const eligiblePositions=new Set((league.rosterPositions||["QB","RB","WR","TE","K","DEF"]).filter(slot=>!excludedSlots.has(slot.toUpperCase())).flatMap(slot=>[...lineupEligibility(slot)]));
   const rostered=new Set(league.teams.flatMap(t=>[...t.players,...(t.reserve||[]),...(t.taxi||[])]));
   const nonDrops=new Set([...team.starters,...(team.reserve||[]),...(team.taxi||[])]);
   const byId=new Map(data.currentSnapshots.map(p=>[p.playerId,p]));
-  return data.currentSnapshots.filter(p=>!rostered.has(p.playerId)&&p.projectedPoints!=null&&p.projectedPoints>0&&["QB","RB","WR","TE","K","DEF"].includes(normalizeFantasyPosition(p.position))).map(p=>{
+  return data.currentSnapshots.filter(p=>!rostered.has(p.playerId)&&p.projectedPoints!=null&&p.projectedPoints>0&&eligiblePositions.has(normalizeFantasyPosition(p.position))).map(p=>{
     const drop=team.players.filter(id=>!nonDrops.has(id)&&normalizeFantasyPosition(data.profiles[id]?.position)===normalizeFantasyPosition(p.position)).map(id=>byId.get(id)).filter((s):s is NonNullable<typeof s>=>s?.projectedPoints!=null).sort((a,b)=>a.projectedPoints!-b.projectedPoints!)[0];
     return {player:p,drop,gain:drop?p.projectedPoints!-drop.projectedPoints!:null};
-  }).sort((a,b)=>(b.gain??-999)-(a.gain??-999)||b.player.projectedPoints!-a.player.projectedPoints!).slice(0,30);
+  }).sort((a,b)=>(b.gain??-999)-(a.gain??-999)||b.player.projectedPoints!-a.player.projectedPoints!);
 }
