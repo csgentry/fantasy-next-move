@@ -246,10 +246,10 @@ export function buildPersonalizedPlayerRecommendations(
             playerId,
             profile,
             position: normalizeFantasyPosition(profile.position),
-            points: projectedPoints(playerId, snapshotMap) || 0
+            points: projectedPoints(playerId, snapshotMap)
           };
         })
-        .filter((starter) => starter.position === player.position)
+        .filter((starter): starter is typeof starter & {points: number} => starter.position === player.position && starter.points !== null)
         .sort((a, b) => a.points - b.points)[0];
       return replaced
         ? { player, replaced, gain: player.projectedPoints - replaced.points }

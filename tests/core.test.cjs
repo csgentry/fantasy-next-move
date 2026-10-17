@@ -60,3 +60,11 @@ test('Sleeper analysis works without an admin key when snapshot storage is denie
   assert.equal(result.profiles.p1.fullName,'Test Runner');assert.equal(result.currentSnapshots[0].projectedPoints,null);assert.equal(result.storageStatus,'unavailable');assert.ok(reads>0&&writes>0);
  }finally{global.fetch=previousFetch;if(previousKey===undefined)delete process.env.SUPABASE_SERVICE_ROLE_KEY;else process.env.SUPABASE_SERVICE_ROLE_KEY=previousKey;}
 });
+test('a missing starter projection cannot produce a fabricated lineup gain',()=>{
+ const {buildPersonalizedPlayerRecommendations}=load('lib/player-intelligence.ts');
+ const team={rosterId:1,players:['starter','bench'],starters:['starter']};
+ const league={rosterPositions:['RB'],teams:[team],totalRosters:1};
+ const profiles={starter:player('starter','RB'),bench:player('bench','RB')};
+ const result=buildPersonalizedPlayerRecommendations(league,team,{profiles,currentSnapshots:[{playerId:'starter',projectedPoints:null,projectionStats:{}},{playerId:'bench',projectedPoints:12,projectionStats:{}}],accuracySnapshots:[]});
+ assert.equal(result.some(move=>move.category==='Lineup'),false);
+});

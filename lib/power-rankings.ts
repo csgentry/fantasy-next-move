@@ -482,7 +482,9 @@ export function buildPowerRankings(
       const weakest = weakestPosition(positional);
       const explanations = [
         `Starter strength ranks ${ordinal(starterRanks.get(rosterId) || league.teams.length)} and bench depth ranks ${ordinal(benchRanks.get(rosterId) || league.teams.length)}.`,
-        `${strongest} is the roster's strongest position (${ordinal(positional[strongest].rank)}); ${weakest} is the clearest weakness (${ordinal(positional[weakest].rank)}).`,
+        strongest === weakest
+          ? "The available signals do not distinguish a clear positional strength or weakness."
+          : `${strongest} is the roster's strongest position (${ordinal(positional[strongest].rank)}); ${weakest} is the clearest weakness (${ordinal(positional[weakest].rank)}).`,
         item.projectedStarterPoints !== null
           ? `The optimized lineup projects for ${item.projectedStarterPoints.toFixed(2)} points with ${Math.round(item.projectionCoverage * 100)}% starter projection coverage.`
           : "Sleeper weekly projections are not populated for enough starters yet, so roster metadata carries more weight.",

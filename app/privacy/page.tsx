@@ -13,7 +13,7 @@ export default function PrivacyPage() {
         <p>FantasyNextMove may store your account email, access level, connected-provider identifiers, selected leagues, league settings, teams, rosters, standings, historical records, weekly player snapshots, draft-pick ownership, product activity, billing identifiers, subscription status, refund requests, and administrative audit history.</p>
 
         <h2>Provider connections</h2>
-        <p>Sleeper imports use Sleeper data endpoints and do not ask for your Sleeper password. Yahoo authorization happens on Yahoo. Your Yahoo password is not sent to FantasyNextMove. Yahoo access and refresh tokens are encrypted in account-owned server storage. Yahoo league and history payload persistence is disabled. Yahoo integration remains gated pending activation, confirmation of the executed agreement, and compliant session processing. Yahoo information is not sent to AI services or used for model training.</p>
+        <p>Sleeper imports use Sleeper data endpoints and do not ask for your Sleeper password. Yahoo authorization happens on Yahoo. Your Yahoo password is not sent to FantasyNextMove. Yahoo access and refresh tokens are encrypted in account-owned server storage. Yahoo league and history payload persistence is disabled. Yahoo integration remains gated pending verified API activation and compliant session processing. Yahoo information is not sent to AI services or used for model training.</p>
 
         <h2>Payments</h2>
         <p>Payment information is collected and processed by Stripe. FantasyNextMove stores Stripe customer, subscription, invoice, payment-status, and refund identifiers needed to operate subscriptions and customer support. FantasyNextMove does not store complete card numbers or card security codes.</p>
@@ -22,7 +22,7 @@ export default function PrivacyPage() {
         <p>Account-owned application data is stored in Supabase and the service is hosted through Vercel. Authentication is maintained with secure cookies. Billing data is synchronized from Stripe to Supabase for access control, account display, auditing, reconciliation, and administrative support.</p>
 
         <h2>How data is used</h2>
-        <p>Imported data is used to display dashboards, league history, lineup analysis, trade values, Power Rankings, recommendations, projection accuracy, and draft capital. Billing and product events are used to provide access, enforce league limits, support customers, improve the product, and understand service health.</p>
+        <p>Imported data is used to provide team analysis, league comparisons, roster-specific trade analysis, and recommendations. Billing and product events are used to provide access, enforce league limits, support customers, improve the product, and understand service health.</p>
 
         <h2>Sharing and sale</h2>
         <p>FantasyNextMove does not sell personal information. Data is processed through the hosting, authentication, database, payment, analytics, and fantasy-provider services needed to operate the product.</p>
