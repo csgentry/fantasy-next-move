@@ -1,6 +1,7 @@
 import {test,expect} from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
+import {demoLeague} from '../../lib/demo-data';
 
 // Controlled local UI only. Production authentication is tested separately.
 test.describe('shared authenticated application shell',()=>{
@@ -99,4 +100,17 @@ test.describe('global navigation refinement',()=>{
   const box=await button.boundingBox();expect(box!.x).toBeGreaterThan(info.project.use.isMobile?250:900);
   await page.screenshot({path:info.outputPath('profile-menu-after.png')});await page.keyboard.press('Escape');await expect(menu).not.toBeVisible();await expect(button).toBeFocused();expect(requests).toBe(0);
  });
+});
+
+// A connected header is wider than the no-league shell and must reserve profile space.
+test('desktop account control never covers a connected Next Move team label',async({page},info)=>{
+ test.skip(Boolean(process.env.PLAYWRIGHT_BASE_URL)||Boolean(info.project.use.isMobile),'Controlled connected-header desktop regression.');
+ await page.route(url=>url.pathname==='/dashboard',r=>r.fulfill({status:200,contentType:'text/html',body:fs.readFileSync(path.join(process.cwd(),'.next/server/app/dashboard.html'),'utf8')}));
+ await page.route('**/api/account/leagues?active=1',r=>r.fulfill({json:{league:{...demoLeague,provider:'sleeper',leagueId:'123456789'},selectedRosterId:demoLeague.userRosterId}}));
+ await page.route('**/api/account/matchups',r=>r.fulfill({json:{matchups:[]}}));
+ await page.route('**/api/sleeper/intelligence',r=>r.fulfill({status:503,json:{error:'Controlled unavailable provider fixture'}}));
+ await page.goto('/dashboard');
+ const label=page.locator('main header p');await expect(label).toBeVisible();
+ const team=await label.boundingBox(),profile=await page.getByRole('button',{name:'Open profile menu'}).boundingBox();
+ expect(team!.x+team!.width).toBeLessThanOrEqual(profile!.x-4);
 });

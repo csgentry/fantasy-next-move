@@ -91,7 +91,7 @@ body:has(.shared-shell){background:#020906}
 .profile-popover a,.profile-popover .drawer-logout{display:flex;align-items:center;justify-content:flex-start;gap:12px;min-height:44px;padding:10px 12px;border-radius:8px;color:#f6f4ec;text-align:left;text-decoration:none;font-size:13px;line-height:1.4}
 .profile-popover .drawer-logout{color:#ffb7ab;border-top:1px solid #b1d3bd20;border-radius:0;margin-top:4px}
 .profile-popover a:hover,.profile-popover button:hover{background:#f6f4ec0c}.profile-popover :focus-visible{outline:2px solid #f6f4ec;outline-offset:0}
-@media(min-width:761px){.shared-shell .app-content>.page-heading,.shared-shell .app-content>.team-workspace>.page-heading,.shared-shell .app-content>.dashboard>header{padding-right:100px}}
+@media(min-width:761px){.shared-shell .app-content>.page-heading,.shared-shell .app-content>.team-workspace>.page-heading,.shared-shell .app-content header:has(h1){padding-right:100px}}
 @media(max-width:1000px) and (min-width:761px){.shared-shell{grid-template-columns:232px minmax(0,1fr)}.shared-shell .sidebar{position:sticky;height:100dvh;display:flex;flex-direction:column;align-items:stretch}.shared-shell .sidebar>nav{display:flex;flex-direction:column;overflow:visible}}
 @media(max-width:760px){
  .shared-shell .sidebar{background:transparent;overflow:visible}
