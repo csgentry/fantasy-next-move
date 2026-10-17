@@ -139,11 +139,10 @@ export default function ConnectPage() {
             </div>
           </div>
           <div className="coming-soon-copy">
-            <span className="pill">Awaiting Yahoo approval</span>
+            <span className="pill">Activation verification pending</span>
             <p>
-              Yahoo connection is temporarily disabled because Fantasy Sports
-              API access has not been approved yet. We will enable it only when
-              league import works from start to finish.
+              Yahoo connection remains disabled while we verify API activation
+              and complete compliant, temporary league processing.
             </p>
           </div>
           <button className="button secondary" disabled type="button">
