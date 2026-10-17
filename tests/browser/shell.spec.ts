@@ -31,7 +31,9 @@ test.describe('shared authenticated application shell',()=>{
    for(const name of ['Next Move','My Team','Trade Lab','Start/Sit','Waivers','My Leagues','Connected Fantasy Accounts','Account Settings','Subscription & Billing','Help & Support'])await expect(dialog.getByRole('link',{name,exact:true})).toBeVisible();
    await expect(dialog.getByRole('button',{name:'Log Out',exact:true})).toBeVisible();
    await dialog.getByRole('button',{name:'Close navigation menu'}).press('Shift+Tab');
-   expect(await page.evaluate(()=>document.querySelector('dialog')?.contains(document.activeElement))).toBe(true);
+   await expect(dialog.getByRole('navigation',{name:'Legal information'}).getByRole('link',{name:'Pricing',exact:true})).toBeFocused();
+   await page.keyboard.press('Tab');
+   await expect(dialog.getByRole('button',{name:'Close navigation menu'})).toBeFocused();
    await page.keyboard.press('Escape');
    await expect(dialog).toHaveCount(0);
    await expect(menu).toBeFocused();

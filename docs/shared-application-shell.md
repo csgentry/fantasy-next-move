@@ -4,7 +4,7 @@ The authenticated shell reuses the unchanged approved-header.svg artwork through
 
 ## Navigation and accessibility
 
-The drawer is portaled outside the sidebar so fixed mobile navigation styles cannot leak into its links. Native dialog provides modal screen-reader semantics, background inertness, focus containment and Escape dismissal. Closing restores focus to the trigger; opening locks body scrolling and cleanup restores its prior value. The drawer remains scrollable across short and tall viewports, with safe-area padding and 44px minimum controls. Selecting any route closes it. Normal navigation does not change account selection or connected league state.
+The drawer is portaled outside the sidebar so fixed mobile navigation styles cannot leak into its links. Native dialog provides modal screen-reader semantics, background inertness and Escape dismissal. Explicit first/last control focus wrapping keeps keyboard navigation inside the drawer in both Chromium and WebKit. Closing restores focus to the trigger; opening locks body scrolling and cleanup restores its prior value. The drawer remains scrollable across short and tall viewports, with safe-area padding and 44px minimum controls. Selecting any route closes it. Normal navigation does not change account selection or connected league state.
 
 Account settings and billing use the existing protected account page, billing section anchor, provider connections use /connect, and full tool routes remain available. Admin access is in the drawer instead of a sixth primary destination. Help & Support points to useful connection/account guidance on More. No direct support address is currently configured; the page states this explicitly rather than inventing an address or a ticket service.
 

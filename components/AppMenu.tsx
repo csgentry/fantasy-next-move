@@ -42,7 +42,13 @@ export function AppMenu({showAdmin=false}:{showAdmin?:boolean}){
     return()=>{element?.close();document.body.style.overflow=previous;opener?.focus({preventScroll:true})};
   },[open]);
   return <><button ref={trigger} type="button" className="dashboard-header-control dashboard-menu" aria-label="Open navigation menu" aria-haspopup="dialog" aria-expanded={open} aria-controls={id} onClick={()=>setOpen(true)}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
-    {open&&createPortal(<dialog ref={dialog} id={id} className="app-drawer" aria-labelledby={heading} onCancel={close} onClose={close} onClick={event=>{if(event.target===event.currentTarget){const box=event.currentTarget.getBoundingClientRect();if(event.clientX<box.left||event.clientX>box.right||event.clientY<box.top||event.clientY>box.bottom)close()}}}>
+    {open&&createPortal(<dialog ref={dialog} id={id} className="app-drawer" aria-labelledby={heading} onKeyDown={event=>{
+        if(event.key!=='Tab')return;
+        const controls=Array.from(event.currentTarget.querySelectorAll<HTMLElement>('a[href],button:not([disabled])')).filter(element=>element.getClientRects().length>0);
+        const first=controls[0],last=controls[controls.length-1];
+        if(event.shiftKey&&document.activeElement===first){event.preventDefault();last?.focus()}
+        else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first?.focus()}
+      }} onCancel={close} onClose={close} onClick={event=>{if(event.target===event.currentTarget){const box=event.currentTarget.getBoundingClientRect();if(event.clientX<box.left||event.clientX>box.right||event.clientY<box.top||event.clientY>box.bottom)close()}}}>
       <header className="drawer-heading"><div><span className="eyebrow">Your playbook</span><h2 id={heading}>Navigation</h2></div><button autoFocus className="drawer-close" onClick={close} aria-label="Close navigation menu">×</button></header>
       <Suspense fallback={<p role="status">Loading navigation…</p>}><DrawerLinks close={close}/></Suspense>
       <section className="drawer-section" aria-label="Account and application"><h3>Account & application</h3>{account.map(item=><Link key={item.href} href={item.href} onClick={close} aria-current={path===item.href?'page':undefined}>{item.label}<span aria-hidden="true">›</span></Link>)}{showAdmin&&<Link href="/admin" onClick={close}>FantasyNextMove Admin</Link>}</section>
