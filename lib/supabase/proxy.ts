@@ -1,3 +1,4 @@
+import { getUserEntitlement, entitlementAllows } from "@/lib/billing/entitlements";
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
@@ -86,17 +87,9 @@ export async function updateSession(request: NextRequest) {
   }
 
   if ((tradeLabRequired || allAccessRequired) && user) {
-    const [{ data: profile }, { data: entitlement }] = await Promise.all([
-      supabase.from("profiles").select("beta_access").eq("id", user.id).maybeSingle(),
-      supabase.from("entitlements")
-        .select("access_level,trade_lab_access,all_access,valid_until")
-        .eq("user_id", user.id)
-        .maybeSingle()
-    ]);
-    const unexpired = !entitlement?.valid_until || new Date(entitlement.valid_until).getTime() > Date.now();
-    const beta = Boolean(profile?.beta_access);
-    const tradeAccess = beta || (unexpired && Boolean(entitlement?.trade_lab_access || entitlement?.all_access || entitlement?.access_level === "admin"));
-    const allAccess = beta || (unexpired && Boolean(entitlement?.all_access || entitlement?.access_level === "admin"));
+    const entitlement = await getUserEntitlement(supabase, user.id);
+    const tradeAccess = entitlementAllows(entitlement, "trade_lab");
+    const allAccess = entitlementAllows(entitlement, "all_access");
     if (allAccessRequired && !allAccess) return deniedResponse(request, response, "Pro is required for this detail.");
     if (tradeLabRequired && !tradeAccess) return deniedResponse(request, response, "Pro is required for full Trade Lab. Explore the free sample or upgrade.");
   }
