@@ -23,8 +23,12 @@ jobs:
       - run: node tests/http-smoke.cjs
       - run: npx playwright install --with-deps chromium webkit
       - run: npx playwright test
+      - name: Test deployed Preview
+        run: npx playwright test
+        env:
+          PLAYWRIGHT_BASE_URL: https://fantasy-next-move-git-simplify-next-move-team-gentry1.vercel.app
       - uses: actions/upload-artifact@v4
-        if: failure()
+        if: always()
         with:
-          name: browser-failure-evidence
+          name: preview-browser-evidence
           path: test-results/

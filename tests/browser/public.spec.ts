@@ -1,6 +1,6 @@
 import {test,expect} from "@playwright/test";
 test("public pages have clear navigation and no horizontal overflow",async({page},testInfo)=>{
- for(const route of ["/","/pricing","/demo","/login","/signup"]){
+ for(const route of ["/","/pricing","/demo","/login","/signup","/privacy","/terms","/forgot-password"]){
   await page.goto(route);
   await expect(page.locator("h1")).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBeTruthy();
