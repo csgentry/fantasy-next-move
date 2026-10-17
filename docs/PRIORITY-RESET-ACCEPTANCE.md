@@ -11,7 +11,8 @@ The workspace reconnect restored an earlier local checkpoint, not the unpublishe
 - PASS: existing Vercel team-gentry1 / fantasy-next-move accessible.
 - PASS: original FantasyNextMove LLC merchant retained; existing sandbox product/prices preserved. USD 7.99 monthly / 39.99 annual.
 - PASS: approved restricted sandbox API key and webhook signing secret exist in Vercel sensitive variables scoped only to simplify-next-move Preview. No credentials are in source.
-- BLOCKED: Preview server database credential missing; webhook delivery encounters HTTP 401 from deployment protection. No application-level Checkout, entitlement activation, Portal, cancellation or reconciliation PASS is claimed.
+- PASS: existing Supabase server secret saved as a sensitive Secret only for simplify-next-move Preview after explicit owner approval. Shared primary database administration access is limited operationally to disposable billing QA records. Runtime database write acceptance is NOT TESTED.
+- BLOCKED: direct Stripe webhook delivery still encounters HTTP 401 from deployment protection. The approved one-hour alias-scoped share link returns HTTP 401 with the automation query parameter and HTTP 307 with the share-link parameter. It is not a direct webhook delivery mechanism; revoked immediately, regeneration disabled, alias protectionBypass verified empty. Existing Stripe endpoint URL unchanged. No application-level Checkout, entitlement activation, Portal, cancellation or reconciliation PASS is claimed.
 - BLOCKED: EIN documentation mismatch remains external, awaiting official evidence or accepted alternative. Legal fields unchanged.
 
 ## Reconstructed code
@@ -41,8 +42,21 @@ Application tree fbc4a8b8f3d0652826b178c2b57f57cacb2ec0ab was published exactly 
 
 Authenticated desktop browser regression: player names loaded; You receive / You send selectors worked; Analyze trade produced a Poor Fit result with -4.9 projected lineup points for a hypothetical player swap; removing a selected player immediately cleared the verdict and disabled analysis. No trade was sent to Sleeper. Next Move showed one personalized primary action with a short reason, expandable evidence and one button. My Team rendered the correct saved owner roster with 9 starters, 11 bench and 4 taxi players, status text and one-decimal projections. Screenshots were inspected. This exposed duplicate roster-header copy, an unstyled team selector and repeated selected-trade metadata; subsequent small presentation fixes remove these. Authenticated mobile before/after remains NOT TESTED.
 
-Supabase secure GitHub sign-in is now verified. Existing default server secret is available but remains masked. The project is the primary main / PRODUCTION database. Transferring its server credential to Preview would grant administrative access that bypasses RLS, so explicit action-time authorization is required before this new access is granted. Existing connector exposes publishable keys only. No server key was revealed, created or transferred. Webhook protection remains unchanged. Disposable inbox and live Yahoo authorization/configuration are still unavailable.
+Supabase secure GitHub sign-in is verified. The owner explicitly approved transfer of the existing default server secret to branch-only Preview, acknowledging that the existing primary database credential bypasses RLS. This transfer is complete; no key created, rotated or revoked. No real account or database record was changed for this configuration step. Production environment configuration remains unchanged. Disposable inbox and live Yahoo authorization/configuration are still unavailable.
 
 League desktop review also removed repeated row-level confidence and secondary rank labels, with evidence retained inside team details. It found that the separate Power Rankings lineup optimizer still allowed TE in an RB/WR flex slot; corrected both restricted FLEX aliases and added an end-to-end ranking regression. Final regression count: 37.
 
 Final application acceptance reference: remote 3de881807c6db6cc2d068eb4e5baa87104d90a45 exactly matches local tree 1ab6f0e2235984bb3562d47a89dbd5701eb75fda. Deployment dpl_Gpk6dPCyQ6TNoaqMFTvWpYbqTmso is Ready at https://fantasy-next-move-4onl4wuaq-team-gentry1.vercel.app. Push CI 39004177602 and PR CI 39004180256 both PASS. Final desktop roster styling/grouping and no-horizontal-overflow confirmed; League detail expands to four positional comparisons. No raw credential-pattern matches across 167 tracked files. This is a heuristic scan. Main baseline and PR unmerged state reverified.
+
+## Approved configuration follow-through
+
+Remote head reverified as 731da011d393fa54093ae6073df963805c9c0bf8 before this report-only update. Latest source CI: push 39004615928 and PR 39004618456 PASS (37 regression tests, 8 local browser checks, 12 deployed public browser checks). Authenticated mobile acceptance remains NOT TESTED.
+
+- PASS: Vercel sensitive SUPABASE_SERVICE_ROLE_KEY metadata confirms target [preview], gitBranch simplify-next-move. Production key/settings untouched.
+- PASS: source commit 731da011d393fa54093ae6073df963805c9c0bf8 redeployed with latest branch environment as dpl_gN71scsHikDgenK7HpENqZvfJqdA, Ready at https://fantasy-next-move-kb7oy9aa7-team-gentry1.vercel.app. Branch alias assigned to this deployment.
+- PASS: original LLC merchant and existing sandbox context accessible. Existing FantasyNextMove webhook retained, enabled, sandbox-only; existing products/prices unchanged.
+- FAIL: one-hour URL-scoped share bypass cannot deliver a direct webhook POST. Automation query returns 401; share-link query returns 307 to the same endpoint without the query. Stripe needs direct successful delivery; no endpoint update made.
+- PASS: temporary share bypass revoked and empty alias bypass metadata verified. Existing CI automation secret was not retrieved or reused. Project protection unchanged.
+- BLOCKED: full application billing lifecycle pending an approved webhook-compatible protection mechanism and a disposable authenticated test identity. Do not report synthetic API lifecycle as application acceptance. No broader automation access is assumed authorized by the failed one-hour experiment.
+
+PR #1 remains open/unmerged; main baseline unchanged. Release recommendation remains NOT READY.
