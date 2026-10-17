@@ -1,8 +1,10 @@
 "use client";
 
 import {trackProductEvent} from "@/lib/product-events";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import {useYahooSession} from "@/components/YahooSession";
+import {YahooAttribution} from "@/components/YahooAttribution";
 import { AppShell } from "@/components/AppShell";
 import { saveLeagueToAccount } from "@/lib/account-storage";
 import type { ImportedLeague, SleeperImportPayload } from "@/lib/types";
@@ -15,6 +17,29 @@ function leagueTypeLabel(type: ImportedLeague["leagueType"]) {
 
 export default function ConnectPage() {
   const router = useRouter();
+  const yahoo = useYahooSession();
+  const [yahooStatus, setYahooStatus] = useState({enabled: false, connected: false});
+  const [yahooChoices, setYahooChoices] = useState<{leagueKey: string; teamKey: string; name: string; teamName: string; season: string}[]>([]);
+  const [yahooLoading, setYahooLoading] = useState(false);
+  useEffect(() => {let active = true; fetch("/api/yahoo/status", {cache: "no-store"}).then(r => r.json()).then(data => {if (active) setYahooStatus({enabled: Boolean(data.enabled), connected: Boolean(data.connected)});}).catch(() => {}); return () => {active = false;};}, []);
+  async function loadYahoo() {
+    setYahooLoading(true); setError("");
+    try {const response = await fetch("/api/yahoo/import", {cache: "no-store"}); const payload = await response.json(); if (!response.ok) throw new Error(payload.error); setYahooChoices(payload.leagues || []); if (!payload.leagues?.length) setError("No current-season NFL teams were found for this Yahoo account.");}
+    catch (error) {setError(error instanceof Error ? error.message : "Unable to load Yahoo leagues.");}
+    finally {setYahooLoading(false);}
+  }
+  async function selectYahoo(leagueKey: string, teamKey: string) {
+    setYahooLoading(true); setError("");
+    try {const response = await fetch("/api/yahoo/import", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({leagueKey, teamKey}), cache: "no-store"}); const payload = await response.json(); if (!response.ok) throw new Error(payload.error); yahoo.select({ownerId: payload.ownerId, league: payload.league}); router.push("/team");}
+    catch (error) {setError(error instanceof Error ? error.message : "Unable to select Yahoo team.");}
+    finally {setYahooLoading(false);}
+  }
+  async function disconnectYahoo() {
+    setYahooLoading(true); setError("");
+    try {const response = await fetch("/api/yahoo/disconnect", {method: "POST"}); if (!response.ok) throw new Error("Unable to disconnect Yahoo. Try again."); yahoo.select(null); setYahooChoices([]); setYahooStatus(current => ({...current, connected: false}));}
+    catch (error) {setError(error instanceof Error ? error.message : "Unable to disconnect Yahoo.");}
+    finally {setYahooLoading(false);}
+  }
   const [username, setUsername] = useState("");
   const [season, setSeason] = useState(String(new Date().getFullYear()));
   const [sleeperData, setSleeperData] = useState<SleeperImportPayload | null>(null);
@@ -78,7 +103,7 @@ export default function ConnectPage() {
           <h1>Connect your league</h1>
           <p>
             Sleeper is available now through a public, read-only username
-            import. Yahoo support is coming soon.
+            import. Yahoo testing is available only in an approved Preview.
           </p>
         </div>
       </div>
@@ -127,31 +152,11 @@ export default function ConnectPage() {
           </p>
         </form>
 
-        <section
-
-          className="panel connect-form provider-card provider-card-disabled"
-        >
-          <div className="provider-heading">
-            <span className="provider-logo yahoo-logo">Y!</span>
-            <div>
-              <h2>Yahoo Fantasy</h2>
-              <p>Coming soon</p>
-            </div>
-          </div>
-          <div className="coming-soon-copy">
-            <span className="pill">Activation verification pending</span>
-            <p>
-              Yahoo connection remains disabled while we verify API activation
-              and complete compliant, temporary league processing.
-            </p>
-          </div>
-          <button className="button secondary" disabled type="button">
-            Yahoo connection unavailable
-          </button>
-          <p className="form-note">
-            Existing Yahoo infrastructure remains secured on the server, but
-            beta users cannot start a new Yahoo connection.
-          </p>
+        <section className="panel connect-form provider-card">
+          <h2>Yahoo Fantasy</h2>
+          {!yahooStatus.enabled ? <p>Preview activation and access verification are pending.</p> : yahooStatus.connected ? <><p>Your roster is processed temporarily. It disappears when this page session ends.</p><button className="button" disabled={yahooLoading} onClick={loadYahoo}>{yahooLoading ? "Loading…" : "Find my Yahoo teams"}</button><button className="text-button" disabled={yahooLoading} onClick={disconnectYahoo}>Disconnect Yahoo</button></> : <a className="button" href="/api/yahoo/connect">Connect Yahoo</a>}
+          {yahooChoices.map(choice => <button className="league-choice" key={choice.teamKey} disabled={yahooLoading} onClick={()=>selectYahoo(choice.leagueKey,choice.teamKey)}>{choice.name} · {choice.teamName} · {choice.season}</button>)}
+          <YahooAttribution/>
         </section>
       </div>
 
