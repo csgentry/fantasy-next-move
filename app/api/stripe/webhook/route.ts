@@ -18,6 +18,7 @@ export async function POST(request: Request) {
   try {
     verifyStripeWebhook(raw, request.headers.get("stripe-signature"));
     event = JSON.parse(raw);
+    if (!event?.id || typeof event.type !== "string" || !event.data?.object || event.livemode !== false) throw new Error("Invalid sandbox event.");
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Invalid webhook." }, { status: 400 });
   }
@@ -58,7 +59,7 @@ export async function POST(request: Request) {
 
   try {
     const object = event.data?.object || {};
-    if (event.type === "checkout.session.completed") {
+    if (event.type === "checkout.session.completed" || event.type === "checkout.session.async_payment_succeeded") {
       const userId = object.metadata?.fantasy_next_move_user_id || object.client_reference_id || null;
       const customer = idOf(object.customer);
       if (userId && customer) {
@@ -69,16 +70,17 @@ export async function POST(request: Request) {
           updated_at: new Date().toISOString()
         }, { onConflict: "user_id" });
       }
-      const subscriptionId = idOf(object.subscription);
+      const subscriptionId = idOf(object.subscription || object.parent?.subscription_details?.subscription);
       if (subscriptionId) {
         const subscription = await stripeRequest<Record<string, any>>(`/subscriptions/${subscriptionId}`);
         const synced = await syncStripeSubscriptionObject(subscription, event.id);
         await recordProductEvent({ userId: synced.userId, eventName: "subscription_started", properties: { plan: synced.plan } });
       }
     } else if (event.type.startsWith("customer.subscription.")) {
-      await syncStripeSubscriptionObject(object, event.id);
+      const subscription = await stripeRequest<Record<string, any>>(`/subscriptions/${idOf(object)}`);
+      await syncStripeSubscriptionObject(subscription, event.id);
     } else if (event.type === "invoice.paid" || event.type === "invoice.payment_failed") {
-      const subscriptionId = idOf(object.subscription);
+      const subscriptionId = idOf(object.subscription || object.parent?.subscription_details?.subscription);
       if (subscriptionId) {
         const subscription = await stripeRequest<Record<string, any>>(`/subscriptions/${subscriptionId}`);
         await syncStripeSubscriptionObject(subscription, event.id);
