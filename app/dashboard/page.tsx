@@ -34,12 +34,12 @@ export default function DashboardPage() {
   const selected = useSelectedLeague();
   const {owner,accountReady}=useAnalysisSession();
   const [matchupWeek, setMatchupWeek] = useState<number | null>(null);
-  const state = usePlayerIntelligence(selected.league, selected.source, selected.teamRosterId,'dashboard');
+  const state = usePlayerIntelligence(selected.league, selected.source, selected.teamRosterId,'dashboard',matchupWeek);
   const data = state.data;
   const league = data?.currentLeague || selected.league;
   const team = league.teams.find(t => t.rosterId === selected.teamRosterId);
   const connected = selected.hydrated && selected.source !== "demo" && Boolean(team);
-  const current = hasCurrentAnalysis(data);
+  const current = hasCurrentAnalysis(data)&&(!matchupWeek||data?.projectionWeek===matchupWeek);
   const moves = connected && current ? homepageRecommendations(data?.nextMoves || []) : [];
   const {loading: analysisLoading, refresh: refreshAnalysis} = state;
   // Refresh on return after the session cache expires; never poll hidden pages.
