@@ -57,3 +57,12 @@ test("fictional decision tools preserve context, support accessible player detai
  await expect(page.getByText('No available players with supported projections match this filter.')).toBeVisible();
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBeTruthy();
 });
+
+test("opening the subscription return URL cannot claim payment or activate membership",async({page},testInfo)=>{
+ await page.goto('/billing/success');
+ await expect(page.getByRole('heading',{name:'Confirming your membership.',exact:true})).toBeVisible();
+ await expect(page.getByText('Your subscription is not confirmed yet. Check Account or contact support before trying another payment.',{exact:true})).toBeVisible();
+ await expect(page.getByText('Membership active',{exact:false})).toHaveCount(0);
+ await expect(page.getByText('Stripe received the payment',{exact:false})).toHaveCount(0);
+ await page.screenshot({path:testInfo.outputPath('billing-unconfirmed.png'),fullPage:true});
+});
