@@ -1,5 +1,7 @@
 "use client";
 
+import {PlayerDetails} from "@/components/PlayerDetails";
+import {hasCurrentAnalysis} from "@/lib/decision-tools";
 import { useEffect, useMemo, useState } from "react";
 import {EventTracker} from "@/components/EventTracker";
 import {evaluateRosterTrade} from "@/lib/trade-impact";
@@ -170,7 +172,7 @@ function TradeSide({ title, subtitle, available, selected, onAdd, onRemove }: {
           <article className={`trade-asset ${asset.kind === "pick" ? "pick-asset" : ""}`} key={asset.id}>
             <button className="asset-remove" onClick={() => onRemove(asset.id)} aria-label={`Remove ${asset.name}`}>×</button>
             <div className="trade-asset-copy">
-              <b>{asset.name}</b>
+              {asset.kind === "player" ? <PlayerDetails profile={{playerId:asset.playerId,fullName:asset.name,position:asset.position,team:asset.nflTeam,status:null}} source="sleeper"/> : <b>{asset.name}</b>}
               {asset.kind === "player" ? (
                 <>
                   <small>{asset.position}{asset.nflTeam ? ` · ${asset.nflTeam}` : ""}</small>
@@ -193,8 +195,9 @@ export default function TradeLabPage() {
 }
 
 function TradeLabWorkspace({selected}: {selected: ReturnType<typeof useSelectedLeague>}) {
-  const { league, source, teamRosterId, setLeague, hydrated } = selected;
-  const intelligenceState = usePlayerIntelligence(league, source);
+  const { league: savedLeague, source, teamRosterId, setLeague, hydrated } = selected;
+  const intelligenceState = usePlayerIntelligence(savedLeague, source);
+  const league = intelligenceState.data?.currentLeague || savedLeague;
   const importedFormat = leagueFormat(league.leagueType);
   const [manualFormat, setManualFormat] = useState<TradeFormat>(importedFormat);
   const format = source === "demo" ? manualFormat : importedFormat;
@@ -384,13 +387,13 @@ function TradeLabWorkspace({selected}: {selected: ReturnType<typeof useSelectedL
       {format !== "redraft" && !(league.draftPicks?.length) && <div className="connection-message dynasty-pick-note">No owned draft picks were supplied for this league. Player values remain active, but draft-pick analysis is incomplete.</div>}
 
       <div className="trade-grid trade-grid-clean">
-        <TradeSide title="You receive" subtitle={`Assets currently owned by ${teamB.teamName}`} available={availableForA} selected={sideA} onAdd={(id) => setSideAIds((current) => [...current, id])} onRemove={(id) => setSideAIds((current) => current.filter((assetId) => assetId !== id))} />
+        <TradeSide title="You send" subtitle={`Players from ${teamA.teamName}`} available={availableForB} selected={sideB} onAdd={(id) => setSideBIds((current) => [...current, id])} onRemove={(id) => setSideBIds((current) => current.filter((assetId) => assetId !== id))} />
         <div className={`trade-verdict ${isComplete && Math.abs(difference) > tolerance ? "has-advantage" : ""}`}>
-          <span>Your team impact</span><strong>{analyzed ? rosterImpact.verdict : "Build a trade"}</strong><p>{analyzed ? rosterImpact.reason : "Select players on both sides to compare the effect on your team."}</p>{analyzed && <small>{rosterImpact.confidence}</small>}{analyzed && rosterImpact.gain !== null && <p>Projected lineup change: {rosterImpact.gain > 0 ? "+" : ""}{rosterImpact.gain.toFixed(1)} points</p>}<button className="button" disabled={!isComplete || loadingPlayers} onClick={()=>setAnalyzedKey(selectionKey)}>Analyze trade</button>{analyzed && <details><summary>Supporting value comparison</summary><p>{marketVerdict}</p><div className="verdict-score"><b>{formatNumber(adjustedA)}</b><i>vs.</i><b>{formatNumber(adjustedB)}</b></div>
+          <span>Your team impact</span><strong>{analyzed ? (!hasCurrentAnalysis(intelligenceState.data) ? "Not enough current data" : rosterImpact.gain === null ? "Not enough data" : rosterImpact.gain >= 1 ? "Benefits your team" : rosterImpact.gain <= -1 ? "Hurts your team" : "Approximately balanced") : "Build a trade"}</strong><p>{analyzed ? (!hasCurrentAnalysis(intelligenceState.data) ? "Current-season rosters and projections need verification before we estimate an advantage." : rosterImpact.reason) : "Select players on both sides to compare the effect on your team."}</p>{analyzed && <small>{rosterImpact.confidence}</small>}{analyzed && hasCurrentAnalysis(intelligenceState.data) && rosterImpact.gain !== null && <p>Projected lineup change: {rosterImpact.gain > 0 ? "+" : ""}{rosterImpact.gain.toFixed(1)} points</p>}<button className="button" disabled={!isComplete || loadingPlayers} onClick={()=>setAnalyzedKey(selectionKey)}>Analyze trade</button>{analyzed && <details><summary>Supporting value comparison</summary><p>{marketVerdict}</p><div className="verdict-score"><b>{formatNumber(adjustedA)}</b><i>vs.</i><b>{formatNumber(adjustedB)}</b></div>
           {isComplete ? <p>{Math.abs(difference) <= tolerance ? `Inside the ±${formatNumber(tolerance)} fair-market range.` : `${advantage.toFixed(1)}% modeled difference after roster fit and package value.`}</p> : <p>Add assets to both sides to complete the comparison.</p>}
           <div className="verdict-breakdown"><span>Players {formatNumber(playerValueA)}–{formatNumber(playerValueB)}</span><span>Weekly projection {projectedA.toFixed(1)}–{projectedB.toFixed(1)}</span>{format !== "redraft" && <span>Picks {formatNumber(pickValueA)}–{formatNumber(pickValueB)}</span>}<span>Roster fit {fitDeltaA >= 0 ? "+" : ""}{formatNumber(fitDeltaA)} / {fitDeltaB >= 0 ? "+" : ""}{formatNumber(fitDeltaB)}</span><span>Package adjustment {packageA >= 0 ? "+" : ""}{formatNumber(packageA)} / {packageB >= 0 ? "+" : ""}{formatNumber(packageB)}</span></div>
         </details>}</div>
-        <TradeSide title="You send" subtitle={`Assets currently owned by ${teamA.teamName}`} available={availableForB} selected={sideB} onAdd={(id) => setSideBIds((current) => [...current, id])} onRemove={(id) => setSideBIds((current) => current.filter((assetId) => assetId !== id))} />
+        <TradeSide title="You receive" subtitle={`Players from ${teamB.teamName}`} available={availableForA} selected={sideA} onAdd={(id) => setSideAIds((current) => [...current, id])} onRemove={(id) => setSideAIds((current) => current.filter((assetId) => assetId !== id))} />
       </div>
 
       <details className="panel trade-method-panel"><summary>How this analysis works</summary>
