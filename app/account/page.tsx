@@ -74,8 +74,6 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
           <span className="eyebrow">Current membership</span>
           <h2>{planName}</h2>
           <p>{entitlement.accessSource === "beta" ? "Complimentary beta access" : entitlement.accessSource === "stripe" ? "Paid Stripe subscription" : "One connected league and your highest-priority Next Move"}</p>
-          <div className="account-status"><span>Trade Lab</span><strong>{entitlement.tradeLabAccess || entitlement.allAccess ? "Unlocked" : "Locked"}</strong></div>
-          <div className="account-status"><span>Pro</span><strong>{entitlement.allAccess ? "Unlocked" : "Locked"}</strong></div>
           <div className="account-status"><span>Connected leagues</span><strong>{leagueRows.length} of {entitlement.maxConnectedLeagues || 0}</strong></div>
           {foundingResult.data?.founding_number && <div className="founding-badge">Founding Member #{foundingResult.data.founding_number}</div>}
           {entitlement.accessLevel === "none" && <Link className="button small account-panel-link" href="/pricing">Choose a plan</Link>}
@@ -94,13 +92,13 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
           </> : <><h2>No Stripe subscription</h2><p>Complimentary beta access does not create a billing record.</p><Link className="button small account-panel-link" href="/pricing">View pricing</Link></>}
         </article>
 
-        <article className="panel account-panel">
+        <details className="panel account-panel"><summary>Profile</summary>
           <span className="eyebrow">Profile</span>
           <h2>{profile?.display_name || data.user.email}</h2>
           <p>{data.user.email}</p>
           <div className="account-status"><span>Account created</span><strong>{date(profile?.created_at || null)}</strong></div>
           <div className="account-status"><span>Complimentary access</span><strong>{profile?.beta_access ? "Approved" : "No"}</strong></div>
-        </article>
+        </details>
 
         <article className="panel account-panel">
           <span className="eyebrow">Connected providers</span><h2>{accountRows.length} connected</h2>
@@ -108,16 +106,16 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
           {accountRows.some(a=>a.provider==="sleeper") && <form action={disconnectSleeper}><input type="hidden" name="confirmation" value="DISCONNECT"/><p>Remove the connection and your stored Sleeper league data.</p><button className="button secondary small" type="submit">Disconnect Sleeper and remove data</button></form>}
         </article>
 
-        <article className="panel account-panel">
+        <details className="panel account-panel"><summary>Saved leagues</summary>
           <span className="eyebrow">Saved leagues</span><h2>{leagueRows.length} saved</h2>
-          {leagueRows.length ? <><div className="account-list">{leagueRows.slice(0, 6).map((league, index) => <div key={`${league.provider}-${league.name}-${index}`}><strong>{league.name}</strong><span>{league.provider} · {league.season}</span></div>)}</div><Link className="text-button account-panel-link" href="/leagues">Open My Leagues →</Link></> : <p>Connect Sleeper or Yahoo to save a league.</p>}
-        </article>
+          {leagueRows.length ? <><div className="account-list">{leagueRows.slice(0, 6).map((league, index) => <div key={`${league.provider}-${league.name}-${index}`}><strong>{league.name}</strong><span>{league.provider} · {league.season}</span></div>)}</div><Link className="text-button account-panel-link" href="/leagues">Open My Leagues →</Link></> : <p>Connect Sleeper to save a league.</p>}
+        </details>
       </section>
 
-      <section className="panel danger-zone">
+      <details className="panel danger-zone"><summary>Delete account</summary>
         <div><span className="eyebrow">Danger zone</span><h2>Delete account and stored data</h2><p>Cancel an active paid subscription in Manage Billing before deleting your account. Deletion permanently removes Supabase account data.</p></div>
         <form action={deleteAccount}><label>Type DELETE<input name="confirmation" autoComplete="off" /></label><button className="button danger-button" type="submit">Delete account</button></form>
-      </section>
+      </details>
     </AppShell>
   );
 }
