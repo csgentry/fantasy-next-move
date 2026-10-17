@@ -10,10 +10,11 @@ import type {HomeMatchup} from '@/lib/sleeper/home-matchups';
 import type {ImportedLeague,PlayerIntelligencePayload} from '@/lib/types';
 import styles from '@/app/dashboard/dashboard.module.css';
 
-export function HomeMatchups({selectedLeague,analysis,onSelect,onWeek}: {selectedLeague:ImportedLeague;analysis:PlayerIntelligencePayload|null;onSelect:(league:ImportedLeague,rosterId?:number|null)=>Promise<void>;onWeek:(week:number|null)=>void}) {
+export function HomeMatchups({selectedLeague,analysis,onSelect,onWeek,enabled=true}: {selectedLeague:ImportedLeague;analysis:PlayerIntelligencePayload|null;onSelect:(league:ImportedLeague,rosterId?:number|null)=>Promise<void>;onWeek:(week:number|null)=>void;enabled?:boolean}) {
  const router=useRouter();
  const [cards,setCards]=useState<HomeMatchup[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[opening,setOpening]=useState(''),[revision,setRevision]=useState(0);
  useEffect(()=>{
+  if(!enabled)return;
   let cancelled=false,inFlight=false,lastAttempt=0;
   const controller=new AbortController();
   let timer:ReturnType<typeof setTimeout>|undefined;
@@ -40,7 +41,7 @@ export function HomeMatchups({selectedLeague,analysis,onSelect,onWeek}: {selecte
   const visible=()=>{if(document.visibilityState==='visible'&&Date.now()-lastAttempt>=30000)void refresh();};
   void refresh();document.addEventListener('visibilitychange',visible);window.addEventListener('focus',visible);
   return()=>{cancelled=true;controller.abort();clearTimeout(timer);document.removeEventListener('visibilitychange',visible);window.removeEventListener('focus',visible);};
- },[revision]);
+ },[revision,enabled]);
  useEffect(()=>{onWeek(cards.find(c=>c.league.leagueId===selectedLeague.leagueId)?.week??null);},[cards,selectedLeague.leagueId,onWeek]);
  async function open(card:HomeMatchup,detail:boolean){
   if(!card.own)return;

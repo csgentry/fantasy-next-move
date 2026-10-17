@@ -8,6 +8,7 @@ import { DashboardPerformance } from '@/components/DashboardPerformance';
 import { AppShell } from "@/components/AppShell";
 import { useSelectedLeague } from "@/components/LeaguePicker";
 import { usePlayerIntelligence } from "@/components/usePlayerIntelligence";
+import {useAnalysisSession} from '@/components/PlayerAnalysisSession';
 import { ToolIcon } from "@/components/ToolIcon";
 import { PlayerDetails } from "@/components/PlayerDetails";
 import { customerSleeperAvatar } from "@/lib/home-imagery";
@@ -31,6 +32,7 @@ function destination(move: PlayerRecommendation) {
 
 export default function DashboardPage() {
   const selected = useSelectedLeague();
+  const {owner,accountReady}=useAnalysisSession();
   const [matchupWeek, setMatchupWeek] = useState<number | null>(null);
   const state = usePlayerIntelligence(selected.league, selected.source, selected.teamRosterId,'dashboard');
   const data = state.data;
@@ -89,7 +91,7 @@ export default function DashboardPage() {
         </section>
         <nav className={styles.tools} aria-label="Fantasy tools">{tools.map(tool => <Link key={tool.name} href={tool.href}><ToolIcon name={tool.icon} /><span><strong>{tool.name}</strong><small>{tool.description}</small></span></Link>)}</nav>
       </div>
-      <HomeMatchups selectedLeague={league} analysis={data} onSelect={selected.setLeague} onWeek={setMatchupWeek}/>
+      <HomeMatchups key={owner||'signed-out'} enabled={accountReady} selectedLeague={league} analysis={data} onSelect={selected.setLeague} onWeek={setMatchupWeek}/>
       {state.error && connected && <p className={styles.error} role="alert">{state.error} <button className={styles.retry} disabled={state.loading} onClick={refreshAnalysis}>Retry analysis</button></p>}
       {concerns.length > 0 && <section className={styles.concerns} aria-labelledby="before-kickoff-title">
         <div className={styles.concernsHeading}><h2 id="before-kickoff-title">Before Kickoff</h2><Link href="/team?view=lineup">Review lineup →</Link></div>
