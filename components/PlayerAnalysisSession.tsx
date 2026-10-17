@@ -11,13 +11,14 @@ const cacheKey=(leagueId:string,rosterId:number|undefined,mode:Mode,scope='')=>`
 type SelectionSession={clearAccount:()=>void;accountReady:boolean;peekSelection:(owner:string|null)=>Selection|undefined;loadSelection:(owner:string|null)=>Promise<Selection>;rememberSelection:(owner:string|null,value:Selection)=>void};
 const Context=createContext<SelectionSession&{owner:string|null;peek:(leagueId:string,rosterId:number|undefined,mode?:Mode,scope?:string)=>PlayerIntelligencePayload|null;load:(leagueId:string,rosterId:number|undefined,refresh:boolean,mode?:Mode,scope?:string)=>Promise<PlayerIntelligencePayload>}>({owner:null,clearAccount:()=>{},accountReady:false,peekSelection:()=>undefined,loadSelection:async()=>null,rememberSelection:()=>{},peek:()=>null,load:async()=>{throw Error('Analysis session is not ready.')}});
 export function PlayerAnalysisSession({children}:{children:ReactNode}){
+ const [,notifySelection]=useState<Selection|undefined>(undefined);
  const cache=useRef(new Map<string,Entry>());const generation=useRef(0);const [owner,setOwner]=useState<string|null>(null);
  const selection=useRef(new AccountMemory<Selection>());const [accountReady,setAccountReady]=useState(()=>!process.env.NEXT_PUBLIC_SUPABASE_URL||!process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY);
- const clear=useCallback(()=>{generation.current++;cache.current.forEach(entry=>entry.controller.abort());cache.current.clear();selection.current.clear()},[]);
+ const clear=useCallback(()=>{generation.current++;cache.current.forEach(entry=>entry.controller.abort());cache.current.clear();selection.current.clear();notifySelection(undefined)},[]);
  const clearAccount=useCallback(()=>{clear();setOwner(null);setAccountReady(false)},[clear]);
  const peekSelection=useCallback((key:string|null)=>selection.current.peek(key),[]);
- const loadSelection=useCallback((key:string|null)=>selection.current.load(key,loadActiveLeagueFromAccount),[]);
- const rememberSelection=useCallback((key:string|null,value:Selection)=>selection.current.remember(key,value),[]);
+ const loadSelection=useCallback((key:string|null)=>selection.current.load(key,loadActiveLeagueFromAccount).then(value=>{if(selection.current.peek(key)===value)notifySelection(value);return value}),[]);
+ const rememberSelection=useCallback((key:string|null,value:Selection)=>{selection.current.remember(key,value);if(selection.current.peek(key)===value)notifySelection(value)},[]);
  useEffect(()=>{
   if(!process.env.NEXT_PUBLIC_SUPABASE_URL||!process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)return;
   let currentOwner:string|null=null;

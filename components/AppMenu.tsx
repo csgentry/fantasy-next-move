@@ -16,11 +16,11 @@ const primary = [
   {label:"My Leagues", href:"/leagues", icon:"league"}
 ] as const;
 const account = [
-  {label:"Connected Fantasy Accounts", href:"/connect"},
-  {label:"Account Settings", href:"/account"},
-  {label:"Subscription & Billing", href:"/account#billing"},
-  {label:"Help & Support", href:"/more#help"}
-];
+  {label:"Connected Fantasy Accounts", href:"/connect", icon:"league"},
+  {label:"Account Settings", href:"/account", icon:"more"},
+  {label:"Subscription & Billing", href:"/account#billing", icon:"lineup"},
+  {label:"Help & Support", href:"/more#help", icon:"team"}
+] as const;
 
 function DrawerLinks({close}:{close:()=>void}){
   const path=usePathname();const params=useSearchParams();
@@ -50,8 +50,8 @@ export function AppMenu({showAdmin=false}:{showAdmin?:boolean}){
       }} onCancel={close} onClose={close} onClick={event=>{if(event.target===event.currentTarget){const box=event.currentTarget.getBoundingClientRect();if(event.clientX<box.left||event.clientX>box.right||event.clientY<box.top||event.clientY>box.bottom)close()}}}>
       <header className="drawer-heading"><div><span className="eyebrow">Your playbook</span><h2 id={heading}>Navigation</h2></div><button autoFocus className="drawer-close" onClick={close} aria-label="Close navigation menu">×</button></header>
       <section className="drawer-section drawer-tools" aria-label="Fantasy Tools"><h3>Fantasy Tools</h3><Suspense fallback={<p role="status">Loading navigation…</p>}><DrawerLinks close={close}/></Suspense></section>
-      <section className="drawer-section" aria-label="Account & Services"><h3>Account & Services</h3>{account.map(item=><Link key={item.href} href={item.href} onClick={close} aria-current={path===item.href?'page':undefined}>{item.label}<span aria-hidden="true">›</span></Link>)}{showAdmin&&<Link href="/admin" onClick={close}>FantasyNextMove Admin</Link>}</section>
-      <div className="drawer-bottom"><h3>Legal & Session</h3><nav className="drawer-legal" aria-label="Legal & Session"><Link href="/privacy" onClick={close}>Privacy Policy</Link><Link href="/terms" onClick={close}>Terms of Service</Link></nav><LogoutControl/><p>Read-only analysis. Lineups, waivers and trades are never submitted to your provider.</p></div>
+      <section className="drawer-section" aria-label="Account & Services"><h3>Account & Services</h3>{account.map(item=><Link key={item.href} href={item.href} onClick={close} aria-current={path===item.href?'page':undefined}><ToolIcon name={item.icon}/><span>{item.label}</span><span aria-hidden="true">›</span></Link>)}{showAdmin&&<Link href="/admin" onClick={close}><ToolIcon name="more"/><span>FantasyNextMove Admin</span></Link>}</section>
+      <div className="drawer-bottom"><h3>Legal & Session</h3><nav className="drawer-legal" aria-label="Legal & Session"><Link href="/privacy" onClick={close}><ToolIcon name="lineup"/><span>Privacy Policy</span></Link><Link href="/terms" onClick={close}><ToolIcon name="lineup"/><span>Terms of Service</span></Link></nav><LogoutControl/><p>Read-only analysis. Lineups, waivers and trades are never submitted to your provider.</p></div>
     </dialog>,document.body)}
   </>;
 }

@@ -4,7 +4,7 @@ import {LeagueContext} from "@/components/LeagueContext";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
-import { loadSavedLeaguesFromAccount, saveLeagueToAccount } from "@/lib/account-storage";
+import { loadSavedLeaguesFromAccount } from "@/lib/account-storage";
 import {useSelectedLeague} from "@/components/LeaguePicker";
 import {usePlayerIntelligence} from "@/components/usePlayerIntelligence";
 import {PowerRankingsEngine} from "@/components/PowerRankingsEngine";
@@ -39,7 +39,7 @@ export default function MyLeaguesPage() {
     setError("");
     try {
       const selectedRosterId = record.selected_roster_id ?? record.raw_data.userRosterId ?? record.raw_data.teams[0]?.rosterId ?? null;
-      await saveLeagueToAccount(record.raw_data, selectedRosterId);
+      await selected.setLeague(record.raw_data, selectedRosterId);
       router.push("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to open this league.");

@@ -1,5 +1,5 @@
 /* Shared navigation uses the approved Next Move header artwork and dimensions.
-   Page content outside My Team is deliberately left to its existing styles. */
+   Page content retains its existing layout and cream roster surfaces. */
 .shared-shell .approved-brand-art{display:block;width:100%;height:auto;max-width:190px}
 .shared-shell .sidebar>.fnm-brand{width:190px;max-width:100%}
 .shared-shell .dashboard-menu{position:absolute;top:100px;left:22px;display:grid;place-items:center;min-width:44px;min-height:44px;padding:0;border:0;border-radius:10px;background:transparent;color:#e4eee7;cursor:pointer}
@@ -25,7 +25,7 @@
 .app-drawer :focus-visible{outline:2px solid #a2f4bf;outline-offset:2px}
 .app-help{margin-top:28px;max-width:760px;scroll-margin-top:24px}.app-help p{font-size:14px}.app-help p a{text-decoration:underline;text-underline-offset:3px}.app-help .footer-links{display:flex;gap:20px;flex-wrap:wrap}.app-help .footer-links a{min-height:44px;display:inline-flex;align-items:center}
 /* Screen 2: a dark application frame and readable, compact cream roster. */
-.shared-shell:has(.team-workspace){background:radial-gradient(ellipse 100% 420px at 60% 0%,#35664726,transparent 75%),linear-gradient(180deg,#0f2d21,#071a12 40%,#020906)}
+
 .team-workspace{max-width:1100px;margin:auto}.team-workspace .page-heading{margin-bottom:18px;align-items:center}.team-workspace .page-heading h1{font-size:30px;margin:0 0 6px}.team-workspace .page-heading p{font-size:13px}
 .team-workspace .league-context{padding:14px 16px;border:1px solid #a9cbb421;border-radius:12px;background:#ffffff04;margin-bottom:16px}.team-workspace .context-label{color:#aebfb3}
 .team-workspace .workspace-tabs{background:#102821;border:1px solid #abc8b31a;gap:4px}.team-workspace .workspace-tabs a[aria-current=page]{background:#22c55e;color:#072013}
@@ -59,4 +59,49 @@
  .shared-shell .sidebar nav a.signature-destination:not(.active){background:#22c55e08}
  .team-workspace .page-heading{flex-direction:row}.team-workspace .page-heading p{font-size:11px}.team-workspace .page-heading .button{font-size:10px;padding-inline:10px;white-space:nowrap}
  .team-insights>.panel-heading{padding:12px}.team-insights h2{font-size:17px}.stats-columns,.team-stat-row{grid-template-columns:minmax(0,1fr) 46px 57px;gap:8px;padding:9px 12px}.stats-columns{font-size:9px}.team-stat-row .player-name-button{font-size:12px;gap:8px}.team-stat-row>div:first-child>small{margin-left:50px}.team-stat-row strong{font-size:17px}.team-stat-row>div>p{font-size:10px}.team-workspace .roster-projection-total{padding:10px 12px;font-size:10px}.roster-projection-total strong{font-size:17px}.insight-week select{font-size:12px;min-width:88px}
+}
+
+/* The approved Next Move atmosphere is the authenticated application's frame. */
+body:has(.shared-shell){background:#020906}
+.shared-shell{--text:#f6f4ec;--muted:#b5c6ba;--line:#2c4b39;--panel:#122e22;--panel2:#193b2c;--accent:#22c55e;min-height:100dvh;min-width:0;width:100%;max-width:100%;overflow-x:clip;background-color:#020906;background-image:radial-gradient(ellipse 100% 480px at 58% 0%,#35664726,transparent 75%),linear-gradient(180deg,#0f2d21 0%,#0b241a 24%,#071a12 48%,#040f0a 74%,#020906 100%);background-repeat:no-repeat;background-size:100% 100%;background-attachment:scroll}
+.shared-shell .sidebar{background:linear-gradient(180deg,#0c281c,#06170f 60%,#030c08);border-color:#b1d3bd14}
+.shared-shell .app-content{min-width:0;background:transparent;padding-top:30px}
+.shared-shell:not(.next-move-shell) .panel:not(.roster-panel):not(.team-insights){background:linear-gradient(135deg,#10271d,#091711);border-color:#a6c9b42b;box-shadow:inset 0 1px 0 #ffffff08,0 5px 16px #00000026}
+/* One aligned icon column for every drawer group, including legal and session. */
+.app-drawer a,.app-drawer .drawer-logout{box-sizing:border-box;display:grid;grid-template-columns:22px minmax(0,1fr) auto;align-items:center;justify-content:initial;gap:12px;min-height:46px;padding:10px 12px;text-align:left;font-size:13px;line-height:1.4;font-weight:550}
+.app-drawer a>svg,.app-drawer .drawer-logout>svg{width:22px;height:22px;flex-shrink:0}
+.app-drawer a>span{min-width:0;overflow-wrap:anywhere}
+.app-drawer .drawer-legal{gap:3px}.app-drawer .drawer-legal a{min-height:46px;padding:10px 12px}
+.app-drawer a[aria-current=page]{color:#f6f4ec;background:#f6f4ec0c;box-shadow:inset 2px 0 #f6f4ec}
+.app-drawer a:hover,.app-drawer .drawer-close:hover{background:#f6f4ec10}
+/* A cream selection marker is independent of the permanent green signature. */
+.shared-shell .sidebar nav a.active{color:#f6f4ec;background:#f6f4ec0c;box-shadow:none;font-weight:750}
+.shared-shell .sidebar nav a.active:after{background:#f6f4ec;box-shadow:none}
+.shared-shell .sidebar nav a.active svg{color:#f6f4ec;filter:none}
+.shared-shell .sidebar nav a.signature-destination svg{color:#22c55e;filter:none}
+.shared-shell .sidebar nav a.signature-destination:not(.active){background:#22c55e08;color:#c5d4ca}
+.shared-shell .sidebar nav a:focus-visible{outline:2px solid #f6f4ec;outline-offset:2px}
+/* Account control stays upper-right on desktop and in the mobile header grid. */
+.shared-shell .app-profile{position:fixed;right:24px;top:max(14px,env(safe-area-inset-top));z-index:60}
+.shared-shell .app-profile .dashboard-account{display:flex;gap:8px;align-items:center;margin:0;padding:5px 9px;min-height:44px;width:auto;border:1px solid #b1d3bd24;border-radius:10px;background:#081b13;color:#dbe7df;cursor:pointer}
+.shared-shell .sidebar>nav{margin-top:76px}
+.shared-shell .app-content>.dashboard{padding-top:0}
+.profile-popover{position:fixed;inset:max(66px,calc(env(safe-area-inset-top) + 60px)) 24px auto auto;margin:0;width:min(284px,calc(100vw - 24px));max-height:calc(100dvh - 100px);overflow-y:auto;padding:10px;border:1px solid #b1d3bd30;border-radius:13px;color:#f6f4ec;background:linear-gradient(145deg,#102e22,#06130d);box-shadow:0 12px 32px #0005;color-scheme:dark}
+.profile-popover h2{font-size:12px;font-weight:600;color:#b5c6ba;margin:6px 12px 8px}
+.profile-popover a,.profile-popover .drawer-logout{display:flex;align-items:center;justify-content:flex-start;gap:12px;min-height:44px;padding:10px 12px;border-radius:8px;color:#f6f4ec;text-align:left;text-decoration:none;font-size:13px;line-height:1.4}
+.profile-popover .drawer-logout{color:#ffb7ab;border-top:1px solid #b1d3bd20;border-radius:0;margin-top:4px}
+.profile-popover a:hover,.profile-popover button:hover{background:#f6f4ec0c}.profile-popover :focus-visible{outline:2px solid #f6f4ec;outline-offset:0}
+@media(min-width:761px){.shared-shell .app-content>.page-heading,.shared-shell .app-content>.team-workspace>.page-heading,.shared-shell .app-content>.dashboard>header{padding-right:100px}}
+@media(max-width:1000px) and (min-width:761px){.shared-shell{grid-template-columns:232px minmax(0,1fr)}.shared-shell .sidebar{position:sticky;height:100dvh;display:flex;flex-direction:column;align-items:stretch}.shared-shell .sidebar>nav{display:flex;flex-direction:column;overflow:visible}}
+@media(max-width:760px){
+ .shared-shell .sidebar{background:transparent;overflow:visible}
+ .shared-shell .app-profile{position:static;z-index:auto}
+ .shared-shell .app-profile .dashboard-account{display:grid;place-items:center;border:0;background:transparent;padding:0;width:44px;min-height:44px}
+ .shared-shell .app-profile .dashboard-account>span{display:none}
+ .shared-shell .app-content{padding:7px 16px calc(100px + env(safe-area-inset-bottom));width:100%;max-width:100%}
+ .shared-shell .sidebar>nav{margin:0}
+ .shared-shell .sidebar nav a.active{color:#f6f4ec;background:#f6f4ec0a;box-shadow:none}
+ .shared-shell .sidebar nav a.active:after{width:20px;height:2px;right:calc(50% - 10px);background:#f6f4ec}
+ .shared-shell .sidebar nav a.signature-destination:not(.active){background:#22c55e08}
+ .profile-popover{right:12px;top:max(70px,calc(env(safe-area-inset-top) + 68px))}
 }

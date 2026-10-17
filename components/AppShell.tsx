@@ -8,7 +8,7 @@ import {Brand} from "./Brand";
 import {PrimaryNavigation} from "./PrimaryNavigation";
 import {useYahooSession} from "./YahooSession";
 import {YahooAttribution} from "./YahooAttribution";
-import { ProviderAvatar } from "./ProviderAvatar";
+import { ProfileMenu } from "./ProfileMenu";
 import { AppMenu } from "./AppMenu";
 
 
@@ -22,7 +22,7 @@ export function AppShell({ children, showAdmin = false, tone="dark", nextMove = 
       <aside className="sidebar">
         <AppMenu showAdmin={showAdmin}/>
         <Brand artwork/>
-        <Link href="/account" className="dashboard-header-control dashboard-account" aria-label="Your account"><ProviderAvatar kind="account" name="Your profile" url={profileAvatarUrl}/><span>Account</span></Link>
+        <ProfileMenu avatarUrl={profileAvatarUrl}/>
         <PrimaryNavigation/>
       </aside>
       <main className="app-content" id="main-content">
