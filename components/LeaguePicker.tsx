@@ -1,5 +1,6 @@
 "use client";
 
+import {useYahooSession} from "./YahooSession";
 import { useEffect, useState } from "react";
 import { closeActiveLeagueInAccount, loadActiveLeagueFromAccount, saveLeagueToAccount } from "@/lib/account-storage";
 import { demoLeague } from "@/lib/demo-data";
@@ -7,6 +8,7 @@ import { clearLegacyBrowserData } from "@/lib/storage";
 import type { ImportedLeague, LeagueProvider } from "@/lib/types";
 
 export function useSelectedLeague() {
+  const yahoo = useYahooSession();
   const [league, setLeagueState] = useState<ImportedLeague>(demoLeague);
   const [source, setSource] = useState<LeagueProvider>("demo");
   const [teamRosterId, setTeamRosterIdState] = useState<number>(demoLeague.userRosterId ?? demoLeague.teams[0].rosterId);
@@ -38,6 +40,7 @@ export function useSelectedLeague() {
   }
   async function setLeague(nextLeague: ImportedLeague, selectedRosterId?:number|null) {
     const rosterId = selectedRosterId ?? nextLeague.userRosterId ?? nextLeague.teams[0]?.rosterId ?? null;
+    if (nextLeague.provider === "yahoo") throw new Error("Use the temporary Yahoo connection to select this team.");
     if(nextLeague.provider!=="demo") await saveLeagueToAccount(nextLeague,rosterId);
     setLeagueState(nextLeague);setSource(nextLeague.provider);if(rosterId)setTeamRosterIdState(rosterId);setError("");
   }
@@ -46,5 +49,6 @@ export function useSelectedLeague() {
     catch {setError("We couldn’t close this league. Your current connection is unchanged.");}
   }
 
+  if (yahoo.selection) return {league: yahoo.selection.league, source: "yahoo" as const, teamRosterId: yahoo.selection.league.userRosterId!, setTeamRosterId: async () => {}, setLeague, resetLeague: async () => yahoo.select(null), hydrated: true, error: ""};
   return { league, source, teamRosterId, setTeamRosterId, setLeague, resetLeague, hydrated, error };
 }

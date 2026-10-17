@@ -1,0 +1,1 @@
+export function YahooAttribution() {return <p className="muted"><a href="https://fantasy.yahoo.com/" target="_blank" rel="noopener noreferrer">Fantasy data provided by Yahoo Fantasy</a>. Yahoo does not endorse FantasyNextMove.</p>;}

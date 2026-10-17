@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import {lineupEligibility} from "@/lib/player-intelligence";
 import { useEffect, useMemo, useState } from "react";
 import { demoPlayerPositions } from "@/lib/demo-data";
 import type {
@@ -20,13 +20,6 @@ function cleanSlot(slot: string | undefined, fallback: string) {
   if (["WRT", "WRRB_FLEX", "REC_FLEX", "FLEX"].includes(normalized)) return "FLEX";
   if (normalized === "D/ST") return "DEF";
   return normalized;
-}
-
-function statusClass(status: string | null) {
-  const value = (status || "").toLowerCase();
-  if (value.includes("out") || value.includes("ir") || value.includes("pup") || value.includes("suspend")) return "danger";
-  if (value.includes("question") || value.includes("doubt")) return "warning";
-  return "";
 }
 
 export function RosterSnapshot({
@@ -70,7 +63,7 @@ export function RosterSnapshot({
       playerId,
       lineupSlot,
       group,
-      fullName: source === "demo" ? playerId : profile?.fullName || snapshot?.playerName || playerId,
+      fullName: source === "demo" ? playerId : profile?.fullName || snapshot?.playerName || "Player details unavailable",
       position: source === "demo" ? demoPlayerPositions[playerId] || "—" : profile?.position || snapshot?.position || "—",
       nflTeam: source === "demo" ? null : profile?.team || snapshot?.nflTeam || null,
       status: source === "demo" ? null : profile?.injuryStatus || profile?.status || null,
@@ -86,10 +79,11 @@ export function RosterSnapshot({
     const starterSet = new Set(validStarters);
     const reserveSet = new Set(team.reserve || []);
     const taxiSet = new Set(team.taxi || []);
-    const starters = validStarters.map((playerId, index) => {
+    const starters = team.starters.map((playerId, index) => {
+      if (!playerId || playerId === "0") return null;
       const fallback = source === "demo" ? demoPlayerPositions[playerId] || "START" : playersById[playerId]?.position || "START";
-      return playerRow(playerId, cleanSlot(starterSlots[index], fallback), "starter");
-    });
+      return playerRow(playerId, cleanSlot(source === "yahoo" ? playersById[playerId]?.selectedPosition || undefined : starterSlots[index], fallback), "starter");
+    }).filter((row): row is NonNullable<typeof row> => Boolean(row));
     const nonStarters = team.players.filter((playerId) => !starterSet.has(playerId));
     const reserve = nonStarters.filter((id) => reserveSet.has(id)).map((id) => playerRow(id, "IR", "reserve"));
     const taxi = nonStarters.filter((id) => taxiSet.has(id)).map((id) => playerRow(id, "TAXI", "taxi"));
@@ -101,7 +95,6 @@ export function RosterSnapshot({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [league.rosterPositions, playersById, snapshotMap, source, team.players, team.reserve, team.starters, team.taxi]);
 
-  const lowestStarterProjection = Math.min(...groups.starters.map((row) => row.projectedPoints ?? Number.POSITIVE_INFINITY));
 
   function renderLineupSection({ title, rows }: { title: string; rows: ReturnType<typeof playerRow>[] }) {
     if (!rows.length) return null;
@@ -110,22 +103,22 @@ export function RosterSnapshot({
         <div className="lineup-section-heading"><h3>{title}</h3><span>{rows.length} players</span></div>
         <div className="lineup-list">
           {rows.map((player) => {
-            const possibleUpgrade = player.group === "bench" && player.projectedPoints !== null && Number.isFinite(lowestStarterProjection) && player.projectedPoints > lowestStarterProjection + 1;
+            const possibleUpgrade = player.group === "bench" && player.projectedPoints !== null && groups.starters.some((starter, index) => starter.projectedPoints !== null && lineupEligibility(league.rosterPositions.filter(slot => !NON_STARTER_SLOTS.has(slot.toUpperCase()))[team.starters.indexOf(starter.playerId)] || groups.starters[index].lineupSlot).has(player.position) && player.projectedPoints! > starter.projectedPoints + 1);
             return (
               <article className={`lineup-row ${player.group}${possibleUpgrade ? " possible-upgrade" : ""}`} key={`${player.group}-${player.playerId}`}>
                 <span className="lineup-slot">{player.lineupSlot}</span>
                 <div className="lineup-player-main">
                   <strong>{player.fullName}</strong>
                   <small>{player.position}{player.nflTeam ? ` · ${player.nflTeam}` : ""}{player.status ? ` · ${player.status}` : ""}</small>
-                  {possibleUpgrade && <em>Review start/sit: projects above at least one current starter.</em>}
+                  {possibleUpgrade && <em>Review start/sit: projects above a position-eligible starter.</em>}
                 </div>
-                {player.status && <span className={`lineup-status ${statusClass(player.status)}`}>{player.status}</span>}
+
                 <div className="lineup-projection">
-                  <strong>{player.projectedPoints === null ? "—" : player.projectedPoints.toFixed(2)}</strong>
+                  <strong>{player.projectedPoints === null ? "—" : player.projectedPoints.toFixed(1)}</strong>
                   <span>projected</span>
-                  {player.previousActualPoints !== null && <small>Last: {player.previousActualPoints.toFixed(2)}{player.recentError !== null ? ` (${player.recentError >= 0 ? "+" : ""}${player.recentError.toFixed(2)})` : ""}</small>}
+
                 </div>
-                <Link className="lineup-trade-link" href={`/trade-lab?player=${encodeURIComponent(player.playerId)}`}>Trade Lab</Link>
+
               </article>
             );
           })}
