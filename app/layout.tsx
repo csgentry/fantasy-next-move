@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { LegacyStorageCleanup } from "@/components/LegacyStorageCleanup";
 import "./globals.css";
 import "./cleanup.css";
+import "./experience.css";
 
 export const metadata: Metadata = {
   title: "FantasyNextMove",
