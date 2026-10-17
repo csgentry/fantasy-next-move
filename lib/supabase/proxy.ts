@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 const tradeLabPrefixes = ["/trade-lab", "/api/market"];
 const allAccessPrefixes = ["/api/account/history", "/api/sleeper/history", "/api/sleeper/power-data", "/api/yahoo/history", "/api/account/player-snapshots"];
-const authenticationOnlyPrefixes = ["/more", "/waivers", "/account", "/billing/success", "/api/billing", "/dashboard", "/team", "/leagues", "/connect", "/api/account", "/api/sleeper/import", "/api/sleeper/intelligence", "/api/sleeper/players", "/api/yahoo"];
+const authenticationOnlyPrefixes = ["/admin", "/more", "/waivers", "/account", "/billing/success", "/api/billing", "/dashboard", "/team", "/leagues", "/connect", "/api/account", "/api/sleeper/import", "/api/sleeper/intelligence", "/api/sleeper/players", "/api/yahoo"];
 const publicApiPrefixes = ["/api/stripe/webhook", "/api/cron"];
 const browserNavigationApis = new Set(["/api/yahoo/connect", "/api/yahoo/callback"]);
 
