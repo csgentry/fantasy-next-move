@@ -34,7 +34,8 @@ export async function getUserEntitlement(supabase: SupabaseClient, userId: strin
 
   if (entitlementResult.data) {
     const row = entitlementResult.data;
-    const expired = Boolean(row.valid_until && new Date(row.valid_until).getTime() <= Date.now());
+    const expiresAt = row.valid_until ? Date.parse(row.valid_until) : null;
+    const expired = expiresAt !== null ? !Number.isFinite(expiresAt) || expiresAt <= Date.now() : row.access_source === "stripe";
     if (!expired && (row.trade_lab_access || row.all_access || row.access_level === "admin")) {
       return {
         accessLevel: row.access_level as AccessLevel,
