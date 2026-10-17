@@ -25,7 +25,7 @@ export async function POST() {
     });
     await recordProductEvent({ userId: data.user.id, eventName: "billing_portal_opened" });
     return NextResponse.json({ url: portal.url });
-  } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to open billing management." }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: "Billing management is temporarily unavailable. Please try again." }, { status: 500 });
   }
 }
