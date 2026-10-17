@@ -86,7 +86,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
             <h2>{PLAN_NAMES[subscription.plan]}</h2>
             <div className="account-status"><span>Billing</span><strong>{subscription.billing_interval === "year" ? "Annual" : "Monthly"} · {money(subscription.amount, subscription.currency)}</strong></div>
             <div className="account-status"><span>Status</span><strong>{subscription.status}</strong></div>
-            <div className="account-status"><span>{subscription.cancel_at_period_end ? "Access ends" : "Next renewal"}</span><strong>{date(subscription.current_period_end)}</strong></div>
+            <div className="account-status"><span>{subscription.cancel_at_period_end ? "Subscription ends" : "Next renewal"}</span><strong>{date(subscription.cancel_at_period_end && entitlement.accessSource === "stripe" ? entitlement.validUntil : subscription.current_period_end)}</strong></div>
             {customerResult.data?.stripe_customer_id && <PortalButton />}
             <RefundRequest />
           </> : <><h2>No Stripe subscription</h2><p>Complimentary beta access does not create a billing record.</p><Link className="button small account-panel-link" href="/pricing">View pricing</Link></>}
