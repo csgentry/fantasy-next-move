@@ -24,6 +24,8 @@ type SleeperLeague = {
   season?: string;
   status?: string;
   season_type?: string;
+  scoring_settings?: Record<string, number>;
+  roster_positions?: string[];
   settings?: { last_scored_leg?: number; playoff_week_start?: number };
 };
 type SleeperMatchup = {
@@ -195,7 +197,7 @@ async function weeklyScores(leagueId: string, completedWeek: number) {
         300,
         true
       );
-      return (payload || [])
+      return (Array.isArray(payload) ? payload : [])
         .filter((row) => Number.isInteger(Number(row.roster_id)))
         .map((row) => ({
           week,
@@ -364,13 +366,25 @@ export async function syncSleeperPlayerIntelligence({
   leagueRecord,
   backfillLimit = 3
 }: SyncOptions): Promise<PlayerIntelligencePayload> {
-  const league = leagueRecord.raw_data;
+  let league = leagueRecord.raw_data;
   const warnings: string[] = [];
   const [state, leagueMeta, playerMapPayload] = await Promise.all([
     sleeperFetch<SleeperState>(`${SLEEPER_PUBLIC_API}/state/nfl`, 120),
     sleeperFetch<SleeperLeague>(`${SLEEPER_PUBLIC_API}/league/${encodeURIComponent(league.leagueId)}`, 300),
     sleeperFetch<Record<string, SleeperPlayerRecord>>(`${SLEEPER_PUBLIC_API}/players/nfl?active=true`, 86400)
   ]);
+  // Refresh ownership before any waiver or trade advice. Never infer availability from saved rosters.
+  const rosters = await sleeperFetch<Array<{roster_id:number;owner_id:string|null;players?:string[];starters?:string[];reserve?:string[];taxi?:string[];settings?:{wins?:number;losses?:number;ties?:number;fpts?:number;fpts_decimal?:number;fpts_against?:number;fpts_against_decimal?:number}}>>(`${SLEEPER_PUBLIC_API}/league/${encodeURIComponent(league.leagueId)}/rosters`, 0, true);
+  const rosterIds = new Set(Array.isArray(rosters) ? rosters.map(r=>r.roster_id) : []);
+  const ownershipVerified = Array.isArray(rosters) && rosters.length === league.teams.length && rosterIds.size === league.teams.length && league.teams.every(t=>rosterIds.has(t.rosterId)) && rosters.every(r=>[r.players,r.starters,r.reserve,r.taxi].every(value=>value==null || (Array.isArray(value)&&value.every(id=>typeof id==="string"))));
+  if (ownershipVerified) {
+    league = {...league, scoringSettings:leagueMeta?.scoring_settings || league.scoringSettings, rosterPositions:leagueMeta?.roster_positions || league.rosterPositions, teams:league.teams.map(team=>{
+      const r=rosters!.find(r=>r.roster_id===team.rosterId)!;
+      const sameOwner=r.owner_id===team.ownerId;
+      return {...team, ownerId:r.owner_id, ownerName:sameOwner?team.ownerName:`Roster ${r.roster_id}`,teamName:sameOwner?team.teamName:`Team ${r.roster_id}`,players:r.players||[],starters:r.starters||[],reserve:r.reserve||[],taxi:r.taxi||[],wins:r.settings?.wins??team.wins,losses:r.settings?.losses??team.losses,ties:r.settings?.ties??team.ties,pointsFor:r.settings?.fpts===undefined?team.pointsFor:r.settings.fpts+(r.settings.fpts_decimal||0)/100,pointsAgainst:r.settings?.fpts_against===undefined?team.pointsAgainst:r.settings.fpts_against+(r.settings.fpts_against_decimal||0)/100};
+    })};
+    leagueRecord={...leagueRecord,raw_data:league};
+  } else warnings.push("Current roster ownership could not be verified. Waiver availability is withheld; reconnect before acting.");
   const playerMap = playerMapPayload || {};
   const weeks = determineWeeks(league, leagueMeta, state);
   const existingWeeks = await storedWeeks(leagueRecord.user_id, leagueRecord);
@@ -473,6 +487,10 @@ export async function syncSleeperPlayerIntelligence({
 
   return {
     provider: "sleeper",
+    currentLeague: league,
+    rostersSyncedAt: ownershipVerified ? new Date().toISOString() : null,
+    activeSeason: Number(state?.season) === Number(league.season) && state?.season_type === "regular",
+    currentMatchups: await weeklyScores(league.leagueId, weeks.projectionWeek),
     leagueId: league.leagueId,
     season: weeks.season,
     projectionWeek: weeks.projectionWeek,
