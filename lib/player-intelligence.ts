@@ -10,7 +10,7 @@ import type {
 
 const FLEX_POSITIONS = new Set(["RB", "WR", "TE"]);
 const SUPERFLEX_POSITIONS = new Set(["QB", "RB", "WR", "TE"]);
-const BENCH_SLOTS = new Set(["BN", "BENCH", "IR", "IR+", "RESERVE", "TAXI", "NA"]);
+const BENCH_SLOTS = new Set(["BN", "BE", "BENCH", "IR", "IR+", "RESERVE", "TAXI", "NA"]);
 
 function round(value: number, places = 1) {
   const multiplier = 10 ** places;
@@ -126,7 +126,8 @@ export function optimizeProjectedLineup(
   snapshots: PlayerWeeklySnapshot[]
 ) {
   const snapshotMap = snapshotsByPlayer(snapshots);
-  const candidates = team.players.map((playerId) => {
+  const inactive = new Set([...(team.reserve || []), ...(team.taxi || [])]);
+  const candidates = team.players.filter(id=>!inactive.has(id)).map((playerId) => {
     const profile = profileFor(playerId, profiles, snapshotMap);
     return {
       playerId,
@@ -368,7 +369,7 @@ export function buildPersonalizedPlayerRecommendations(
       (candidate) =>
         candidate.recentError !== null &&
         candidate.recentError >= 7 &&
-        candidate.current?.projectedPoints !== null
+        candidate.current?.projectedPoints != null
     )
     .sort((a, b) => (b.recentError || 0) - (a.recentError || 0))[0];
 
@@ -386,7 +387,7 @@ export function buildPersonalizedPlayerRecommendations(
   }
 
   if (!recommendations.length) {
-    const bestProjected = projected.starters[0];
+    const bestProjected = projected.starters.filter(p => snapshotMap.get(p.playerId)?.projectedPoints != null && p.projectedPoints > 0).sort((a,b)=>b.projectedPoints-a.projectedPoints)[0];
     recommendations.push({
       id: recommendationId("strategy"),
       title: "Protect your projected starting lineup",
