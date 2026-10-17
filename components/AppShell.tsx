@@ -37,7 +37,7 @@ export function AppShell({ children, showAdmin = false, tone="dark", nextMove = 
       </aside>
       <main className="app-content" id="main-content">
         {children}
-        <footer className="app-footer" aria-label="Website information"><span>FantasyNextMove</span>{yahoo.selection && <YahooAttribution/>}<span className="footer-links"><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/pricing">Pricing</Link><Link href="/more#help">Support</Link><Link href="/account">Account</Link></span></footer>
+        <footer className="app-footer" role="contentinfo" aria-label="Website information"><span>FantasyNextMove</span>{yahoo.selection && <YahooAttribution/>}<span className="footer-links"><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/pricing">Pricing</Link><Link href="/more#help">Support</Link><Link href="/account">Account</Link></span></footer>
 
       </main>
     </div>
