@@ -83,7 +83,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
           {entitlement.accessLevel === "trade_lab" && <Link className="button small account-panel-link" href="/pricing">Explore Pro</Link>}
         </article>
 
-        <article className="panel account-panel billing-panel">
+        <article className="panel account-panel billing-panel" id="billing">
           <span className="eyebrow">Billing</span>
           {subscription ? <>
             <h2>{PLAN_NAMES[subscription.plan]}</h2>

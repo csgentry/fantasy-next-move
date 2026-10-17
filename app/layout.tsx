@@ -7,6 +7,7 @@ import { LegacyStorageCleanup } from "@/components/LegacyStorageCleanup";
 import "./globals.css";
 import "./cleanup.css";
 import "./experience.css";
+import "./application-shell.css";
 
 export const viewport: Viewport = {
   width: 'device-width',

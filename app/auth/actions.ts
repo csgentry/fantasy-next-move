@@ -156,12 +156,15 @@ export async function updatePassword(formData: FormData) {
 }
 
 export async function signOut() {
+  let failed = false;
   try {
     const supabase = await createClient();
-    await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut({ scope: "local" });
+    failed = Boolean(error);
   } catch {
-    // Redirect even if the local session was already cleared.
+    failed = true;
   }
+  if (failed) redirect(withMessage("/account", "error", "Unable to log out. Please try again."));
   redirect("/");
 }
 
