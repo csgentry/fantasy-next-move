@@ -3,6 +3,7 @@ import "server-only";
 import { calculateFantasyScore } from "@/lib/fantasy-scoring";
 import { calculateProjectionAccuracy } from "@/lib/player-intelligence";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import type {
   ImportedLeague,
   NumericStatLine,
@@ -325,7 +326,7 @@ async function buildWeekRows(
 
 async function upsertRows(rows: SnapshotRow[]): Promise<"saved" | "migration-required" | "unavailable"> {
   if (!rows.length) return "saved";
-  const admin = createAdminClient();
+  const admin = process.env.SUPABASE_SERVICE_ROLE_KEY ? createAdminClient() : await createClient();
   for (let index = 0; index < rows.length; index += 250) {
     const { error } = await admin
       .from("player_weekly_snapshots")
@@ -341,7 +342,7 @@ async function upsertRows(rows: SnapshotRow[]): Promise<"saved" | "migration-req
 }
 
 async function storedWeeks(userId: string, leagueRecord: SleeperLeagueRecord) {
-  const admin = createAdminClient();
+  const admin = process.env.SUPABASE_SERVICE_ROLE_KEY ? createAdminClient() : await createClient();
   const { data, error } = await admin
     .from("player_weekly_snapshots")
     .select("week")
