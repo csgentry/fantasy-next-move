@@ -111,7 +111,7 @@ export function RosterSnapshot({
               <article className={`lineup-row ${player.group}${possibleUpgrade ? " possible-upgrade" : ""}`} key={`${player.group}-${player.playerId}`}>
                 <span className="lineup-slot">{player.lineupSlot}</span>
                 <div className="lineup-player-main">
-                  <PlayerDetails profile={playersById[player.playerId] || {playerId:player.playerId,fullName:player.fullName,position:player.position,team:player.nflTeam,status:player.status}} snapshot={snapshotMap.get(player.playerId)} source={source}/>
+                  <PlayerDetails profile={playersById[player.playerId] || {playerId:player.playerId,fullName:player.fullName,position:player.position,team:player.nflTeam,status:player.status}} snapshot={snapshotMap.get(player.playerId)} source={source} showAvatar/>
                   <small>{player.position}{player.nflTeam ? ` · ${player.nflTeam}` : ""}{player.status ? ` · ${player.status}` : ""}</small>
                   {possibleUpgrade && <em>Review start/sit: projects above a position-eligible starter.</em>}
                 </div>

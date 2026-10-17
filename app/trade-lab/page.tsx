@@ -175,7 +175,7 @@ function TradeSide({ title, subtitle, available, selected, profiles, snapshots, 
           <article className={`trade-asset ${asset.kind === "pick" ? "pick-asset" : ""}`} key={asset.id}>
             <button className="asset-remove" onClick={() => onRemove(asset.id)} aria-label={`Remove ${asset.name}`}>×</button>
             <div className="trade-asset-copy">
-              {asset.kind === "player" ? <PlayerDetails profile={profiles[asset.playerId] || {playerId:asset.playerId,fullName:asset.name,position:asset.position,team:asset.nflTeam,status:null}} snapshot={snapshots.get(asset.playerId)} source={source}/> : <b>{asset.name}</b>}
+              {asset.kind === "player" ? <PlayerDetails profile={profiles[asset.playerId] || {playerId:asset.playerId,fullName:asset.name,position:asset.position,team:asset.nflTeam,status:null}} snapshot={snapshots.get(asset.playerId)} source={source} showAvatar/> : <b>{asset.name}</b>}
               {asset.kind === "player" ? (
                 <>
                   <small>{asset.position}{asset.nflTeam ? ` · ${asset.nflTeam}` : ""}</small>
