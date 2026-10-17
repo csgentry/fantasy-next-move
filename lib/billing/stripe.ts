@@ -27,6 +27,7 @@ export async function stripeRequest<T>(
   path: string,
   options: { method?: "GET" | "POST" | "DELETE"; params?: StripeParams; idempotencyKey?: string } = {}
 ): Promise<T> {
+  if (process.env.VERCEL_ENV === "production") throw new Error("Production billing is disabled pending separate acceptance and authorization.");
   const secret = process.env.STRIPE_SECRET_KEY;
   if (!secret) throw new Error("Stripe is not configured.");
   if (!secret.startsWith("sk_test_") && !secret.startsWith("rk_test_")) throw new Error("Live billing is disabled pending explicit launch authorization.");
@@ -55,6 +56,7 @@ export async function stripeRequest<T>(
 }
 
 export function verifyStripeWebhook(payload: string, signatureHeader: string | null) {
+  if (process.env.VERCEL_ENV === "production") throw new Error("Production billing is disabled pending separate acceptance and authorization.");
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!secret) throw new Error("Stripe webhook secret is not configured.");
   if (!signatureHeader) throw new Error("Missing Stripe-Signature header.");

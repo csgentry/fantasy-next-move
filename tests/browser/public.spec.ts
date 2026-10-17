@@ -19,7 +19,7 @@ test("public pages have clear navigation and no horizontal overflow",async({page
   await page.screenshot({path:testInfo.outputPath(route==="/"?"home.png":route.slice(1)+".png"),fullPage:true});
  }
 });
-test("homepage demonstrates the next decision",async({page})=>{await page.goto("/");await expect(page.getByRole("heading",{name:"Upgrade RB2"})).toBeVisible();await page.getByRole("link",{name:"See How It Works"}).click();await expect(page.locator("#how-it-works")).toBeInViewport();});
+test("homepage demonstrates the next decision",async({page})=>{await page.goto("/");await expect(page.getByRole("heading",{name:"Your team. Your next decision."})).toBeVisible();await page.getByRole("link",{name:"See How It Works"}).click();await expect(page.locator("#how-it-works")).toBeInViewport();});
 
 test("Preview protection remains enabled without the automation credential",async({browser,baseURL})=>{
  test.skip(!process.env.PLAYWRIGHT_BASE_URL,"Only applies to the deployed Preview.");
@@ -28,7 +28,7 @@ test("Preview protection remains enabled without the automation credential",asyn
   const page=await context.newPage();
   await page.goto(baseURL!);
   await expect(page.getByRole("heading",{name:"Log in to Vercel",exact:true})).toBeVisible();
-  await expect(page.getByRole("heading",{name:"Upgrade RB2",exact:true})).toHaveCount(0);
+  await expect(page.getByRole("heading",{name:"Your team. Your next decision.",exact:true})).toHaveCount(0);
  }finally{await context.close();}
 });
 
@@ -65,4 +65,15 @@ test("subscription return requires sign-in and cannot claim payment or activate 
  await expect(page.getByText('Membership active',{exact:false})).toHaveCount(0);
  await expect(page.getByText('Stripe received the payment',{exact:false})).toHaveCount(0);
  await page.screenshot({path:testInfo.outputPath('billing-sign-in-required.png'),fullPage:true});
+});
+
+test("public pricing is accurate and cannot start a payment",async({page})=>{
+ await page.goto('/pricing');
+ await expect(page.getByRole('heading',{name:'One plan. Two ways to subscribe.',exact:true})).toBeVisible();
+ await expect(page.getByText('$7.99',{exact:false})).toBeVisible();
+ await expect(page.getByText('$39.99',{exact:false})).toBeVisible();
+ const buttons=page.getByRole('button',{name:'Subscriptions coming soon',exact:true});
+ await expect(buttons).toHaveCount(2);
+ for(const button of await buttons.all())await expect(button).toBeDisabled();
+ await expect(page.getByRole('button',{name:/checkout|Choose Trade Lab|Choose All Access/i})).toHaveCount(0);
 });

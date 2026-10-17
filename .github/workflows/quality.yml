@@ -1,4 +1,7 @@
 name: Release quality
+concurrency:
+  group: release-quality-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
 on:
   pull_request:
   push:
@@ -21,11 +24,15 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: node tests/http-smoke.cjs
+      - name: Verify production safety against the exact build
+        run: node scripts/verify-production-release.cjs
       - run: npx playwright install --with-deps chromium webkit
       - run: npx playwright test
       - name: Test deployed Preview
         if: github.event_name == 'push' && github.repository == 'csgentry/fantasy-next-move' && github.ref == 'refs/heads/simplify-next-move'
-        run: npx playwright test
+        run: |
+          node scripts/verify-preview-commit.cjs
+          npx playwright test
         env:
           FNM_PREVIEW_AUTOMATION_SECRET: ${{ secrets.FNM_PREVIEW_AUTOMATION_SECRET }}
           PLAYWRIGHT_BASE_URL: https://fantasy-next-move-git-simplify-next-move-team-gentry1.vercel.app

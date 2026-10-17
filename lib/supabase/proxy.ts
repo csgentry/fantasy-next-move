@@ -38,6 +38,11 @@ function deniedResponse(request: NextRequest, response: NextResponse, message: s
 
 export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
+  // Production billing is a separate release milestone. This gate also blocks
+  // configured test keys and webhook/reconciliation writes on the public host.
+  if (process.env.VERCEL_ENV === "production" && matchesPrefix(pathname, ["/api/billing", "/api/stripe/webhook", "/api/cron/billing-reconcile"])) {
+    return NextResponse.json({ error: "Subscriptions are not available yet. No payment has been taken." }, { status: 503, headers: { "Cache-Control": "no-store" } });
+  }
   if (["POST", "PUT", "PATCH", "DELETE"].includes(request.method) && !matchesPrefix(pathname, publicApiPrefixes)) {
     const origin = request.headers.get("origin");
     if (!origin || origin !== request.nextUrl.origin) return NextResponse.json({error: "Request origin could not be verified."}, {status: 403});

@@ -49,7 +49,7 @@ export default function DemoPage() {
       </details><details className="panel"><summary>Explore the roster</summary><RosterSnapshot team={myTeam} league={demoLeague} source="demo" />
 
       </details><section className="panel pricing-guarantee">
-        <div><span className="eyebrow">Ready for your real league?</span><h2>Preview FantasyNextMove Pro.</h2><p>Real league imports, saved analysis, and current market values require a paid or complimentary account.</p></div>
+        <div><span className="eyebrow">Ready for your real league?</span><h2>Preview FantasyNextMove Pro.</h2><p>Create an account to connect a supported Sleeper league. This page remains a fictional demonstration. Paid Pro subscriptions are not available yet.</p></div>
         <Link className="button" href="/pricing">See pricing</Link>
       </section>
     </AppShell>
