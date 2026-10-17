@@ -170,3 +170,5 @@ body{background:var(--bg)}
 @media(max-width:760px){.sidebar{backdrop-filter:none;overflow:visible}.sidebar nav{position:fixed;bottom:0;left:0;right:0;z-index:100;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));background:#0d1726;border-top:1px solid #344155;padding:8px 4px max(8px,env(safe-area-inset-bottom));gap:2px}.sidebar nav a{min-height:44px;padding:8px 2px;text-align:center;font-size:11px}.app-content{padding-bottom:100px}.lineup-row{grid-template-columns:2.8rem minmax(0,1fr) 3.8rem;gap:8px}.trade-grid-clean{display:flex;flex-direction:column}.trade-verdict{order:3}.move-card{padding:16px}.priority-grid{display:block}.move-card+.move-card{margin-top:14px}input,select{font-size:16px;min-height:44px}}
 
 .team-selector{display:flex;align-items:center;gap:12px;margin-bottom:16px}.team-selector select{background:#101e1a;color:inherit;border:1px solid #34443d;border-radius:10px;min-height:44px;padding:10px 12px;max-width:100%}.roster-panel .panel-heading{margin-bottom:16px}
+
+.league-rank-row{grid-template-columns:36px minmax(0,1fr)}
