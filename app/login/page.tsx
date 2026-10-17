@@ -1,3 +1,4 @@
+import {Brand} from "@/components/Brand";
 import Link from "next/link";
 import { signIn } from "@/app/auth/actions";
 
@@ -9,7 +10,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   return (
     <main className="auth-page">
       <section className="auth-card">
-        <Link className="brand auth-brand" href="/"><span className="brand-mark">FNM</span><span>FantasyNextMove</span></Link>
+        <Brand href="/"/>
         <div><span className="eyebrow">Your fantasy team</span><h1>Welcome back</h1><p>Sign in to connect leagues and keep your data attached to your account.</p></div>
         {error && <div className="connection-message error">{error}</div>}
         {message && <div className="connection-message success">{message}</div>}
