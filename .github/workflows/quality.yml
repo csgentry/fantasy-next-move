@@ -24,6 +24,7 @@ jobs:
       - run: npx playwright install --with-deps chromium webkit
       - run: npx playwright test
       - name: Test deployed Preview
+        if: github.event_name == 'push' && github.repository == 'csgentry/fantasy-next-move' && github.ref == 'refs/heads/simplify-next-move'
         run: npx playwright test
         env:
           FNM_PREVIEW_AUTOMATION_SECRET: ${{ secrets.FNM_PREVIEW_AUTOMATION_SECRET }}

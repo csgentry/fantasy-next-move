@@ -3,6 +3,7 @@ test.beforeEach(async({page,baseURL})=>{
  const secret=process.env.FNM_PREVIEW_AUTOMATION_SECRET;
  if(!secret || !baseURL)return;
  const origin=new URL(baseURL).origin;
+ if(origin!=="https://fantasy-next-move-git-simplify-next-move-team-gentry1.vercel.app")throw new Error("Preview automation credential cannot be sent to another deployment.");
  await page.route(url=>url.origin===origin,route=>route.continue({headers:{...route.request().headers(),"x-vercel-protection-bypass":secret}}));
 });
 
@@ -19,3 +20,14 @@ test("public pages have clear navigation and no horizontal overflow",async({page
  }
 });
 test("homepage demonstrates the next decision",async({page})=>{await page.goto("/");await expect(page.getByRole("heading",{name:"Upgrade RB2"})).toBeVisible();await page.getByRole("link",{name:"See How It Works"}).click();await expect(page.locator("#how-it-works")).toBeInViewport();});
+
+test("Preview protection remains enabled without the automation credential",async({browser,baseURL})=>{
+ test.skip(!process.env.PLAYWRIGHT_BASE_URL,"Only applies to the deployed Preview.");
+ const context=await browser.newContext();
+ try{
+  const page=await context.newPage();
+  await page.goto(baseURL!);
+  await expect(page.getByRole("heading",{name:"Log in to Vercel",exact:true})).toBeVisible();
+  await expect(page.getByRole("heading",{name:"Upgrade RB2",exact:true})).toHaveCount(0);
+ }finally{await context.close();}
+});
