@@ -196,7 +196,7 @@ export default function TradeLabPage() {
 
 function TradeLabWorkspace({selected}: {selected: ReturnType<typeof useSelectedLeague>}) {
   const { league: savedLeague, source, teamRosterId, setLeague, hydrated } = selected;
-  const intelligenceState = usePlayerIntelligence(savedLeague, source);
+  const intelligenceState = usePlayerIntelligence(savedLeague, source, teamRosterId);
   const league = intelligenceState.data?.currentLeague || savedLeague;
   const importedFormat = leagueFormat(league.leagueType);
   const [manualFormat, setManualFormat] = useState<TradeFormat>(importedFormat);
