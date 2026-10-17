@@ -371,7 +371,7 @@ export async function syncSleeperPlayerIntelligence({
   const [state, leagueMeta, playerMapPayload] = await Promise.all([
     sleeperFetch<SleeperState>(`${SLEEPER_PUBLIC_API}/state/nfl`, 120),
     sleeperFetch<SleeperLeague>(`${SLEEPER_PUBLIC_API}/league/${encodeURIComponent(league.leagueId)}`, 300),
-    sleeperFetch<Record<string, SleeperPlayerRecord>>(`${SLEEPER_PUBLIC_API}/players/nfl?active=true`, 86400)
+    sleeperFetch<Record<string, SleeperPlayerRecord>>(`${SLEEPER_PUBLIC_API}/players/nfl?active=true`, 300)
   ]);
   // Refresh ownership before any waiver or trade advice. Never infer availability from saved rosters.
   const rosters = await sleeperFetch<Array<{roster_id:number;owner_id:string|null;players?:string[];starters?:string[];reserve?:string[];taxi?:string[];settings?:{wins?:number;losses?:number;ties?:number;fpts?:number;fpts_decimal?:number;fpts_against?:number;fpts_against_decimal?:number}}>>(`${SLEEPER_PUBLIC_API}/league/${encodeURIComponent(league.leagueId)}/rosters`, 0, true);
