@@ -45,8 +45,7 @@ export async function syncStripeSubscriptionObject(subscription: StripeSubscript
   const scheduledCancel = isoFromUnix(subscription.cancel_at);
   const accessEnd = periodEnd && scheduledCancel && Date.parse(scheduledCancel) < Date.parse(periodEnd) ? scheduledCancel : periodEnd;
   const active = status === "active" || status === "trialing";
-  const graceActive = status === "past_due";
-  let accessLevel = active || graceActive ? plan : "none";
+  let accessLevel = active ? plan : "none";
   const { data: previous, error: previousError } = await admin.from("subscriptions")
     .select("status,plan,billing_interval,updated_at")
     .eq("stripe_subscription_id", subscription.id)
@@ -58,12 +57,12 @@ export async function syncStripeSubscriptionObject(subscription: StripeSubscript
     .maybeSingle();
   if (previousEntitlementError) throw previousEntitlementError;
   if (active && !periodEnd) throw new Error("Active subscription is missing a valid access expiration.");
-  // Anchor grace to the billing period, never to webhook delivery/retry time.
-  let validUntil = active ? accessEnd : graceActive
-    ? previous?.status === "past_due" && previousEntitlement?.access_source === "stripe" && previousEntitlement.valid_until
-      ? previousEntitlement.valid_until
-      : periodStart ? new Date(Date.parse(periodStart) + 3 * 86400000).toISOString() : new Date(0).toISOString()
-    : null;
+  // Payment retries belong to Stripe. Do not mint a custom grace period.
+  const paidThrough = status === "past_due" && previousEntitlement?.access_source === "stripe"
+    && previousEntitlement.valid_until && Date.parse(previousEntitlement.valid_until) > Date.now()
+    ? previousEntitlement.valid_until : null;
+  let validUntil = active ? accessEnd : paidThrough;
+  if (paidThrough) accessLevel = plan;
   const preserveIndependentAccess = previousEntitlement && ["admin", "beta", "complimentary"].includes(previousEntitlement.access_source)
     && (!previousEntitlement.valid_until || Date.parse(previousEntitlement.valid_until) > Date.now());
   const requestedFoundingMember = String(subscription.metadata?.founding_offer || "") === "true";
