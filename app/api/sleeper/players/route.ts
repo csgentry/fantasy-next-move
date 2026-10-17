@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import {publicSleeperFeed} from "@/lib/sleeper/public-feed-cache";
 import type { PlayerProfile } from "@/lib/types";
 
 const PLAYERS_URL = "https://api.sleeper.app/v1/players/nfl";
@@ -30,9 +31,9 @@ export async function POST(request: NextRequest) {
     const ids = [...new Set(body.ids.filter((id): id is string => typeof id === "string" && id.trim().length > 0))].slice(0, MAX_IDS);
     if (!ids.length) return NextResponse.json({ players: {} });
 
-    const response = await fetch(PLAYERS_URL, { next: { revalidate: 86400 } });
-    if (!response.ok) throw new Error(`Sleeper player request failed (${response.status}).`);
-    const allPlayers = (await response.json()) as Record<string, SleeperPlayer>;
+    // Preserve the existing daily refresh policy while keeping the oversized
+    // catalogue inside the shared compressed cache. Return only requested IDs.
+    const allPlayers = await publicSleeperFeed<Record<string, SleeperPlayer>>(PLAYERS_URL, 86400);
 
     const players = ids.reduce<Record<string, PlayerProfile>>((result, playerId) => {
       const player = allPlayers[playerId];

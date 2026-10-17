@@ -7,7 +7,7 @@ import { sleeperAvatarUrl } from "../../../../lib/sleeper-avatar";
 const API = "https://api.sleeper.app/v1";
 
 async function sleeperFetch<T>(path: string): Promise<T> {
-  const response = await fetch(`${API}${path}`, { next: { revalidate: 300 } });
+  const response = await fetch(`${API}${path}`, { next: { revalidate: 300 }, signal: AbortSignal.timeout(12000) });
   if (!response.ok) throw new Error(`Sleeper request failed (${response.status}).`);
   return response.json() as Promise<T>;
 }

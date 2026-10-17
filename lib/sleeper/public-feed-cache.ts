@@ -7,7 +7,7 @@ const compress=promisify(gzip), decompress=promisify(gunzip);
 type Packed={at:number;body:string};
 // Only anonymous NFL feeds belong here. Never cache account responses, credentials,
 // league ownership, entitlements or recommendations in this shared cache.
-const allowed=/^https:\/\/(?:api\.sleeper\.app\/v1\/players\/nfl\?active=true|api\.sleeper\.com\/(?:projections|stats)\/nfl\/\d{4}\/\d{1,2}\?season_type=(?:regular|post|pre))$/;
+const allowed=/^https:\/\/(?:api\.sleeper\.app\/v1\/players\/nfl(?:\?active=true)?|api\.sleeper\.com\/(?:projections|stats)\/nfl\/\d{4}\/\d{1,2}\?season_type=(?:regular|post|pre))$/;
 const pending=new Map<string,Promise<unknown>>();
 const profileKeys=['player_id','full_name','first_name','last_name','position','fantasy_positions','team','status','injury_status','practice_participation','depth_chart_position','age','years_exp','search_rank'];
 function compactProfile(value:unknown){

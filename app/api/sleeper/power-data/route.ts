@@ -26,7 +26,7 @@ type SleeperMatchup = {
 };
 
 async function sleeperFetch<T>(path: string): Promise<T> {
-  const response = await fetch(`${API}${path}`, { next: { revalidate: 300 } });
+  const response = await fetch(`${API}${path}`, { next: { revalidate: 300 }, signal: AbortSignal.timeout(12000) });
   if (!response.ok) throw new Error(`Sleeper power data request failed (${response.status}).`);
   return response.json() as Promise<T>;
 }
@@ -60,11 +60,11 @@ export async function GET(request: NextRequest) {
     const weeks = await Promise.all(
       Array.from({ length: completedWeek }, (_, index) => index + 1).map(async (week) => {
         const matchups = await sleeperFetch<SleeperMatchup[]>(`/league/${leagueId}/matchups/${week}`).catch(() => []);
-        return matchups.map((matchup): WeeklyTeamScore => ({
+        return matchups.filter(matchup=>typeof (matchup.custom_points ?? matchup.points)==="number" && Number.isFinite(matchup.custom_points ?? matchup.points)).map((matchup): WeeklyTeamScore => ({
           week,
           rosterId: matchup.roster_id,
           matchupId: matchup.matchup_id ?? null,
-          points: Number(matchup.custom_points ?? matchup.points ?? 0)
+          points: (matchup.custom_points ?? matchup.points)!
         }));
       })
     );
