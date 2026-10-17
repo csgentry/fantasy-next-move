@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { HomeMatchups } from "@/components/HomeMatchups";
 import { EventTracker } from "@/components/EventTracker";
+import { DashboardPerformance } from '@/components/DashboardPerformance';
 import { AppShell } from "@/components/AppShell";
 import { useSelectedLeague } from "@/components/LeaguePicker";
 import { usePlayerIntelligence } from "@/components/usePlayerIntelligence";
@@ -31,7 +32,7 @@ function destination(move: PlayerRecommendation) {
 export default function DashboardPage() {
   const selected = useSelectedLeague();
   const [matchupWeek, setMatchupWeek] = useState<number | null>(null);
-  const state = usePlayerIntelligence(selected.league, selected.source, selected.teamRosterId);
+  const state = usePlayerIntelligence(selected.league, selected.source, selected.teamRosterId,'dashboard');
   const data = state.data;
   const league = data?.currentLeague || selected.league;
   const team = league.teams.find(t => t.rosterId === selected.teamRosterId);
@@ -67,6 +68,7 @@ export default function DashboardPage() {
     : "Review your roster while current data is unavailable. We’ll recommend a move when reliable analysis is ready.";
 
   return <AppShell nextMove profileAvatarUrl={customerSleeperAvatar(league)}>
+    <DashboardPerformance leagueReady={connected} analysisReady={Boolean(data)}/>
     <EventTracker event="dashboard_viewed" />
     {primary && <EventTracker event="first_recommendation_shown" />}
     <div className={styles.dashboard}>

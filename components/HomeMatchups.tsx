@@ -15,17 +15,23 @@ export function HomeMatchups({selectedLeague,analysis,onSelect,onWeek}: {selecte
  const [cards,setCards]=useState<HomeMatchup[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[opening,setOpening]=useState(''),[revision,setRevision]=useState(0);
  useEffect(()=>{
   let cancelled=false,inFlight=false,lastAttempt=0;
+  const controller=new AbortController();
   let timer:ReturnType<typeof setTimeout>|undefined;
   async function refresh(){
    if(cancelled||inFlight||document.visibilityState==='hidden')return;
    inFlight=true;lastAttempt=Date.now();clearTimeout(timer);
    let delay=5*60*1000;
    try{
-    const response=await fetch('/api/account/matchups',{cache:'no-store'});
+    const response=await fetch('/api/account/matchups',{cache:'no-store',headers:{Accept:'application/x-ndjson'},signal:controller.signal});
     if(response.status===401){if(!cancelled){setCards([]);setError('');}return;}
-    const payload=await response.json();
-    if(!response.ok)throw new Error(payload.error||'Unable to refresh matchups.');
-    const next=payload.matchups as HomeMatchup[];
+    if(!response.ok){const payload=await response.json();throw new Error(payload.error||'Unable to refresh matchups.');}
+    let next:HomeMatchup[];
+    if(response.headers.get('content-type')?.includes('application/x-ndjson')&&response.body){
+      const reader=response.body.getReader(),decoder=new TextDecoder(),received=new Map<number,HomeMatchup>();let buffer='';
+      const publish=(line:string)=>{if(!line.trim())return;const row=JSON.parse(line) as {index:number;matchup:HomeMatchup};received.set(row.index,row.matchup);if(!cancelled)setCards(previous=>{const updates=new Map([...received.values()].map(card=>[card.league.leagueId,card]));return [...previous.map(card=>{const value=updates.get(card.league.leagueId)||card;updates.delete(card.league.leagueId);return value;}),...updates.values()];});};
+      try{while(!cancelled){const {done,value}=await reader.read();buffer+=decoder.decode(value,{stream:!done});const lines=buffer.split('\n');buffer=lines.pop()||'';lines.forEach(publish);if(done){publish(buffer);break;}}}finally{if(cancelled)await reader.cancel();reader.releaseLock();}
+      next=[...received.entries()].sort(([a],[b])=>a-b).map(([,card])=>card);
+    }else{const payload=await response.json();next=payload.matchups as HomeMatchup[];}
     delay=matchupRefreshDelay(next.map(c=>c.status));
     if(!cancelled){setCards(next);setError(next.some(c=>!c.syncedAt)?'Some leagues could not be refreshed.':'');}
    }catch(e){if(!cancelled)setError(e instanceof Error?e.message:'Unable to refresh matchups.');}
@@ -33,7 +39,7 @@ export function HomeMatchups({selectedLeague,analysis,onSelect,onWeek}: {selecte
   }
   const visible=()=>{if(document.visibilityState==='visible'&&Date.now()-lastAttempt>=30000)void refresh();};
   void refresh();document.addEventListener('visibilitychange',visible);window.addEventListener('focus',visible);
-  return()=>{cancelled=true;clearTimeout(timer);document.removeEventListener('visibilitychange',visible);window.removeEventListener('focus',visible);};
+  return()=>{cancelled=true;controller.abort();clearTimeout(timer);document.removeEventListener('visibilitychange',visible);window.removeEventListener('focus',visible);};
  },[revision]);
  useEffect(()=>{onWeek(cards.find(c=>c.league.leagueId===selectedLeague.leagueId)?.week??null);},[cards,selectedLeague.leagueId,onWeek]);
  async function open(card:HomeMatchup,detail:boolean){

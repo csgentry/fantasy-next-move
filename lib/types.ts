@@ -201,7 +201,7 @@ export type PlayerIntelligencePayload = {
   weeklyScores: WeeklyTeamScore[];
   accuracy: ProjectionAccuracy;
   storedWeeks: number[];
-  storageStatus: "saved" | "migration-required" | "unavailable";
+  storageStatus: "saved" | "migration-required" | "unavailable" | "deferred";
   syncedAt: string;
   warnings: string[];
 };

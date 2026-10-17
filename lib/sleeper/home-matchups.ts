@@ -41,10 +41,17 @@ export function scoreValue(row: Match | undefined): number | null {
   const value = row?.custom_points ?? row?.points;
   return finite(value) ? value : null;
 }
+const pending=new Map<string,Promise<unknown>>();
 async function provider<T>(path: string): Promise<T> {
-  const response = await fetch(`https://api.sleeper.app/v1${path}`, { cache: 'no-store', signal: AbortSignal.timeout(12000) });
+  const running=pending.get(path);if(running)return running as Promise<T>;
+  const ttl=path==='/state/nfl'?120:path.endsWith('/rosters')?0:path.includes('/matchups/')?30:300;
+  const task=(async()=>{
+  const response = await fetch(`https://api.sleeper.app/v1${path}`, { ...(ttl?{next:{revalidate:ttl}}:{cache:'no-store' as const}), signal: AbortSignal.timeout(12000) });
   if (!response.ok) throw new Error('Sleeper unavailable');
   return response.json();
+  })();
+  pending.set(path,task);
+  try{return await task;}finally{if(pending.get(path)===task)pending.delete(path);}
 }
 export async function loadHomeMatchup(saved: ImportedLeague): Promise<HomeMatchup> {
   const empty: HomeMatchup = {league:saved,rosterId:saved.userRosterId,week:null,status:null,own:saved.teams.find(t=>t.rosterId===saved.userRosterId)||null,opponent:null,score:null,opponentScore:null,projection:null,opponentProjection:null,record:null,syncedAt:null,note:null};
@@ -73,7 +80,7 @@ export async function loadHomeMatchup(saved: ImportedLeague): Promise<HomeMatchu
     if (!week) return {...empty,league,leagueAvatarUrl,own,rosterId:own.rosterId,note:'No current matchup period supplied by Sleeper.',syncedAt:new Date().toISOString()};
     const [rows,games] = await Promise.all([
       provider<Match[]>(`/league/${id}/matchups/${week}`),
-      fetch(`https://api.sleeper.com/schedule/nfl/regular/${saved.season}`,{cache:'no-store',signal:AbortSignal.timeout(12000)}).then(r=>r.ok?r.json():[]).catch(()=>[]) as Promise<Game[]>
+      fetch(`https://api.sleeper.com/schedule/nfl/regular/${saved.season}`,{next:{revalidate:120},signal:AbortSignal.timeout(12000)}).then(r=>r.ok?r.json():[]).catch(()=>[]) as Promise<Game[]>
     ]);
     if(!Array.isArray(rows)) throw new Error('Invalid matchups');
     const mine=rows.find(r=>r.roster_id===own.rosterId);
