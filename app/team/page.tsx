@@ -1,4 +1,5 @@
 "use client";
+import {YahooAttribution} from "@/components/YahooAttribution";
 import { AppShell } from "@/components/AppShell";
 import { useSelectedLeague } from "@/components/LeaguePicker";
 import { RosterSnapshot } from "@/components/RosterSnapshot";
@@ -12,7 +13,7 @@ export default function TeamPage() {
     {!hydrated ? <p>Loading your team…</p> : <>
       {error && <p className="connection-message">{error}</p>}
       <label>Team <select value={teamRosterId} onChange={event => setTeamRosterId(Number(event.target.value))}>{league.teams.map(t => <option key={t.rosterId} value={t.rosterId}>{t.teamName}</option>)}</select></label>
-      {team && <RosterSnapshot team={team} league={league} source={source} intelligence={intelligence.data} />}
+      {source === "yahoo" && <YahooAttribution/>}{team && <RosterSnapshot team={team} league={league} source={source} intelligence={intelligence.data} />}
     </>}
   </AppShell>;
 }
