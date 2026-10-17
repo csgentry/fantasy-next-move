@@ -12,7 +12,7 @@ export default function TeamPage() {
   return <AppShell><div className="page-heading"><div><h1>My Team</h1><p>Review the roster behind your next decision.</p></div></div>
     {!hydrated ? <p>Loading your team…</p> : <>
       {error && <p className="connection-message">{error}</p>}
-      <label>Team <select value={teamRosterId} onChange={event => setTeamRosterId(Number(event.target.value))}>{league.teams.map(t => <option key={t.rosterId} value={t.rosterId}>{t.teamName}</option>)}</select></label>
+      <label className="team-selector">Team <select value={teamRosterId} onChange={event => setTeamRosterId(Number(event.target.value))}>{league.teams.map(t => <option key={t.rosterId} value={t.rosterId}>{t.teamName}</option>)}</select></label>
       {source === "yahoo" && <YahooAttribution/>}{team && <RosterSnapshot team={team} league={league} source={source} intelligence={intelligence.data} />}
     </>}
   </AppShell>;
