@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import {MarketingHeader} from "@/components/MarketingHeader";
+import {Brand} from "./Brand";
+import {ToolIcon} from "./ToolIcon";
 import { AuthStatus } from "@/components/AuthStatus";
 
 const nav = [
@@ -11,20 +13,20 @@ const nav = [
   ["My Team", "/team"],
   ["Trade Lab", "/trade-lab"],
   ["League", "/leagues"],
-  ["Account", "/account"]
+  ["More", "/more"]
 ];
 
-export function AppShell({ children, showAdmin = false }: { children: ReactNode; showAdmin?: boolean }) {
+export function AppShell({ children, showAdmin = false, tone="dark" }: { children: ReactNode; showAdmin?: boolean; tone?:"dark"|"light" }) {
   const pathname = usePathname();
   const navigation = showAdmin ? [...nav, ["FantasyNextMove Admin", "/admin"]] : nav;
 
   if (["/pricing","/privacy","/terms","/demo"].includes(pathname)) return <div className="landing"><MarketingHeader/><main className="public-content">{children}</main><footer className="landing-footer"><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><span>Read-only decision support. No guaranteed outcomes.</span></footer></div>;
   return (
-    <div className="app-shell">
+    <div className={`app-shell experience-shell ${tone=== "light" ? "light-workspace" : ""}`}><a className="skip-link" href="#main-content">Skip to content</a>
       <aside className="sidebar">
-        <Link className="brand" href="/"><span className="brand-mark">FNM</span><span>FantasyNextMove</span></Link>
+        <Brand/>
         <nav aria-label="Primary navigation">
-          {navigation.map(([label, href]) => <Link className={pathname === href ? "active" : ""} key={href} href={href}>{label}</Link>)}
+          {navigation.map(([label, href],index) => {const active=pathname===href || (href==="/more" && ["/account","/waivers","/connect"].includes(pathname));return <Link aria-current={active?"page":undefined} className={active?"active":""} key={href} href={href}><ToolIcon name={(["home","team","trade","league","more"] as const)[index]||"more"}/><span>{label}</span></Link>})}
         </nav>
         <div className="sidebar-card">
           <strong>League-aware analysis</strong>
@@ -32,7 +34,7 @@ export function AppShell({ children, showAdmin = false }: { children: ReactNode;
           <AuthStatus />
         </div>
       </aside>
-      <main className="app-content">
+      <main className="app-content" id="main-content">
         {children}
         <footer className="app-footer">
           <span>FantasyNextMove</span>
