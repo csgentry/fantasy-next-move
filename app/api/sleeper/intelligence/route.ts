@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     const team = league.teams.find(t => t.rosterId === selectedId) ?? league.teams[0];
     const entitlement = await getUserEntitlement(supabase, data.user.id);
     const pro = entitlement.allAccess || entitlement.tradeLabAccess;
-    const moves = team && intelligence.activeSeason !== false && intelligence.rostersSyncedAt ? buildPersonalizedPlayerRecommendations(league,team,intelligence) : [];
+    const moves = team && intelligence.activeSeason !== false && intelligence.rostersSyncedAt && intelligence.currentSnapshots.some(s=>team.players.includes(s.playerId) && s.projectedPoints != null) ? buildPersonalizedPlayerRecommendations(league,team,intelligence) : [];
     return NextResponse.json({...intelligence, nextMoves: pro ? moves : moves.slice(0,1), pro}, {headers:{"Cache-Control":"private, no-store"}});
   } catch (error) {
     return NextResponse.json(
