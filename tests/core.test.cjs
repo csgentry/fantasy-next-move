@@ -104,3 +104,25 @@ test('waiver targets reject unavailable players even when injury and status disa
 });
 
 test('production denies every billing entry before authentication or storage',async()=>{const previous=process.env.VERCEL_ENV;process.env.VERCEL_ENV='production';try{const {updateSession}=load('lib/supabase/proxy.ts',{'@/lib/billing/entitlements':{getUserEntitlement:()=>{throw Error('No entitlement lookup allowed')},entitlementAllows:()=>false},'@supabase/ssr':{createServerClient:()=>{throw Error('No auth or storage allowed')}}});const {NextRequest}=require('next/server');for(const path of ['/api/billing/checkout','/api/billing/portal','/api/billing/status','/api/stripe/webhook','/api/cron/billing-reconcile']){const response=await updateSession(new NextRequest('https://fantasynextmove.com'+path,{method:'POST'}));assert.equal(response.status,503);assert.match((await response.json()).error,/not available yet/);}await assert.rejects(stripe.stripeRequest('/customers'),/Production billing is disabled/);assert.throws(()=>stripe.verifyStripeWebhook('{}',null),/Production billing is disabled/);}finally{if(previous===undefined)delete process.env.VERCEL_ENV;else process.env.VERCEL_ENV=previous;}});
+
+const origins=load('lib/site-origin.ts');
+test('production auth origins cannot inherit Preview, localhost, or supplied hosts',()=>{
+ for(const configured of ['https://wrong.vercel.app','http://localhost:3000',undefined])assert.equal(origins.siteOrigin('https://other.test','production',configured),'https://fantasynextmove.com');
+ assert.equal(origins.siteOrigin('https://branch.vercel.app','preview','https://fantasynextmove.com'),'https://branch.vercel.app');
+});
+test('authentication next paths cannot escape through slash or backslash redirects',()=>{
+ for(const next of ['//outside.test','/\\outside.test','https://outside.test','/\n/outside.test'])assert.equal(origins.safeNextPath(next),'/dashboard');
+ assert.equal(origins.safeNextPath('/team?view=lineup'),'/team?view=lineup');
+});
+test('confirmation resend uses the canonical production callback without revealing account existence',async()=>{
+ const prior=process.env.VERCEL_ENV;process.env.VERCEL_ENV='production';let called=false;
+ try{
+  const actions=load('app/auth/actions.ts',{'@/lib/billing/events':{},'next/headers':{headers:async()=>new Headers({origin:'https://staging.vercel.app'})},'next/navigation':{redirect:url=>{throw Error('REDIRECT:'+url)}},'@/lib/supabase/admin':{},'@/lib/supabase/server':{createClient:async()=>({auth:{resend:async input=>{called=true;assert.equal(input.type,'signup');assert.equal(input.options.emailRedirectTo,'https://fantasynextmove.com/auth/confirm?next=/connect');return {error:null}}}})}});
+  const form=new FormData();form.set('email','qa@example.invalid');await assert.rejects(actions.resendConfirmation(form),/REDIRECT:\/check-email\?message=/);assert.equal(called,true);
+ }finally{if(prior===undefined)delete process.env.VERCEL_ENV;else process.env.VERCEL_ENV=prior;}
+});
+test('account deletion cannot proceed when billing ownership state cannot be read',async()=>{
+ let deleted=false;const query={select(){return this},eq(){return this},in(){return this},limit(){return this},async maybeSingle(){return {data:null,error:{message:'unavailable'}}}};
+ const actions=load('app/auth/actions.ts',{'@/lib/billing/events':{},'next/headers':{},'next/navigation':{redirect:url=>{throw Error('REDIRECT:'+url)}},'@/lib/supabase/server':{createClient:async()=>({auth:{getUser:async()=>({data:{user:{id:'owner'}}}),signOut:async()=>{throw Error('Must not clear the existing account session')}}})},'@/lib/supabase/admin':{createAdminClient:()=>({from:()=>query,auth:{admin:{deleteUser:async()=>{deleted=true}}}})}});
+ const form=new FormData();form.set('confirmation','DELETE');await assert.rejects(actions.deleteAccount(form),/REDIRECT:\/account\?error=/);assert.equal(deleted,false);
+});

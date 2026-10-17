@@ -36,20 +36,22 @@ function date(value: string | null) {
 
 export default async function AccountPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams;
+  const billingAvailable = process.env.VERCEL_ENV !== "production";
   const supabase = await createClient();
   const { data } = await supabase.auth.getUser();
   if (!data.user) redirect("/login");
 
   const [profileResult, accountsResult, leaguesResult, subscriptionResult, foundingResult, customerResult, entitlement] = await Promise.all([
     supabase.from("profiles").select("display_name,beta_access,created_at").eq("id", data.user.id).maybeSingle(),
-    supabase.from("connected_accounts").select("provider,provider_username,created_at").order("created_at", { ascending: false }),
-    supabase.from("leagues").select("provider,name,season,synced_at").order("synced_at", { ascending: false }),
+    supabase.from("connected_accounts").select("provider,provider_username,created_at").eq("user_id", data.user.id).order("created_at", { ascending: false }),
+    supabase.from("leagues").select("provider,name,season,synced_at").eq("user_id", data.user.id).order("synced_at", { ascending: false }),
     supabase.from("subscriptions").select("plan,billing_interval,status,amount,currency,current_period_end,cancel_at_period_end,founding_member").eq("user_id", data.user.id).order("updated_at", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("founding_members").select("founding_number").eq("user_id", data.user.id).maybeSingle(),
     supabase.from("billing_customers").select("stripe_customer_id").eq("user_id", data.user.id).maybeSingle(),
     getUserEntitlement(supabase, data.user.id)
   ]);
 
+  const accountLoadFailed = [profileResult, accountsResult, leaguesResult, subscriptionResult, foundingResult, customerResult].some(result => result.error);
   const profile = profileResult.data;
   const accountRows = (accountsResult.data || []) as AccountRow[];
   const leagueRows = (leaguesResult.data || []) as LeagueRow[];
@@ -66,6 +68,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
         <div className="heading-actions">{showAdmin && <Link className="button secondary small" href="/admin">FantasyNextMove Admin</Link>}<form action={signOut}><button className="button secondary small" type="submit">Sign out</button></form></div>
       </div>
 
+      {accountLoadFailed && <div className="connection-message error" role="alert">Some account information could not be loaded. Refresh this page before making changes.</div>}
       {error && <div className="connection-message error">{error}</div>}
       {message && <div className="connection-message success">{message}</div>}
 
@@ -87,8 +90,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
             <div className="account-status"><span>Billing</span><strong>{subscription.billing_interval === "year" ? "Annual" : "Monthly"} · {money(subscription.amount, subscription.currency)}</strong></div>
             <div className="account-status"><span>Status</span><strong>{subscription.status}</strong></div>
             <div className="account-status"><span>{subscription.cancel_at_period_end ? "Subscription ends" : "Next renewal"}</span><strong>{date(subscription.cancel_at_period_end && entitlement.accessSource === "stripe" ? entitlement.validUntil : subscription.current_period_end)}</strong></div>
-            {customerResult.data?.stripe_customer_id && <PortalButton />}
-            <RefundRequest />
+            {billingAvailable ? <>{customerResult.data?.stripe_customer_id && <PortalButton />}<RefundRequest /></> : <p>Online billing management is unavailable while paid subscriptions are closed. No payment can be started here.</p>}
           </> : <><h2>No Stripe subscription</h2><p>Complimentary beta access does not create a billing record.</p><Link className="button small account-panel-link" href="/pricing">View pricing</Link></>}
         </article>
 

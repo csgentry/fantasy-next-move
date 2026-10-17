@@ -1,3 +1,4 @@
+import { PRODUCTION_ORIGIN } from "../site-origin";
 import { getUserEntitlement, entitlementAllows } from "@/lib/billing/entitlements";
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
@@ -38,6 +39,12 @@ function deniedResponse(request: NextRequest, response: NextResponse, message: s
 
 export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
+  if (process.env.VERCEL_ENV === "production" && request.nextUrl.hostname.endsWith(".vercel.app")) {
+    return NextResponse.redirect(new URL(request.nextUrl.pathname + request.nextUrl.search, PRODUCTION_ORIGIN), 308);
+  }
+  if (process.env.VERCEL_ENV === "production" && matchesPrefix(pathname, ["/demo"])) {
+    return NextResponse.redirect(new URL("/connect", request.url));
+  }
   // Production billing is a separate release milestone. This gate also blocks
   // configured test keys and webhook/reconciliation writes on the public host.
   if (process.env.VERCEL_ENV === "production" && matchesPrefix(pathname, ["/api/billing", "/api/stripe/webhook", "/api/cron/billing-reconcile"])) {
@@ -96,7 +103,7 @@ export async function updateSession(request: NextRequest) {
     const tradeAccess = entitlementAllows(entitlement, "trade_lab");
     const allAccess = entitlementAllows(entitlement, "all_access");
     if (allAccessRequired && !allAccess) return deniedResponse(request, response, "Pro is required for this detail.");
-    if (tradeLabRequired && !tradeAccess) return deniedResponse(request, response, "Pro is required for full Trade Lab. Explore the free sample or upgrade.");
+    if (tradeLabRequired && !tradeAccess) return deniedResponse(request, response, "Pro access is required for full Trade Lab. Paid subscriptions are not available yet.");
   }
 
   return response;

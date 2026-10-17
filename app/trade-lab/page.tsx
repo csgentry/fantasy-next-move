@@ -354,6 +354,7 @@ function TradeLabWorkspace({selected}: {selected: ReturnType<typeof useSelectedL
     }
   }
 
+  if (hydrated && source === "demo") return <AppShell><section className="panel empty-state"><h1>Connect a league to analyze a trade</h1><p>Trade analysis uses your actual roster and league settings. No sample players are substituted.</p><a className="button" href="/connect">Connect your league</a></section></AppShell>;
   if (source === "yahoo") return <AppShell><section className="panel"><h1>Trade Lab</h1><p>Yahoo trade analysis needs verified independent player data. Your current roster is available in My Team; opponent rosters are not retrieved or saved.</p><a className="button" href="/team">Review My Team</a></section></AppShell>;
   if (!hydrated) return <AppShell><div className="panel empty-state"><strong>Loading your league…</strong></div></AppShell>;
 

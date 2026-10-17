@@ -1,4 +1,5 @@
 import "server-only";
+import { siteOrigin } from "../site-origin";
 
 export type BillingPlan = "trade_lab" | "all_access";
 export type BillingInterval = "month" | "year";
@@ -38,7 +39,7 @@ export function planForPriceId(priceId: string | null | undefined): { plan: Bill
 }
 
 export function siteUrl() {
-  return (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, "");
+  return siteOrigin();
 }
 
 export function stripeConfigured() {

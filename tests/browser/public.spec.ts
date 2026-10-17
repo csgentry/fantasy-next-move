@@ -7,8 +7,11 @@ test.beforeEach(async({page,baseURL})=>{
  await page.route(url=>url.origin===origin,route=>route.continue({headers:{...route.request().headers(),"x-vercel-protection-bypass":secret}}));
 });
 
+const productionAcceptance = process.env.FNM_PRODUCTION_ACCEPTANCE === "1";
+
 test("public pages have clear navigation and no horizontal overflow",async({page},testInfo)=>{
  for(const route of ["/","/pricing","/demo","/login","/signup","/privacy","/terms","/forgot-password"]){
+  if(productionAcceptance && route === "/demo") continue;
   await page.goto(route);
   await expect(page.locator("h1")).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBeTruthy();
@@ -22,7 +25,7 @@ test("public pages have clear navigation and no horizontal overflow",async({page
 test("homepage demonstrates the next decision",async({page})=>{await page.goto("/");await expect(page.getByRole("heading",{name:"Your team. Your next decision."})).toBeVisible();await page.getByRole("link",{name:"See How It Works"}).click();await expect(page.locator("#how-it-works")).toBeInViewport();});
 
 test("Preview protection remains enabled without the automation credential",async({browser,baseURL})=>{
- test.skip(!process.env.PLAYWRIGHT_BASE_URL,"Only applies to the deployed Preview.");
+ test.skip(productionAcceptance || !process.env.PLAYWRIGHT_BASE_URL,"Only applies to the deployed Preview.");
  const context=await browser.newContext();
  try{
   const page=await context.newPage();
@@ -33,6 +36,7 @@ test("Preview protection remains enabled without the automation credential",asyn
 });
 
 test("fictional decision tools preserve context, support accessible player details and filter waivers",async({page},testInfo)=>{
+ test.skip(productionAcceptance,"Fictional tools are not served in production.");
  await page.goto('/demo');
  await page.getByRole('button',{name:'Load fictional example',exact:true}).click();
  await page.getByRole('button',{name:'Josh Allen',exact:true}).first().click();
@@ -72,8 +76,30 @@ test("public pricing is accurate and cannot start a payment",async({page})=>{
  await expect(page.getByRole('heading',{name:'One plan. Two ways to subscribe.',exact:true})).toBeVisible();
  await expect(page.getByText('$7.99',{exact:false})).toBeVisible();
  await expect(page.getByText('$39.99',{exact:false})).toBeVisible();
- const buttons=page.getByRole('button',{name:'Subscriptions coming soon',exact:true});
+ const buttons=page.getByRole('button',{name:'Coming Soon',exact:true});
  await expect(buttons).toHaveCount(2);
  for(const button of await buttons.all())await expect(button).toBeDisabled();
  await expect(page.getByRole('button',{name:/checkout|Choose Trade Lab|Choose All Access/i})).toHaveCount(0);
+});
+
+
+test("production routes preserve authentication and billing shutdown",async({page,request})=>{
+ test.skip(!productionAcceptance,"Production acceptance only.");
+ await page.goto('/account');
+ await expect(page).toHaveURL(/\/login(?:\?|$)/);
+ await page.goto('/demo');
+ await expect(page).toHaveURL(/\/login(?:\?|$)/);
+ for(const path of ['/api/account/leagues','/api/account/history','/api/account/player-snapshots']){
+  const response=await request.get(path,{maxRedirects:0});
+  expect(response.status()).toBe(401);
+ }
+ for(const path of ['/api/billing/checkout','/api/billing/portal','/api/stripe/webhook','/api/cron/billing-reconcile']){
+  const response=await request.post(path,{data:{}});
+  expect(response.status()).toBe(503);
+ }
+ await page.goto('/auth/confirm?token_hash=invalid-acceptance-link&type=email');
+ await expect(page).toHaveURL(/\/login/);
+ await expect(page.getByText('This confirmation link is invalid or expired. Request a new confirmation email.',{exact:true})).toBeVisible();
+ await page.getByRole('link',{name:'Resend confirmation email',exact:true}).click();
+ await expect(page.getByRole('button',{name:'Resend confirmation email',exact:true})).toBeVisible();
 });

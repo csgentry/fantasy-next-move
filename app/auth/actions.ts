@@ -1,5 +1,6 @@
 "use server";
 
+import { siteOrigin, safeNextPath } from "../../lib/site-origin";
 import {recordProductEvent} from "@/lib/billing/events";
 import { createHash } from "node:crypto";
 import { headers } from "next/headers";
@@ -18,17 +19,17 @@ function withMessage(path: string, key: "error" | "message", message: string) {
 async function appOrigin() {
   const headerStore = await headers();
   const origin = headerStore.get("origin");
-  if (origin) return origin;
+  if (origin) return siteOrigin(origin);
   const host = headerStore.get("x-forwarded-host") || headerStore.get("host") || "localhost:3000";
   const protocol = headerStore.get("x-forwarded-proto") || (host.includes("localhost") ? "http" : "https");
-  return `${protocol}://${host}`;
+  return siteOrigin(`${protocol}://${host}`);
 }
 
 export async function signIn(formData: FormData) {
   const email = value(formData, "email").toLowerCase();
   const password = value(formData, "password");
   const requestedNext = value(formData, "next");
-  const next = requestedNext.startsWith("/") && !requestedNext.startsWith("//") ? requestedNext : "/dashboard";
+  const next = safeNextPath(requestedNext);
   if (!email || !password) redirect(withMessage("/login", "error", "Enter your email and password."));
   if (email.length > 254 || password.length > 256) redirect(withMessage("/login", "error", "The sign-in details are too long."));
 
@@ -105,6 +106,20 @@ export async function signUp(formData: FormData) {
   redirect(`/check-email?email=${encodeURIComponent(email)}`);
 }
 
+export async function resendConfirmation(formData: FormData) {
+  const email = value(formData, "email").toLowerCase();
+  if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) redirect(withMessage("/check-email", "error", "Enter a valid email address."));
+  let failure = "";
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase.auth.resend({ type: "signup", email, options: { emailRedirectTo: `${await appOrigin()}/auth/confirm?next=/connect` } });
+    if (error?.status === 429) failure = "Please wait a minute before requesting another confirmation email.";
+    else if (error) failure = "We couldn’t send the confirmation email. Try again shortly.";
+  } catch { failure = "We couldn’t send the confirmation email. Try again shortly."; }
+  if (failure) redirect(withMessage("/check-email", "error", failure));
+  redirect(withMessage("/check-email", "message", "If this address has an unconfirmed account, a new confirmation email has been sent. Check your inbox and spam folder."));
+}
+
 export async function sendPasswordReset(formData: FormData) {
   const email = value(formData, "email").toLowerCase();
   if (!email) redirect(withMessage("/forgot-password", "error", "Enter your email address."));
@@ -160,13 +175,15 @@ export async function deleteAccount(formData: FormData) {
       failure = "Your session expired. Sign in again before deleting the account.";
     } else {
       const admin = createAdminClient();
-      const { data: activeSubscription } = await admin.from("subscriptions")
+      const { data: activeSubscription, error: subscriptionError } = await admin.from("subscriptions")
         .select("status")
         .eq("user_id", data.user.id)
         .in("status", ["active", "trialing", "past_due", "incomplete"])
         .limit(1)
         .maybeSingle();
-      if (activeSubscription) {
+      if (subscriptionError) {
+        failure = "We couldn’t verify your subscription. Your account has not been deleted. Try again later.";
+      } else if (activeSubscription) {
         failure = "Cancel your active subscription in Manage Billing before deleting the account.";
       } else {
         await supabase.auth.signOut({ scope: "global" });

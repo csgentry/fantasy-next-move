@@ -20,8 +20,8 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           <label>Password<input name="password" type="password" autoComplete="current-password" required /></label>
           <button className="button" type="submit">Sign in</button>
         </form>
-        <div className="auth-links"><Link href="/forgot-password">Forgot password?</Link><Link href="/signup">Create account</Link></div>
-        <Link className="text-button auth-back" href="/">← Back to the public preview</Link>
+        <div className="auth-links"><Link href="/forgot-password">Forgot password?</Link><Link href="/signup">Create account</Link><Link href="/check-email">Resend confirmation email</Link></div>
+        <Link className="text-button auth-back" href="/">← Back to FantasyNextMove</Link>
       </section>
     </main>
   );

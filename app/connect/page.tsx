@@ -103,7 +103,7 @@ export default function ConnectPage() {
           <h1>Connect your league</h1>
           <p>
             Sleeper is available now through a public, read-only username
-            import. Yahoo testing is available only in an approved Preview.
+            import. Yahoo connections are not available on the public website yet.
           </p>
         </div>
       </div>
@@ -154,7 +154,7 @@ export default function ConnectPage() {
 
         <section className="panel connect-form provider-card">
           <h2>Yahoo Fantasy</h2>
-          {!yahooStatus.enabled ? <p>Preview activation and access verification are pending.</p> : yahooStatus.connected ? <><p>Your roster is processed temporarily. It disappears when this page session ends.</p><button className="button" disabled={yahooLoading} onClick={loadYahoo}>{yahooLoading ? "Loading…" : "Find my Yahoo teams"}</button><button className="text-button" disabled={yahooLoading} onClick={disconnectYahoo}>Disconnect Yahoo</button></> : <a className="button" href="/api/yahoo/connect">Connect Yahoo</a>}
+          {!yahooStatus.enabled ? <p>Yahoo connections are currently unavailable. Your existing Sleeper connection is unaffected.</p> : yahooStatus.connected ? <><p>Your roster is processed temporarily. It disappears when this page session ends.</p><button className="button" disabled={yahooLoading} onClick={loadYahoo}>{yahooLoading ? "Loading…" : "Find my Yahoo teams"}</button><button className="text-button" disabled={yahooLoading} onClick={disconnectYahoo}>Disconnect Yahoo</button></> : <a className="button" href="/api/yahoo/connect">Connect Yahoo</a>}
           {yahooChoices.map(choice => <button className="league-choice" key={choice.teamKey} disabled={yahooLoading} onClick={()=>selectYahoo(choice.leagueKey,choice.teamKey)}>{choice.name} · {choice.teamName} · {choice.season}</button>)}
           <YahooAttribution/>
         </section>

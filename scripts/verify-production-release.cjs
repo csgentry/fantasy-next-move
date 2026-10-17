@@ -57,8 +57,9 @@ const assert = require('node:assert/strict');
     assert.equal(invalidConfirmation.status, 307);
     const invalidCallback = await fetch(origin + '/auth/callback', { redirect: 'manual' });
     assert.equal(invalidCallback.status, 307);
-    const demo = await fetch(origin + '/demo');
-    assert.match(await demo.text(), /Fictional product demo/);
+    const demo = await fetch(origin + '/demo', { redirect: 'manual' });
+    assert.equal(demo.status, 307);
+    assert.equal(new URL(demo.headers.get('location'), origin).pathname, '/connect');
     const chunks = [];
     function walk(directory) {
       for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {

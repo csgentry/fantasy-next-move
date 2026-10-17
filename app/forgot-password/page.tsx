@@ -9,7 +9,7 @@ export default async function ForgotPasswordPage({ searchParams }: { searchParam
   return (
     <main className="auth-page"><section className="auth-card">
       <Brand href="/"/>
-      <div><span className="eyebrow">Account recovery</span><h1>Reset your password</h1><p>Enter the email used for your beta account.</p></div>
+      <div><span className="eyebrow">Account recovery</span><h1>Reset your password</h1><p>Enter the email used for your FantasyNextMove account.</p></div>
       {error && <div className="connection-message error">{error}</div>}
       {message && <div className="connection-message success">{message}</div>}
       <form className="auth-form" action={sendPasswordReset}>

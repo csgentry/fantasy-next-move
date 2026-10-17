@@ -36,6 +36,17 @@ jobs:
         env:
           FNM_PREVIEW_AUTOMATION_SECRET: ${{ secrets.FNM_PREVIEW_AUTOMATION_SECRET }}
           PLAYWRIGHT_BASE_URL: https://fantasy-next-move-git-simplify-next-move-team-gentry1.vercel.app
+      - name: Check whether this release is live
+        id: live
+        env:
+          RELEASE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node scripts/check-live-release.cjs
+      - name: Test current public production release
+        if: steps.live.outputs.current == 'true'
+        run: npx playwright test
+        env:
+          FNM_PRODUCTION_ACCEPTANCE: '1'
+          PLAYWRIGHT_BASE_URL: https://fantasynextmove.com
       - uses: actions/upload-artifact@v4
         if: always()
         with:
