@@ -27,14 +27,16 @@ export function yahooConfig() {
   const clientId = process.env.YAHOO_CLIENT_ID?.trim();
   const clientSecret = process.env.YAHOO_CLIENT_SECRET?.trim();
   const cookieSecret = process.env.FNM_COOKIE_SECRET?.trim();
-  if (!clientId || !clientSecret || !cookieSecret) {
+  if (!clientId || !clientSecret || !cookieSecret || cookieSecret.length < 32) {
     throw new Error("Yahoo is not configured. Add YAHOO_CLIENT_ID, YAHOO_CLIENT_SECRET, and FNM_COOKIE_SECRET.");
   }
   return { clientId, clientSecret, cookieSecret };
 }
 
 export function callbackUrl(origin: string) {
-  return process.env.YAHOO_REDIRECT_URI?.trim() || `${origin}/api/yahoo/callback`;
+  const uri = new URL(process.env.YAHOO_REDIRECT_URI?.trim() || `${origin}/api/yahoo/callback`);
+  if (uri.origin !== origin || uri.pathname !== "/api/yahoo/callback" || uri.search || uri.hash || uri.username || uri.password) throw new Error("Yahoo callback does not match this Preview.");
+  return uri.toString();
 }
 
 function encryptionKey() {
@@ -143,7 +145,7 @@ async function tokenRequest(body: URLSearchParams): Promise<YahooTokenResponse> 
   });
   const payload = await response.json() as YahooTokenResponse & { error?: string; error_description?: string };
   if (!response.ok || !payload.access_token) {
-    throw new Error(payload.error_description || payload.error || `Yahoo token request failed (${response.status}).`);
+    throw new Error(payload.error === "invalid_grant" ? "Yahoo authorization expired. Reconnect Yahoo." : "Yahoo authorization is temporarily unavailable. Try again.");
   }
   return payload;
 }
@@ -190,8 +192,11 @@ export async function getValidYahooToken(userId?: string) {
   if (token.expiresAt > Date.now()) return token;
   try {
     return await refreshYahooToken(token, userId);
-  } catch {
-    await clearYahooToken(userId);
-    return null;
+  } catch (error) {
+    if (error instanceof Error && error.message === "Yahoo authorization expired. Reconnect Yahoo.") {
+      await clearYahooToken(userId);
+      return null;
+    }
+    throw error;
   }
 }
