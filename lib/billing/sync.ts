@@ -42,9 +42,11 @@ export async function syncStripeSubscriptionObject(subscription: StripeSubscript
   const periodStart = isoFromUnix(subscription.current_period_start || item.current_period_start);
   const periodEnd = isoFromUnix(subscription.current_period_end || item.current_period_end);
   const status = String(subscription.status || "incomplete");
+  const scheduledCancel = isoFromUnix(subscription.cancel_at);
+  const accessEnd = periodEnd && scheduledCancel && Date.parse(scheduledCancel) < Date.parse(periodEnd) ? scheduledCancel : periodEnd;
   const active = status === "active" || status === "trialing";
   const graceActive = status === "past_due";
-  const accessLevel = active || graceActive ? plan : "none";
+  let accessLevel = active || graceActive ? plan : "none";
   const { data: previous, error: previousError } = await admin.from("subscriptions")
     .select("status,plan,billing_interval,updated_at")
     .eq("stripe_subscription_id", subscription.id)
@@ -57,7 +59,7 @@ export async function syncStripeSubscriptionObject(subscription: StripeSubscript
   if (previousEntitlementError) throw previousEntitlementError;
   if (active && !periodEnd) throw new Error("Active subscription is missing a valid access expiration.");
   // Anchor grace to the billing period, never to webhook delivery/retry time.
-  const validUntil = active ? periodEnd : graceActive
+  let validUntil = active ? accessEnd : graceActive
     ? previous?.status === "past_due" && previousEntitlement?.access_source === "stripe" && previousEntitlement.valid_until
       ? previousEntitlement.valid_until
       : periodStart ? new Date(Date.parse(periodStart) + 3 * 86400000).toISOString() : new Date(0).toISOString()
@@ -88,8 +90,8 @@ export async function syncStripeSubscriptionObject(subscription: StripeSubscript
     amount: price.unit_amount ?? null,
     currency: price.currency || "usd",
     current_period_start: periodStart,
-    current_period_end: periodEnd,
-    cancel_at_period_end: Boolean(subscription.cancel_at_period_end),
+    current_period_end: active ? accessEnd : periodEnd,
+    cancel_at_period_end: Boolean(subscription.cancel_at_period_end || (scheduledCancel && status !== "canceled")),
     canceled_at: isoFromUnix(subscription.canceled_at),
     founding_member: foundingMember,
     latest_invoice_id: typeof subscription.latest_invoice === "string" ? subscription.latest_invoice : subscription.latest_invoice?.id || null,
@@ -97,13 +99,26 @@ export async function syncStripeSubscriptionObject(subscription: StripeSubscript
   }, { onConflict: "stripe_subscription_id" });
   if (error) throw error;
 
+  // An old subscription cancellation must not revoke a separate paid subscription.
+  const { data: otherPaid, error: otherPaidError } = await admin.from("subscriptions")
+    .select("plan,current_period_end").eq("user_id", userId).neq("stripe_subscription_id", subscription.id)
+    .in("status", ["active", "trialing"]).gt("current_period_end", new Date().toISOString());
+  if (otherPaidError) throw otherPaidError;
+  for (const other of otherPaid || []) {
+    if (other.plan !== "all_access" && other.plan !== "trade_lab") continue;
+    const stronger = accessLevel === "none" || (other.plan === "all_access" && accessLevel === "trade_lab");
+    if (stronger || (other.plan === accessLevel && Date.parse(other.current_period_end) > Date.parse(validUntil || ""))) {
+      accessLevel = other.plan;
+      validUntil = other.current_period_end;
+    }
+  }
   const entitlementValues = {
     user_id: userId,
     access_level: accessLevel,
     access_source: "stripe",
     trade_lab_access: accessLevel === "trade_lab" || accessLevel === "all_access",
     all_access: accessLevel === "all_access",
-    max_connected_leagues: accessLevel === "none" ? 0 : PLAN_LIMITS[plan],
+    max_connected_leagues: accessLevel === "none" ? 0 : PLAN_LIMITS[accessLevel as BillingPlan],
     valid_until: validUntil,
     founding_member: foundingMember,
     updated_at: new Date().toISOString()
