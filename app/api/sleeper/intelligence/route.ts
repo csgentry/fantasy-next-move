@@ -2,6 +2,7 @@ import {getUserEntitlement} from "@/lib/billing/entitlements";
 import {buildPersonalizedPlayerRecommendations} from "@/lib/player-intelligence";
 import type {ImportedLeague,PlayerIntelligencePayload} from "@/lib/types";
 import {createHash} from 'node:crypto';
+import {homepageAnalysis} from '@/lib/home-analysis';
 import { after, NextRequest, NextResponse } from "next/server";
 import { syncSleeperPlayerIntelligence, type SleeperLeagueRecord } from "@/lib/sleeper/intelligence-server";
 import { createClient } from "@/lib/supabase/server";
@@ -57,7 +58,8 @@ export async function POST(request: NextRequest) {
     const finished=performance.now();
     const timing={authMs:Math.round(authenticatedAt-started),leagueMs:Math.round(leagueLoadedAt-authenticatedAt),sourcesMs:Math.round(analyzedAt-leagueLoadedAt),recommendationsMs:Math.round(finished-analyzedAt),totalMs:Math.round(finished-started)};
     if(body.mode==='dashboard')console.info(JSON.stringify({event:'dashboard_analysis_timing',...timing}));
-    return NextResponse.json({...intelligence, nextMoves: pro ? moves : moves.slice(0,1), pro}, {headers:{"Cache-Control":"private, no-store","Server-Timing":`auth;dur=${timing.authMs}, league;dur=${timing.leagueMs}, sources;dur=${timing.sourcesMs}, recommendations;dur=${timing.recommendationsMs}, total;dur=${timing.totalMs}`}});
+    const payload=body.mode==='dashboard'?homepageAnalysis(intelligence,team?.rosterId):intelligence;
+    return NextResponse.json({...payload, nextMoves: pro ? moves : moves.slice(0,1), pro}, {headers:{"Cache-Control":"private, no-store","Server-Timing":`auth;dur=${timing.authMs}, league;dur=${timing.leagueMs}, sources;dur=${timing.sourcesMs}, recommendations;dur=${timing.recommendationsMs}, total;dur=${timing.totalMs}`}});
   } catch (error) {
     return NextResponse.json(
       { error: "We couldn’t refresh player analysis. Your league connection is intact. Try again shortly." },

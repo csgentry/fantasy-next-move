@@ -61,6 +61,22 @@ unnecessary empty recommendation state. Inflight refreshes coalesce. No customer
 data is added to localStorage, sessionStorage, a public response cache or a shared
 completed-analysis cache. Dashboard and full-tool payloads are distinct.
 
+Follow-up live measurements identified a roughly 252 KB dashboard analysis
+transfer and 1652 ms cached dashboard navigation waiting for saved selection.
+The dashboard response now includes only the selected roster's profiles/player
+detail breakdowns, all league starters required for forecasting, and the same
+historical point/error samples without unused stat breakdowns. Recommendations
+are computed before this reduction; full-tool payloads are unchanged. Forecast
+equivalence is regression-tested.
+
+The active league selection has a separate 60-second authenticated memory cache.
+It coalesces reads and clears on account change/page hide. Selection writes
+invalidate older reads, including a late response from the previous account.
+It never replaces authorization on the API or persists private browser data.
+Cached navigation can render the known selection immediately; expiry retrieves
+the account-owned record again. League/team changes update the memory only after
+the authenticated save succeeds.
+
 ## Diagnostics and verification
 
 `/dashboard?performance=1` enables local browser console diagnostics only: navigation

@@ -4,7 +4,7 @@ const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),ts=r
 function load(file,mocks={}){
  const filename=path.resolve(file),loaded={exports:{}};
  const source=ts.transpileModule(fs.readFileSync(filename,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
- const req=id=>id==='server-only'?{}:mocks[id]??(id.startsWith('.')?load(path.resolve(path.dirname(filename),id+'.ts'),mocks):require(id));
+ const req=id=>id==='server-only'?{}:mocks[id]??(id==='@/lib/home-analysis'?load('lib/home-analysis.ts',mocks):id.startsWith('.')?load(path.resolve(path.dirname(filename),id+'.ts'),mocks):require(id));
  vm.runInThisContext('(function(require,module,exports){'+source+'\n})',{filename})(req,loaded,loaded.exports);return loaded.exports;
 }
 function cacheMock(){const entries=new Map();return {unstable_cache:(fn,keys)=>async(...args)=>{const key=JSON.stringify([keys,args]);if(!entries.has(key))entries.set(key,Promise.resolve().then(()=>fn(...args)).catch(e=>{entries.delete(key);throw e}));return entries.get(key)}};}
@@ -78,4 +78,26 @@ test('a slow league cannot block a ready league in the private matchup stream',a
 test('matchup streaming requires authentication before any provider or league work',async()=>{
  const route=load('app/api/account/matchups/route.ts',{'@/lib/supabase/server':{createClient:async()=>({auth:{getUser:async()=>({data:{user:null}})},from(){throw Error('No private query allowed')}})},'@/lib/sleeper/home-matchups':{loadHomeMatchup(){throw Error('No provider request allowed')}}});
  const response=await route.GET(new Request('https://fnm.test/api/account/matchups',{headers:{Accept:'application/x-ndjson'}}));assert.equal(response.status,401);
+});
+test('selection memory coalesces reads and never accepts a prior account response',async()=>{
+ const {AccountMemory}=load('lib/account-memory.ts');const memory=new AccountMemory();let resolveA,calls=0;
+ memory.setOwner('a');const loader=()=>{calls++;return new Promise(resolve=>{resolveA=resolve})};
+ const one=memory.load('a',loader),two=memory.load('a',loader);assert.equal(calls,1);
+ memory.setOwner('b');assert.equal(memory.peek('a'),undefined);memory.remember('b',{league:'b'});
+ resolveA({league:'a'});await assert.rejects(one,/Account changed/);await assert.rejects(two,/Account changed/);assert.deepEqual(memory.peek('b'),{league:'b'});assert.equal(memory.peek('a'),undefined);
+ memory.remember('a',{league:'wrong'});assert.deepEqual(memory.peek('b'),{league:'b'});
+});
+test('selection writes invalidate older reads and expired or cleared values cannot be reused',async()=>{
+ const {AccountMemory}=load('lib/account-memory.ts');const memory=new AccountMemory(5);memory.setOwner('a');let complete;
+ const old=memory.load('a',()=>new Promise(resolve=>{complete=resolve}));memory.remember('a',{league:'new'});complete({league:'old'});await assert.rejects(old,/Account changed/);assert.deepEqual(memory.peek('a'),{league:'new'});
+ await new Promise(resolve=>setTimeout(resolve,10));assert.equal(memory.peek('a'),undefined);
+ memory.remember('a',null);assert.equal(await memory.load('a',()=>{throw Error('A cached empty selection should not refetch')}),null);memory.clear();assert.equal(memory.peek('a'),undefined);
+});
+test('homepage payload reduction preserves team player details and identical matchup forecasts',()=>{
+ const {homepageAnalysis}=load('lib/home-analysis.ts'),{forecastMatchup}=load('lib/matchup-forecast.ts');const at=new Date().toISOString();
+ const own={rosterId:1,players:['own','bench'],starters:['own']},rival={rosterId:2,players:['rival'],starters:['rival']};
+ const snapshot=(id,rosterId,team,projectedPoints)=>({playerId:id,rosterId,nflTeam:team,position:'WR',season:2026,week:6,projectedPoints,projectionStats:{rec_yd:100,rec:5},actualStats:{rec:0}});
+ const data={leagueId:'league',season:2026,projectionWeek:6,syncedAt:at,rostersSyncedAt:at,activeSeason:true,currentLeague:{leagueId:'league',userRosterId:1,teams:[own,rival]},profiles:{own:{fullName:'Own'},bench:{fullName:'Bench'},rival:{fullName:'Rival'},...Object.fromEntries(Array.from({length:1000},(_,i)=>['free'+i,{fullName:'Unrostered player '+i}]))},currentSnapshots:[snapshot('own',1,'GB',20),snapshot('bench',1,'CHI',5),snapshot('rival',2,'CHI',30),snapshot('free',null,'GB',10)],accuracySnapshots:Array.from({length:60},(_,i)=>({...snapshot('history'+i,null,'GB',10),week:5,actualPoints:i%2?5:15}))};
+ const card={league:{leagueId:'league',season:'2026'},week:6,status:'Upcoming',own,opponent:rival,score:0,opponentScore:0,forecastInputs:{games:[{home:'GB',away:'CHI',status:'scheduled'}],teams:[{rosterId:1,starters:['own'],points:[0]},{rosterId:2,starters:['rival'],points:[0]}]}};
+ const slim=homepageAnalysis(data,1);assert.deepEqual(forecastMatchup(card,slim),forecastMatchup(card,data));assert.deepEqual(Object.keys(slim.profiles),['own','bench']);assert.deepEqual(slim.currentSnapshots.find(s=>s.playerId==='own').projectionStats,{rec_yd:100,rec:5});assert.ok(slim.currentSnapshots.some(s=>s.playerId==='rival'));assert.ok(!slim.currentSnapshots.some(s=>s.playerId==='free'));assert.ok(JSON.stringify(slim).length<JSON.stringify(data).length/2);
 });

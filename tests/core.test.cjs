@@ -8,7 +8,7 @@ const {createHmac}=require('node:crypto');
 function load(file, mocks={}) {
  const filename=path.resolve(file);const loaded={exports:{}};
  const source=ts.transpileModule(fs.readFileSync(filename,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
- const requireMock=id=>id==='server-only'?{}:id==='next/cache'?{unstable_cache:fn=>fn}:mocks[id]??(id.startsWith('.')?load(path.resolve(path.dirname(filename),id+'.ts'),mocks):require(id));
+ const requireMock=id=>id==='server-only'?{}:id==='next/cache'?{unstable_cache:fn=>fn}:mocks[id]??(id==='@/lib/home-analysis'?load('lib/home-analysis.ts',mocks):id.startsWith('.')?load(path.resolve(path.dirname(filename),id+'.ts'),mocks):require(id));
  vm.runInThisContext('(function(require,module,exports){'+source+'\n})',{filename})(requireMock,loaded,loaded.exports);return loaded.exports;
 }
 const {fetchWithBackoff}=load('lib/yahoo/retry.ts');
