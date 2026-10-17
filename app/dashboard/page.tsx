@@ -2,7 +2,7 @@
 
 import {EventTracker} from "@/components/EventTracker";
 import Link from "next/link";
-import {TeamSnapshot} from "@/components/TeamSnapshot";
+import {YahooAttribution} from "@/components/YahooAttribution";
 import { AppShell } from "@/components/AppShell";
 import { useSelectedLeague } from "@/components/LeaguePicker";
 import { PowerRankingsEngine } from "@/components/PowerRankingsEngine";
@@ -43,7 +43,7 @@ export default function DashboardPage() {
   }));
   const recommendations: PlayerRecommendation[] = data
     ? data.nextMoves ?? buildPersonalizedPlayerRecommendations(league, myTeam, data)
-    : genericRecommendations;
+    : source === "yahoo" ? [{id: "yahoo-review", category: "Lineup", impact: "Medium", confidence: "Limited", title: "Review your starting lineup", reason: "Check the starter and bench statuses in your current Yahoo roster. Independent weekly projections are not available yet, so we cannot estimate a lineup gain.", projectedGain: null}] : genericRecommendations;
 
   return (
     <AppShell><EventTracker event="dashboard_viewed"/>{data?.nextMoves?.length ? <EventTracker event="first_recommendation_shown"/> : null}
@@ -57,25 +57,25 @@ export default function DashboardPage() {
       <section className="panel next-moves dashboard-priority-panel">
         <div className="panel-heading">
           <div><span className="eyebrow">Your priority board</span><h2>{myTeam.teamName}&apos;s Next Moves</h2></div>
-          <span className="pill">Your roster only</span>
+
         </div>
         <div className="priority-grid">
           {recommendations.map((recommendation, index) => (
             <article className="move-card intelligence-move-card" key={recommendation.id}>
               <div className="move-number">{index + 1}</div>
               <div>
-                <div className="move-meta"><span>{recommendation.category}</span><span>{recommendation.impact} impact</span><span>{recommendation.confidence === "Limited" ? "Low" : recommendation.confidence === "Medium" ? "Moderate" : "High"} confidence</span></div>
+
                 <h3>{recommendation.title}</h3>
-                <p>{recommendation.reason}</p><Link className="button small" href={recommendation.category === "Trade" && data?.pro ? "/trade-lab" : "/team"}>{recommendation.category === "Trade" && data?.pro ? "Open Trade Lab" : "Review My Team"}</Link>
-                {recommendation.projectedGain !== null && recommendation.projectedGain !== undefined && <small className="projected-gain">Projected gain: +{recommendation.projectedGain.toFixed(2)} points</small>}
+                <p>{recommendation.reason.split(/(?<=[.!?])\s/)[0]}</p><details><summary>Why this move?</summary><p>{recommendation.reason}</p><small>{recommendation.confidence === "Limited" ? "Limited" : recommendation.confidence} confidence</small></details><Link className="button small" href={recommendation.category === "Trade" && data?.pro ? "/trade-lab" : "/team"}>{recommendation.category === "Trade" && data?.pro ? "Open Trade Lab" : "Review My Team"}</Link>
+                {recommendation.projectedGain !== null && recommendation.projectedGain !== undefined && <small className="projected-gain">Projected gain: +{recommendation.projectedGain.toFixed(1)} points</small>}
               </div>
             </article>
           ))}
         </div>
       </section>
 
-      <TeamSnapshot league={league} rosterId={myTeam.rosterId} data={data}/>{data?.pro === false && <p>Your free plan includes your highest-priority move. <Link href="/pricing">Explore Pro</Link> for the full recommendation stack.</p>}
-      <details className="panel"><summary>Team strength and league context</summary>
+      {source === "yahoo" && <YahooAttribution/>}{data?.pro === false && <p>Your free plan includes your highest-priority move. <Link href="/pricing">Explore Pro</Link> for the full recommendation stack.</p>}
+      {source !== "yahoo" && <details className="panel"><summary>Team strength and league context</summary>
       <PowerRankingsEngine
         league={league}
         source={source}
@@ -85,7 +85,7 @@ export default function DashboardPage() {
         intelligenceError={intelligenceState.error}
       />
 
-      </details>
+      </details>}
     </AppShell>
   );
 }
