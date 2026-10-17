@@ -174,7 +174,7 @@ function TradeSide({ title, subtitle, available, selected, onAdd, onRemove }: {
               {asset.kind === "player" ? (
                 <>
                   <small>{asset.position}{asset.nflTeam ? ` · ${asset.nflTeam}` : ""}</small>
-                  <small>{asset.nflTeam || "FA"}{asset.starter ? " · Imported starter" : " · Imported bench"}{asset.projectedPoints !== null ? ` · ${asset.projectedPoints.toFixed(1)} projected` : ""}</small>
+                  
                 </>
               ) : <small>{asset.pick.draftSlot ? "Exact draft slot" : `Projected ${asset.tier}`} · originally {asset.pick.originalTeamName || "another roster"}</small>}
             </div>
