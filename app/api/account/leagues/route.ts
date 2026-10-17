@@ -46,13 +46,14 @@ export async function POST(request: NextRequest) {
     }
     if (!/^\d{4}$/.test(league.season)) return NextResponse.json({ error: "League season must be a four-digit year." }, { status: 400 });
     const entitlement = await getUserEntitlement(supabase, user.id);
-    const { count: savedCount } = await supabase.from("leagues").select("id", { count: "exact", head: true }).eq("user_id", user.id);
-    const { data: existing } = await supabase.from("leagues").select("id").eq("user_id", user.id).eq("provider", league.provider).eq("provider_league_id", league.leagueId).eq("season", Number(league.season)).maybeSingle();
+    const { count: savedCount, error: countError } = await supabase.from("leagues").select("id", { count: "exact", head: true }).eq("user_id", user.id);
+    const { data: existing, error: existingError } = await supabase.from("leagues").select("id").eq("user_id", user.id).eq("provider", league.provider).eq("provider_league_id", league.leagueId).eq("season", Number(league.season)).maybeSingle();
+    if (countError || existingError) throw new Error("We couldn’t check your saved leagues. Your selection is unchanged.");
     if (!existing && Number(savedCount || 0) >= entitlement.maxConnectedLeagues) {
       return NextResponse.json({ error: `Your current plan allows ${entitlement.maxConnectedLeagues} connected leagues. Upgrade or remove a league before adding another.` }, { status: 403 });
     }
-    await supabase.from("leagues").update({ is_active: false }).eq("user_id", user.id).eq("is_active", true);
-    const { error } = await supabase.from("leagues").upsert({
+    const { data: saved, error } = await supabase.from("leagues").upsert({
+      ...(existing ? { id: existing.id } : {}),
       user_id: user.id,
       provider: league.provider,
       provider_league_id: league.leagueId,
@@ -62,8 +63,10 @@ export async function POST(request: NextRequest) {
       is_active: true,
       raw_data: league,
       synced_at: new Date().toISOString()
-    }, { onConflict: "user_id,provider,provider_league_id,season" });
-    if (error) throw error;
+    }, { onConflict: "user_id,provider,provider_league_id,season" }).select("id").single();
+    if (error || !saved) throw new Error("We couldn’t save this league. Your previous selection is unchanged. Try again.");
+    const { error: selectionError } = await supabase.from("leagues").update({ is_active: false }).eq("user_id", user.id).eq("is_active", true).neq("id", saved.id);
+    if (selectionError) throw new Error("Your league was saved, but we couldn’t finish switching leagues. Try again.");
     await recordProductEvent({ userId: user.id, eventName: "league_connected", properties: { provider: league.provider, leagueType: league.leagueType, totalRosters: league.totalRosters } });
     return NextResponse.json({ saved: true });
   } catch (error) {

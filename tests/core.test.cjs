@@ -128,3 +128,30 @@ test('account deletion cannot proceed when billing ownership state cannot be rea
 });
 
 test('Sleeper team images reject off-provider, credential-bearing and executable URLs',()=>{const {sleeperAvatarUrl}=load('lib/sleeper-avatar.ts');for(const value of ['https://outside.test/avatar.jpg','https://sleepercdn.com.evil.test/uploads/'+ 'a'.repeat(32)+'.jpg','http://sleepercdn.com/avatars/'+ 'a'.repeat(32),'https://user:secret@sleepercdn.com/avatars/'+ 'a'.repeat(32),'javascript:alert(1)','data:image/svg+xml,<svg/>',null])assert.equal(sleeperAvatarUrl(value),null);assert.equal(sleeperAvatarUrl('a'.repeat(32)),'https://sleepercdn.com/avatars/thumbs/'+ 'a'.repeat(32));});
+
+function savedLeagueRoute(writeError=null) {
+ const calls=[];
+ const db={
+  auth:{getUser:async()=>({data:{user:{id:'owner-fixture'}}})},
+  from(){
+   return {
+    select(){return this}, eq(){return this},
+    maybeSingle:async()=>({data:{id:'existing-league'},error:null}),
+    then(resolve){return Promise.resolve({count:1,error:null}).then(resolve)},
+    upsert(row){
+     calls.push({operation:'save',row});
+     return {select(){return {single:async()=>({data:writeError?null:{id:'existing-league'},error:writeError})}}};
+    },
+    update(){
+     calls.push({operation:'deactivate'});
+     return {eq(){return this},neq(field,id){calls.push({operation:'exclude',field,id});return Promise.resolve({error:null})}};
+    }
+   };
+  }
+ };
+ const route=load('app/api/account/leagues/route.ts',{'@/lib/supabase/server':{createClient:async()=>db},'@/lib/billing/entitlements':{getUserEntitlement:async()=>({maxConnectedLeagues:1})},'@/lib/billing/events':{recordProductEvent:async()=>true}});
+ const request=new Request('https://fnm.test/api/account/leagues',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({league:{leagueId:'123456789123456789',provider:'sleeper',name:'Fixture league',season:'2026',userRosterId:3,teams:[{rosterId:3}]},selectedRosterId:3})});
+ return {calls,run:()=>route.POST(request)};
+}
+test('refreshing the free account’s existing league retains its row ID and selects only after saving',async()=>{const f=savedLeagueRoute();assert.equal((await f.run()).status,200);assert.deepEqual(f.calls.map(c=>c.operation),['save','deactivate','exclude']);assert.equal(f.calls[0].row.id,'existing-league');assert.equal(f.calls[0].row.user_id,'owner-fixture');assert.equal(f.calls[0].row.selected_roster_id,3);assert.equal(f.calls[2].id,'existing-league');});
+test('a failed league refresh leaves the previous selection active and returns a safe error',async()=>{const f=savedLeagueRoute({code:'23514',message:'private database failure'});const r=await f.run();assert.equal(r.status,500);assert.deepEqual(f.calls.map(c=>c.operation),['save']);const message=(await r.json()).error;assert.match(message,/previous selection is unchanged/);assert.doesNotMatch(message,/private database failure/);});
