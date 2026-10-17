@@ -14,18 +14,18 @@ export async function GET(request: Request) {
   const admin = createAdminClient();
   const { data, error } = await admin.from("subscriptions")
     .select("stripe_subscription_id")
-    .in("status", ["active", "trialing", "past_due", "incomplete"])
+    .in("status", ["active", "trialing", "past_due", "incomplete", "unpaid", "paused"])
     .limit(100);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Billing reconciliation storage unavailable." }, { status: 500 });
   const results: Array<{ id: string; ok: boolean; error?: string }> = [];
   for (const row of data || []) {
     try {
       const subscription = await stripeRequest<Record<string, any>>(`/subscriptions/${row.stripe_subscription_id}`);
       await syncStripeSubscriptionObject(subscription);
       results.push({ id: row.stripe_subscription_id, ok: true });
-    } catch (syncError) {
-      results.push({ id: row.stripe_subscription_id, ok: false, error: syncError instanceof Error ? syncError.message : "Unknown error" });
+    } catch {
+      results.push({ id: row.stripe_subscription_id, ok: false, error: "Subscription synchronization failed; retry required." });
     }
   }
-  return NextResponse.json({ processed: results.length, results });
+  return NextResponse.json({ processed: results.length, results }, {status:results.some(result=>!result.ok)?503:200});
 }
