@@ -31,3 +31,25 @@ test("Preview protection remains enabled without the automation credential",asyn
   await expect(page.getByRole("heading",{name:"Upgrade RB2",exact:true})).toHaveCount(0);
  }finally{await context.close();}
 });
+
+test("fictional decision tools preserve context, support accessible player details and filter waivers",async({page},testInfo)=>{
+ await page.goto('/demo');
+ await page.getByRole('button',{name:'Load fictional example',exact:true}).click();
+ await page.getByRole('button',{name:'Josh Allen',exact:true}).first().click();
+ const dialog=page.getByRole('dialog');
+ await expect(dialog).toBeVisible();
+ await expect(dialog.getByRole('heading',{name:'Josh Allen',exact:true})).toBeVisible();
+ await dialog.getByRole('button',{name:'Close player details'}).press('Escape');
+ await expect(dialog).toHaveCount(0);
+ await page.getByRole('button',{name:'Start/Sit',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'Who should I start?',exact:true})).toBeVisible();
+ await page.getByLabel('Roster slot',{exact:true}).selectOption('RB');
+ await expect(page.locator('.lineup-decision')).toHaveCount(2);
+ await page.locator('.preview-tool-section').screenshot({path:testInfo.outputPath('start-sit-fictional.png')});
+ await page.getByRole('button',{name:'Waiver Help',exact:true}).click();
+ await expect(page.getByRole('button',{name:'Fictional Waiver RB',exact:true})).toBeVisible();
+ await page.getByLabel('Position',{exact:true}).selectOption('WR');
+ await expect(page.getByRole('button',{name:'Fictional Waiver RB',exact:true})).toHaveCount(0);
+ await expect(page.getByText('No available players with supported projections match this filter.')).toBeVisible();
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBeTruthy();
+});
