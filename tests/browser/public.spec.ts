@@ -45,6 +45,10 @@ test("fictional decision tools preserve context, support accessible player detai
  await expect(page.getByRole('heading',{name:'Who should I start?',exact:true})).toBeVisible();
  await page.getByLabel('Roster slot',{exact:true}).selectOption('RB');
  await expect(page.locator('.lineup-decision')).toHaveCount(2);
+ await page.getByText('Compare two roster players',{exact:true}).click();
+ await page.getByLabel('First player',{exact:true}).selectOption({label:'Bijan Robinson'});
+ await page.getByLabel('Second player',{exact:true}).selectOption({label:'Breece Hall'});
+ await expect(page.getByRole('status').filter({hasText:'Bijan Robinson projects higher'})).toBeVisible();
  await page.locator('.preview-tool-section').screenshot({path:testInfo.outputPath('start-sit-fictional.png')});
  await page.getByRole('button',{name:'Waiver Help',exact:true}).click();
  await expect(page.getByRole('button',{name:'Fictional Waiver RB',exact:true})).toBeVisible();
