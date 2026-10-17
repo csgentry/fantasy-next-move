@@ -1,3 +1,4 @@
+import {PreviewDecisionTools} from "@/components/PreviewDecisionTools";
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { PowerRankingsEngine } from "@/components/PowerRankingsEngine";
@@ -44,7 +45,7 @@ export default function DemoPage() {
         </div>
       </section>
 
-      <details className="panel"><summary>Explore team strength</summary><PowerRankingsEngine league={demoLeague} source="demo" myRosterId={myTeam.rosterId} />
+      <PreviewDecisionTools/><details className="panel"><summary>Explore team strength</summary><PowerRankingsEngine league={demoLeague} source="demo" myRosterId={myTeam.rosterId} />
       </details><details className="panel"><summary>Explore the roster</summary><RosterSnapshot team={myTeam} league={demoLeague} source="demo" />
 
       </details><section className="panel pricing-guarantee">
