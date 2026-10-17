@@ -173,6 +173,10 @@ export type ProjectionAccuracy = {
 };
 
 export type PlayerIntelligencePayload = {
+  currentLeague?: ImportedLeague;
+  rostersSyncedAt?: string | null;
+  currentMatchups?: WeeklyTeamScore[];
+  activeSeason?: boolean;
   nextMoves?: PlayerRecommendation[];
   pro?: boolean;
   provider: "sleeper";
