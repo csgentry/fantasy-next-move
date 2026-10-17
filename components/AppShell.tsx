@@ -8,6 +8,7 @@ import {Brand} from "./Brand";
 import {ToolIcon} from "./ToolIcon";
 import {useYahooSession} from "./YahooSession";
 import {YahooAttribution} from "./YahooAttribution";
+import { ProviderAvatar } from "./ProviderAvatar";
 import { AuthStatus } from "@/components/AuthStatus";
 
 const nav = [
@@ -18,7 +19,7 @@ const nav = [
   ["More", "/more"]
 ];
 
-export function AppShell({ children, showAdmin = false, tone="dark", nextMove = false }: { children: ReactNode; showAdmin?: boolean; tone?:"dark"|"light"; nextMove?: boolean }) {
+export function AppShell({ children, showAdmin = false, tone="dark", nextMove = false, profileAvatarUrl = null }: { children: ReactNode; showAdmin?: boolean; tone?:"dark"|"light"; nextMove?: boolean; profileAvatarUrl?: string | null }) {
   const pathname = usePathname();
   const yahoo = useYahooSession();
   const navigation = showAdmin ? [...nav, ["FantasyNextMove Admin", "/admin"]] : nav;
@@ -29,25 +30,26 @@ export function AppShell({ children, showAdmin = false, tone="dark", nextMove = 
       <aside className="sidebar">
         {nextMove && <Link href="/more" className="dashboard-header-control dashboard-menu" aria-label="Open more tools"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M4 6h16M4 12h12M4 18h16"/></svg></Link>}
         <Brand artwork={nextMove}/>
-        {nextMove && <Link href="/account" className="dashboard-header-control dashboard-account" aria-label="Your account"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 22v-2a8 8 0 0 1 16 0v2"/></svg></Link>}
+        {nextMove && <Link href="/account" className="dashboard-header-control dashboard-account" aria-label="Your account"><ProviderAvatar kind="account" name="Your profile" url={profileAvatarUrl}/><span>Account</span></Link>}
         <nav aria-label="Primary navigation">
           {navigation.map(([label, href],index) => {const active=pathname===href || (href==="/more" && ["/account","/waivers","/connect"].includes(pathname));return <Link aria-current={active?"page":undefined} className={active?"active":""} key={href} href={href}><ToolIcon name={(["home","team","trade","league","more"] as const)[index]||"more"}/><span>{label}</span></Link>})}
         </nav>
-        <div className="sidebar-card">
+        {!nextMove && <div className="sidebar-card">
           <strong>League-aware analysis</strong>
           <p>Understand your team. Focus on the decision that matters next.</p>
           <AuthStatus />
-        </div>
+        </div>}
       </aside>
       <main className="app-content" id="main-content">
         {children}
-        <footer className="app-footer">
+        {nextMove ? <footer className="app-footer" aria-label="Website information"><span>FantasyNextMove</span>{yahoo.selection && <YahooAttribution/>}<span className="footer-links"><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/pricing">Pricing</Link><Link href="/account">Account</Link></span></footer> : <footer className="app-footer">
           <span>FantasyNextMove</span>
           {yahoo.selection && <YahooAttribution/>}
           <span>Read-only analysis. No lineup, waiver, or trade actions are submitted.</span>
           <span className="footer-links"><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/pricing">Pricing</Link></span>
           <AuthStatus compact />
-        </footer>
+        </footer>}
+
       </main>
     </div>
   );

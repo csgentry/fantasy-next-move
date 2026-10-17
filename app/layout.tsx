@@ -1,12 +1,18 @@
 import {PlayerAnalysisSession} from "@/components/PlayerAnalysisSession";
 import {YahooSession} from "@/components/YahooSession";
 import {AnalyticsConsent} from "@/components/AnalyticsConsent";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { LegacyStorageCleanup } from "@/components/LegacyStorageCleanup";
 import "./globals.css";
 import "./cleanup.css";
 import "./experience.css";
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover'
+};
 
 export const metadata: Metadata = {
   title: "FantasyNextMove",
