@@ -31,7 +31,7 @@ export async function recordBillingAudit(input: {
   reason?: string | null;
 }) {
   const admin = createAdminClient();
-  await admin.from("billing_audit_log").insert({
+  const { error } = await admin.from("billing_audit_log").insert({
     user_id: input.userId || null,
     actor_user_id: input.actorUserId || null,
     action: input.action,
@@ -40,4 +40,5 @@ export async function recordBillingAudit(input: {
     stripe_event_id: input.stripeEventId || null,
     reason: input.reason || null
   });
+  if (error) throw error;
 }
