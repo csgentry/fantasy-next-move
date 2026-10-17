@@ -8,19 +8,26 @@ export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get("code");
   const requestedNext = request.nextUrl.searchParams.get("next");
   const next = requestedNext?.startsWith("/") && !requestedNext.startsWith("//") ? requestedNext : type === "recovery" ? "/update-password" : "/dashboard";
-  const supabase = await createClient();
-
-  if (code) {
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) return NextResponse.redirect(new URL(next, request.url));
-    return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(error.message)}`, request.url));
+  if (!code && !(tokenHash && type)) {
+    return NextResponse.redirect(new URL("/login?error=The confirmation link is incomplete.", request.url));
   }
+  try {
+    const supabase = await createClient();
 
-  if (tokenHash && type) {
-    const { error } = await supabase.auth.verifyOtp({ type, token_hash: tokenHash });
-    if (!error) return NextResponse.redirect(new URL(next, request.url));
-    return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(error.message)}`, request.url));
+    if (code) {
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
+      if (!error) return NextResponse.redirect(new URL(next, request.url));
+      return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(error.message)}`, request.url));
+    }
+
+    if (tokenHash && type) {
+      const { error } = await supabase.auth.verifyOtp({ type, token_hash: tokenHash });
+      if (!error) return NextResponse.redirect(new URL(next, request.url));
+      return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(error.message)}`, request.url));
+    }
+
+  } catch {
+    return NextResponse.redirect(new URL("/login?error=Unable to complete confirmation. Please try again.", request.url));
   }
-
   return NextResponse.redirect(new URL("/login?error=The confirmation link is incomplete.", request.url));
 }

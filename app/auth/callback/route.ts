@@ -6,9 +6,13 @@ export async function GET(request: NextRequest) {
   const requestedNext = request.nextUrl.searchParams.get("next");
   const next = requestedNext?.startsWith("/") && !requestedNext.startsWith("//") ? requestedNext : "/dashboard";
   if (code) {
-    const supabase = await createClient();
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) return NextResponse.redirect(new URL(next, request.url));
+    try {
+      const supabase = await createClient();
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
+      if (!error) return NextResponse.redirect(new URL(next, request.url));
+    } catch {
+      // Keep configuration/provider failures inside the sign-in recovery flow.
+    }
   }
   return NextResponse.redirect(new URL("/login?error=Unable to complete sign-in.", request.url));
 }
