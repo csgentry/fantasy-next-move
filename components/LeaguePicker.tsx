@@ -36,7 +36,7 @@ export function useSelectedLeague() {
         setSource(remote.league.provider);
         setTeamRosterIdState(selectedRosterId);
       })
-      .catch(() => {if(!cancelled&&epoch===version.current) setError("We couldn’t load your league. Your saved connection is unchanged.");})
+      .catch(() => {if(!cancelled&&epoch===version.current){setLeagueState(demoLeague);setSource('demo');setSelectionOwner(owner);setError("We couldn’t load your league. Your saved connection is unchanged.");}})
       .finally(() => { if (!cancelled) setHydrated(true); });
     return () => { cancelled = true; };
   }, [owner,accountReady,loadSelection]);

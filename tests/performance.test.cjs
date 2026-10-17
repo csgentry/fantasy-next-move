@@ -101,3 +101,23 @@ test('homepage payload reduction preserves team player details and identical mat
  const card={league:{leagueId:'league',season:'2026'},week:6,status:'Upcoming',own,opponent:rival,score:0,opponentScore:0,forecastInputs:{games:[{home:'GB',away:'CHI',status:'scheduled'}],teams:[{rosterId:1,starters:['own'],points:[0]},{rosterId:2,starters:['rival'],points:[0]}]}};
  const slim=homepageAnalysis(data,1);assert.deepEqual(forecastMatchup(card,slim),forecastMatchup(card,data));assert.deepEqual(Object.keys(slim.profiles),['own','bench']);assert.deepEqual(slim.currentSnapshots.find(s=>s.playerId==='own').projectionStats,{rec_yd:100,rec:5});assert.ok(slim.currentSnapshots.some(s=>s.playerId==='rival'));assert.ok(!slim.currentSnapshots.some(s=>s.playerId==='free'));assert.ok(JSON.stringify(slim).length<JSON.stringify(data).length/2);
 });
+test('an authenticated selection failure resolves to an informative state instead of endless loading',async()=>{
+ const cells=[];let cursor=0,effects=[];
+ const react={
+  useState(initial){const index=cursor++;if(!(index in cells))cells[index]=typeof initial==='function'?initial():initial;return [cells[index],value=>{cells[index]=typeof value==='function'?value(cells[index]):value}]},
+  useRef(value){const index=cursor++;return cells[index]??(cells[index]={current:value})},
+  useEffect(callback,deps){const index=cursor++,previous=cells[index];if(!previous||deps.some((value,i)=>!Object.is(value,previous.deps[i]))){previous?.cleanup?.();cells[index]={deps};effects.push(()=>{cells[index].cleanup=callback()});}}
+ };
+ let session={owner:null,accountReady:false};
+ const demo={leagueId:'demo',provider:'demo',userRosterId:1,teams:[{rosterId:1}]};
+ const {useSelectedLeague}=load('components/LeaguePicker.tsx',{
+  react,
+  './YahooSession':{useYahooSession:()=>({selection:null})},
+  './PlayerAnalysisSession':{useAnalysisSession:()=>({...session,peekSelection:()=>undefined,loadSelection:async()=>{throw Error('Controlled database failure')},rememberSelection:()=>{}})},
+  '@/lib/account-storage':{},'@/lib/demo-data':{demoLeague:demo},'@/lib/storage':{clearLegacyBrowserData:()=>{}}
+ });
+ const render=()=>{cursor=0;return useSelectedLeague()};
+ assert.equal(render().hydrated,false);effects.splice(0).forEach(effect=>effect());
+ session={owner:'owner-a:1',accountReady:true};assert.equal(render().hydrated,false);effects.splice(0).forEach(effect=>effect());
+ await new Promise(resolve=>setImmediate(resolve));const result=render();assert.equal(result.hydrated,true);assert.match(result.error,/couldn’t load your league/);assert.equal(result.source,'demo');
+});
