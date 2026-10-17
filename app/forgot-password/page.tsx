@@ -1,3 +1,4 @@
+import {Brand} from "@/components/Brand";
 import Link from "next/link";
 import { sendPasswordReset } from "@/app/auth/actions";
 
@@ -7,7 +8,7 @@ export default async function ForgotPasswordPage({ searchParams }: { searchParam
   const message = typeof params.message === "string" ? params.message : "";
   return (
     <main className="auth-page"><section className="auth-card">
-      <Link className="brand auth-brand" href="/"><span className="brand-mark">FNM</span><span>FantasyNextMove</span></Link>
+      <Brand href="/"/>
       <div><span className="eyebrow">Account recovery</span><h1>Reset your password</h1><p>Enter the email used for your beta account.</p></div>
       {error && <div className="connection-message error">{error}</div>}
       {message && <div className="connection-message success">{message}</div>}
