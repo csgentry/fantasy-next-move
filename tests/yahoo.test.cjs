@@ -16,3 +16,21 @@ test('invalid grant from old refresh cannot delete a newly reconnected credentia
 function apiFixture(failFirst=false){const requests=[];const season=String(new Date().getUTCFullYear());const api=load('lib/yahoo/api.ts',{'./retry':{fetchWithBackoff:async url=>{requests.push(url);if(failFirst&&url.includes('/league/461.l.123'))return new Response('',{status:503});let xml;if(url.includes('/users;'))xml='<fantasy_content><team><team_key>461.l.123.t.2</team_key><name>Owned</name></team><team><team_key>461.l.124.t.1</team_key><name>Second</name></team></fantasy_content>';else if(url.includes('/roster/'))xml='<fantasy_content><player><player_key>461.p.001</player_key><name><full>Fixture Starter</full></name><display_position>WR</display_position><eligible_positions><position>WR</position><position>W/R/T</position></eligible_positions><selected_position><position>WR</position></selected_position></player><player><player_key>461.p.002</player_key><name><full>Unknown Slot</full></name></player><player><player_id>999</player_id></player></fantasy_content>';else xml=`<fantasy_content><league><league_key>${url.includes('461.l.124')?'461.l.124':'461.l.123'}</league_key><season>${season}</season><current_week>6</current_week><num_teams>12</num_teams><settings><roster_positions><roster_position><position>QB</position><count>0</count></roster_position><roster_position><position>WR</position><count>2</count></roster_position></roster_positions><stat_modifiers><stats><stat><stat_id>4</stat_id><value>0.04</value></stat><stat><stat_id>5</stat_id><value>0</value></stat></stats></stat_modifiers></settings></league></fantasy_content>`;return new Response(xml,{status:200});}}});return {api,requests};}
 test('Yahoo normalization preserves full identifiers, explicit starters, eligibility and zero scoring',async()=>{const {api,requests}=apiFixture();const league=await api.selectYahooLeague(token,'461.l.123','461.l.123.t.2');assert.deepEqual(league.teams[0].players,['461.p.001','461.p.002']);assert.deepEqual(league.teams[0].starters,['461.p.001']);assert.deepEqual(league.teams[0].playerProfiles['461.p.001'].eligiblePositions,['WR','W/R/T']);assert.deepEqual(league.rosterPositions,['WR','WR']);assert.deepEqual(league.providerContext.scoringModifiers,{'4':0.04,'5':0});assert.equal(league.providerContext.currentWeek,6);assert.deepEqual(league.scoringSettings,{});assert.equal(requests.filter(url=>url.includes('/roster/')).length,1);});
 test('discovery keeps successful leagues after partial failure with an explicit warning',async()=>{const {api}=apiFixture(true);const warnings=[];const result=await api.discoverYahooLeagues(token,m=>warnings.push(m));assert.equal(result.length,1);assert.equal(result[0].leagueKey,'461.l.124');assert.equal(warnings.length,1);});
+
+test('Yahoo diagnostics retain only recognized codes and do not call every 401 expiration',async()=>{
+ for(const [body,header,expected] of [
+  ['<error><description>OAuth oauth_problem="token_rejected", sensitive-fixture-value</description></error>',null,'token_rejected'],
+  ['{"error":"insufficient_scope","error_description":"sensitive-fixture-value"}',null,'insufficient_scope'],
+  ['private fixture body','Bearer error="invalid_token"','invalid_token'],
+  ['{"error":"sensitive-fixture-value"}',null,'unclassified']
+ ]){
+  const api=load('lib/yahoo/api.ts',{'./retry':{fetchWithBackoff:async()=>new Response(body,{status:401,headers:header?{'www-authenticate':header}:{}})}});
+  await assert.rejects(api.yahooFantasyFetch('/users;use_login=1',token),error=>{assert.equal(error.providerCode,expected);assert.equal(error.status,401);assert.ok(!error.message.includes('sensitive-fixture-value'));assert.ok(!error.message.includes('expired'));return true;});
+ }
+});
+test('Yahoo error parsing stops before a code beyond its response budget',async()=>{
+ let canceled=false,calls=0;
+ const stream=new ReadableStream({pull(controller){calls++;controller.enqueue(new TextEncoder().encode('x'.repeat(8192)+'oauth_problem="token_expired"'));},cancel(){canceled=true}});
+ const api=load('lib/yahoo/api.ts',{'./retry':{fetchWithBackoff:async()=>new Response(stream,{status:401})}});
+ await assert.rejects(api.yahooFantasyFetch('/users',token),error=>error.providerCode==='unclassified');assert.equal(canceled,true);assert.ok(calls<=2);
+});

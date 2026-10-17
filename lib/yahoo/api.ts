@@ -82,9 +82,36 @@ function uniqueBy<T>(items: T[], selector: (item: T) => string) {
   });
 }
 
+const YAHOO_PROBLEMS = new Set(["invalid_token", "insufficient_scope", "token_expired", "token_rejected", "consumer_key_rejected", "consumer_key_unknown", "permission_denied", "signature_invalid", "nonce_used", "timestamp_refused"]);
+
+async function yahooProblem(response: Response) {
+  // Examine a bounded error response in memory. Never return or log raw bodies,
+  // authorization headers, provider URLs, or arbitrary provider descriptions.
+  let detail = (response.headers.get("www-authenticate") || "").slice(0, 8192);
+  const reader = response.body?.getReader();
+  if (reader) {
+    const decoder = new TextDecoder();
+    let remaining = 8192;
+    try {
+      while (remaining > 0) {
+        const {done, value} = await reader.read();
+        if (done) break;
+        const part = value.subarray(0, remaining);
+        detail += decoder.decode(part, {stream: true});
+        remaining -= part.byteLength;
+      }
+    } finally {
+      await reader.cancel().catch(() => {});
+      reader.releaseLock();
+    }
+  }
+  const code = detail.match(/(?:oauth_problem|error)["']?\s*[:=]\s*["']?([a-z_]+)/i)?.[1]?.toLowerCase();
+  return code && YAHOO_PROBLEMS.has(code) ? code : "unclassified";
+}
+
 export class YahooApiError extends Error {
-  constructor(public readonly status: number) {
-    super(status === 401 ? "Yahoo authorization expired. Reconnect Yahoo." : status === 403 ? "Yahoo Fantasy access is not authorized for this application or account." : status === 429 ? "Yahoo is limiting requests. Wait before refreshing." : "Yahoo Fantasy is temporarily unavailable. Try again.");
+  constructor(public readonly status: number, public readonly providerCode = "unclassified") {
+    super(providerCode === "token_expired" ? "Yahoo authorization expired. Reconnect Yahoo." : status === 401 ? "Yahoo rejected this Fantasy Sports request. Reconnect Yahoo. If this continues, Fantasy Sports access needs verification." : status === 403 ? "Yahoo Fantasy access is not authorized for this application or account." : status === 429 ? "Yahoo is limiting requests. Wait before refreshing." : "Yahoo Fantasy is temporarily unavailable. Try again.");
     this.name = "YahooApiError";
   }
 }
@@ -97,7 +124,7 @@ export async function yahooFantasyFetch(path: string, token: YahooToken) {
     },
     cache: "no-store"
   });
-  if (!response.ok) throw new YahooApiError(response.status);
+  if (!response.ok) throw new YahooApiError(response.status, await yahooProblem(response));
   const body = await response.text();
   return parser.parse(body) as UnknownRecord;
 }

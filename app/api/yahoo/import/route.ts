@@ -22,7 +22,7 @@ async function handle(request?: Request) {
     if (typeof body.leagueKey !== "string" || typeof body.teamKey !== "string") return NextResponse.json({error: "Choose a league and your team."}, {status: 400});
     return NextResponse.json({ownerId: data.user.id, league: await selectYahooLeague(token, body.leagueKey, body.teamKey)});
   } catch (error) {
-    if (error instanceof YahooApiError) return NextResponse.json({error: error.message}, {status: [401, 403, 429].includes(error.status) ? error.status : 502});
+    if (error instanceof YahooApiError) return NextResponse.json({error: error.message, providerStatus: error.status, providerCode: error.providerCode}, {status: [401, 403, 429].includes(error.status) ? error.status : 502});
     return NextResponse.json({error: "Unable to load your current Yahoo team. Retry or reconnect Yahoo."}, {status: 502});
   }
 }
