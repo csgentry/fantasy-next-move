@@ -19,7 +19,7 @@ export function StartSit({league,team,data}:Props){
  function filter(next:string){setSlot(next);setFirst('');setSecond('');}
  return <section className="panel lineup-tool" id="start-sit">
   <div className="section-title"><div><span className="eyebrow">Week {data!.projectionWeek} · Your league’s scoring</span><h2>Who should I start?</h2></div><span className="context-label">Analysis only</span></div>
-  <div className="lineup-answer"><span aria-hidden="true">✓</span><div><strong>{missing?'Some slots need more data':changes?`${changes} lineup ${changes===1?'opportunity':'opportunities'}`:'Your starters lead the projections'}</strong><p>{missing?'Review the available projections and verify your roster.':changes?'Review the suggested changes below before kickoff.':'No projected upgrade from your eligible bench.'}</p></div></div>
+  <div className="lineup-answer"><span aria-hidden="true">{missing?'?':'✓'}</span><div><strong>{missing?'Some slots need more data':changes?`${changes} lineup ${changes===1?'opportunity':'opportunities'}`:'Your starters lead the projections'}</strong><p>{missing?'Review the available projections and verify your roster.':changes?'Review the suggested changes below before kickoff.':'No projected upgrade from your eligible bench.'}</p></div></div>
   <div className="position-filters" role="group" aria-label="Roster slot">{['ALL',...positions].map(position=><button key={position} aria-pressed={slot===position} onClick={()=>filter(position)}>{position==='ALL'?'All':position}</button>)}</div>
   <div className="lineup-decisions">{review.filter(r=>slot==='ALL'||r.slot===slot).map(r=>{
    const p=r.suggestedId?data!.profiles[r.suggestedId]:null;
