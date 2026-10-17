@@ -1,3 +1,4 @@
+import {PlayerAnalysisSession} from "@/components/PlayerAnalysisSession";
 import {YahooSession} from "@/components/YahooSession";
 import {AnalyticsConsent} from "@/components/AnalyticsConsent";
 import type { Metadata } from "next";
@@ -15,7 +16,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="en">
-      <body><YahooSession><LegacyStorageCleanup />{children}<AnalyticsConsent/></YahooSession></body>
+      <body><YahooSession><PlayerAnalysisSession><LegacyStorageCleanup />{children}<AnalyticsConsent/></PlayerAnalysisSession></YahooSession></body>
     </html>
   );
 }
