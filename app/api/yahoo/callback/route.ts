@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { yahooUserInfo } from "@/lib/yahoo/api";
 import { yahooConnectionEnabled } from "@/lib/yahoo/availability";
 import {
   callbackUrl,
@@ -23,7 +22,7 @@ export async function GET(request: NextRequest) {
   if (error) {
     return NextResponse.redirect(
       new URL(
-        `/connect?yahoo_error=${encodeURIComponent(error)}`,
+        `/connect?yahoo_error=${encodeURIComponent("Yahoo authorization was not completed.")}`,
         request.nextUrl.origin
       )
     );
@@ -49,39 +48,15 @@ export async function GET(request: NextRequest) {
 
     if (expectedState !== `${data.user.id}:${state}`) return NextResponse.redirect(new URL("/connect?yahoo_error=Account%20changed.%20Reconnect%20Yahoo.", request.nextUrl.origin));
 
-    const token = await exchangeYahooCode(
+    await exchangeYahooCode(
       code,
       callbackUrl(request.nextUrl.origin),
       data.user.id
     );
-    const info = await yahooUserInfo(token);
-    const { error: accountError } = await supabase
-      .from("connected_accounts")
-      .upsert(
-        {
-          user_id: data.user.id,
-          provider: "yahoo",
-          provider_user_id: info?.sub || "yahoo-user",
-          provider_username:
-            info?.email || info?.nickname || info?.name || "Yahoo Manager"
-        },
-        { onConflict: "user_id,provider,provider_user_id" }
-      );
-    if (accountError) throw accountError;
-
     return NextResponse.redirect(
       new URL("/connect?yahoo=connected", request.nextUrl.origin)
     );
-  } catch (exchangeError) {
-    const message =
-      exchangeError instanceof Error
-        ? exchangeError.message
-        : "Yahoo authorization failed.";
-    return NextResponse.redirect(
-      new URL(
-        `/connect?yahoo_error=${encodeURIComponent(message)}`,
-        request.nextUrl.origin
-      )
-    );
+  } catch {
+    return NextResponse.redirect(new URL("/connect?yahoo_error=Yahoo%20authorization%20failed.%20Try%20again.", request.nextUrl.origin));
   }
 }
