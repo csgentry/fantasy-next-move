@@ -42,6 +42,8 @@ export type LeagueTeam = {
   ownerId: string | null;
   ownerName: string;
   teamName: string;
+  avatarUrl?: string | null;
+  ownerAvatarUrl?: string | null;
   wins: number;
   losses: number;
   ties: number;

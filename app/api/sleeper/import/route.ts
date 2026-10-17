@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import type { DraftPickAsset, ImportedLeague, LeagueTeam, LeagueType } from "@/lib/types";
 
+import { sleeperAvatarUrl } from "../../../../lib/sleeper-avatar";
+
 const API = "https://api.sleeper.app/v1";
 
 async function sleeperFetch<T>(path: string): Promise<T> {
@@ -114,6 +116,8 @@ export async function POST(request: NextRequest) {
           ownerId: roster.owner_id,
           ownerName: owner?.display_name || owner?.username || `Roster ${roster.roster_id}`,
           teamName: owner?.metadata?.team_name || owner?.display_name || `Team ${roster.roster_id}`,
+          avatarUrl: sleeperAvatarUrl(owner?.metadata?.avatar) || sleeperAvatarUrl(owner?.avatar),
+          ownerAvatarUrl: sleeperAvatarUrl(owner?.avatar),
           wins: roster.settings?.wins || 0,
           losses: roster.settings?.losses || 0,
           ties: roster.settings?.ties || 0,

@@ -5,6 +5,7 @@ import { EventTracker } from "@/components/EventTracker";
 import { AppShell } from "@/components/AppShell";
 import { useSelectedLeague } from "@/components/LeaguePicker";
 import { usePlayerIntelligence } from "@/components/usePlayerIntelligence";
+import { TeamAvatar } from "@/components/TeamAvatar";
 import { ToolIcon } from "@/components/ToolIcon";
 import { PlayerDetails } from "@/components/PlayerDetails";
 import { hasCurrentAnalysis } from "@/lib/decision-tools";
@@ -72,7 +73,7 @@ export default function DashboardPage() {
       </div>
       <section className={styles.leagues} aria-labelledby="my-leagues-title">
         <div className={styles.sectionTitle}><h2 id="my-leagues-title">My Leagues</h2><Link href="/connect" aria-label="View all connected leagues">View all</Link></div>
-        {connected && team ? <Link className={styles.leagueCard} href="/team"><span className={styles.leagueIcon}><ToolIcon name="league" /></span><span className={styles.leagueCopy}><strong>{league.name}</strong><small>{selected.source === "yahoo" ? "Yahoo Fantasy" : "Sleeper"}{selected.source === "sleeper" && team.wins + team.losses + team.ties > 0 ? ` · ${team.wins}–${team.losses}${team.ties ? `–${team.ties}` : ""}` : ` · ${league.season}`}</small></span><span aria-hidden="true">›</span></Link>
+        {connected && team ? <Link className={styles.leagueCard} href="/team"><span className={styles.leagueIcon}>{selected.source === "sleeper" ? <TeamAvatar name={team.teamName} avatarUrl={team.avatarUrl} ownerAvatarUrl={team.ownerAvatarUrl}/> : <ToolIcon name="league" />}</span><span className={styles.leagueCopy}><strong>{league.name}</strong><small>{selected.source === "yahoo" ? "Yahoo Fantasy" : "Sleeper"}{selected.source === "sleeper" && team.wins + team.losses + team.ties > 0 ? ` · ${team.wins}–${team.losses}${team.ties ? `–${team.ties}` : ""}` : ` · ${league.season}`}</small></span><span aria-hidden="true">›</span></Link>
           : <Link className={styles.leagueCard} href="/connect"><span className={styles.leagueIcon}><ToolIcon name="league" /></span><span className={styles.leagueCopy}><strong>{selected.hydrated ? "Connect your first league" : "Loading your leagues…"}</strong><small>Your actual team. Personalized advice.</small></span><span aria-hidden="true">›</span></Link>}
       </section>
       {connected && <div className={styles.sync}><span><span className={syncValid ? styles.syncDot : styles.pendingDot} aria-hidden="true" />{syncValid ? <><span>{data ? "Analysis updated " : "Roster synced "}</span><time dateTime={syncDate.toISOString()}>{syncDate.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</time></> : "No successful analysis yet"}</span><button className="text-button" disabled={state.loading} onClick={selected.source === "yahoo" ? undefined : state.refresh} hidden={selected.source === "yahoo"}>{state.loading ? "Checking…" : "Refresh"}</button>{selected.source === "yahoo" && <Link href="/connect">Refresh connection</Link>}</div>}

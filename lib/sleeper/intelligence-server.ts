@@ -1,4 +1,5 @@
 import "server-only";
+import { sleeperAvatarUrl } from "../sleeper-avatar";
 
 import { calculateFantasyScore } from "@/lib/fantasy-scoring";
 import { calculateProjectionAccuracy } from "@/lib/player-intelligence";
@@ -368,10 +369,11 @@ export async function syncSleeperPlayerIntelligence({
 }: SyncOptions): Promise<PlayerIntelligencePayload> {
   let league = leagueRecord.raw_data;
   const warnings: string[] = [];
-  const [state, leagueMeta, playerMapPayload] = await Promise.all([
+  const [state, leagueMeta, playerMapPayload, leagueUsers] = await Promise.all([
     sleeperFetch<SleeperState>(`${SLEEPER_PUBLIC_API}/state/nfl`, 120),
     sleeperFetch<SleeperLeague>(`${SLEEPER_PUBLIC_API}/league/${encodeURIComponent(league.leagueId)}`, 300),
-    sleeperFetch<Record<string, SleeperPlayerRecord>>(`${SLEEPER_PUBLIC_API}/players/nfl?active=true`, 300)
+    sleeperFetch<Record<string, SleeperPlayerRecord>>(`${SLEEPER_PUBLIC_API}/players/nfl?active=true`, 300),
+    sleeperFetch<Array<{user_id:string;avatar?:string|null;metadata?:{avatar?:string}}>>(`${SLEEPER_PUBLIC_API}/league/${encodeURIComponent(league.leagueId)}/users`, 300).catch(() => null)
   ]);
   // Refresh ownership before any waiver or trade advice. Never infer availability from saved rosters.
   const rosters = await sleeperFetch<Array<{roster_id:number;owner_id:string|null;players?:string[];starters?:string[];reserve?:string[];taxi?:string[];settings?:{wins?:number;losses?:number;ties?:number;fpts?:number;fpts_decimal?:number;fpts_against?:number;fpts_against_decimal?:number}}>>(`${SLEEPER_PUBLIC_API}/league/${encodeURIComponent(league.leagueId)}/rosters`, 0, true);
@@ -381,7 +383,10 @@ export async function syncSleeperPlayerIntelligence({
     league = {...league, scoringSettings:leagueMeta?.scoring_settings || league.scoringSettings, rosterPositions:leagueMeta?.roster_positions || league.rosterPositions, teams:league.teams.map(team=>{
       const r=rosters!.find(r=>r.roster_id===team.rosterId)!;
       const sameOwner=r.owner_id===team.ownerId;
-      return {...team, ownerId:r.owner_id, ownerName:sameOwner?team.ownerName:`Roster ${r.roster_id}`,teamName:sameOwner?team.teamName:`Team ${r.roster_id}`,players:r.players||[],starters:r.starters||[],reserve:r.reserve||[],taxi:r.taxi||[],wins:r.settings?.wins??team.wins,losses:r.settings?.losses??team.losses,ties:r.settings?.ties??team.ties,pointsFor:r.settings?.fpts===undefined?team.pointsFor:r.settings.fpts+(r.settings.fpts_decimal||0)/100,pointsAgainst:r.settings?.fpts_against===undefined?team.pointsAgainst:r.settings.fpts_against+(r.settings.fpts_against_decimal||0)/100};
+      const owner=Array.isArray(leagueUsers)?leagueUsers.find(user=>user.user_id===r.owner_id):undefined;
+      const ownerAvatarUrl=owner?sleeperAvatarUrl(owner.avatar):sameOwner?team.ownerAvatarUrl:null;
+      const avatarUrl=owner?sleeperAvatarUrl(owner.metadata?.avatar)||ownerAvatarUrl:sameOwner?team.avatarUrl:null;
+      return {...team, avatarUrl, ownerAvatarUrl, ownerId:r.owner_id, ownerName:sameOwner?team.ownerName:`Roster ${r.roster_id}`,teamName:sameOwner?team.teamName:`Team ${r.roster_id}`,players:r.players||[],starters:r.starters||[],reserve:r.reserve||[],taxi:r.taxi||[],wins:r.settings?.wins??team.wins,losses:r.settings?.losses??team.losses,ties:r.settings?.ties??team.ties,pointsFor:r.settings?.fpts===undefined?team.pointsFor:r.settings.fpts+(r.settings.fpts_decimal||0)/100,pointsAgainst:r.settings?.fpts_against===undefined?team.pointsAgainst:r.settings.fpts_against+(r.settings.fpts_against_decimal||0)/100};
     })};
     leagueRecord={...leagueRecord,raw_data:league};
   } else warnings.push("Current roster ownership could not be verified. Waiver availability is withheld; reconnect before acting.");
