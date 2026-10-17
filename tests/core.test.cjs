@@ -85,3 +85,20 @@ test('waiver shortlist excludes every roster, IR and taxi and only suggests benc
 test('start sit excludes taxi, IR, out players and missing projections and respects restricted slots',()=>{const {lineupReview}=load('lib/decision-tools.ts');const team={players:['wr','rb','te','ir','taxi','out','missing'],starters:['rb'],reserve:['ir'],taxi:['taxi']};const league={rosterPositions:['WRRB_FLEX','BN']};const data={profiles:Object.fromEntries(team.players.map(id=>[id,{playerId:id,fullName:id,position:id==='te'?'TE':id==='wr'?'WR':'RB',injuryStatus:id==='out'?'Out':null}])),currentSnapshots:team.players.map(id=>({playerId:id,projectedPoints:id==='missing'?null:id==='wr'?20:id==='rb'?10:99}))};const result=lineupReview(league,team,data);assert.equal(result[0].suggestedId,'wr');assert.equal(result[0].gain,10);});
 test('lineup optimizer never promotes taxi and reserve players into trade impact',()=>{const {optimizeProjectedLineup}=load('lib/player-intelligence.ts');const team={players:['rb','taxi','ir'],starters:['rb'],taxi:['taxi'],reserve:['ir']};const profiles=Object.fromEntries(team.players.map(id=>[id,{position:'RB'}]));const rows=[{playerId:'rb',projectedPoints:10},{playerId:'taxi',projectedPoints:50},{playerId:'ir',projectedPoints:60}];assert.equal(optimizeProjectedLineup(team,{rosterPositions:['RB']},profiles,rows).total,10);});
 test('player analysis rejects another account league before provider synchronization',async()=>{let synchronized=false;const filters=[];const query={select(){return this},eq(key,value){filters.push([key,value]);return this},async maybeSingle(){return {data:null,error:null}}};const route=load('app/api/sleeper/intelligence/route.ts',{'@/lib/player-intelligence':{buildPersonalizedPlayerRecommendations:()=>{throw Error('Unauthorized analysis must not run')}},'@/lib/billing/entitlements':{getUserEntitlement:async()=>({})},'@/lib/sleeper/intelligence-server':{syncSleeperPlayerIntelligence:async()=>{synchronized=true}},'@/lib/supabase/server':{createClient:async()=>({auth:{getUser:async()=>({data:{user:{id:'authenticated-owner'}}})},from:()=>query})}});const response=await route.POST(new Request('https://fnm.test/api/sleeper/intelligence',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({leagueId:'123456789123456789',rosterId:2})}));assert.equal(response.status,404);assert.ok(filters.some(([key,value])=>key==='user_id'&&value==='authenticated-owner'));assert.equal(synchronized,false);});
+
+test('manual lineup comparisons exclude reserve, taxi, unavailable and unsupported players',()=>{
+ const {lineupCandidates}=load('lib/decision-tools.ts');
+ const ids=['healthy','questionable','inactive','out','ir','taxi','missing','infinite','wrong-slot'];
+ const team={players:ids,starters:['healthy'],reserve:['ir'],taxi:['taxi']};
+ const profiles=Object.fromEntries(ids.map(id=>[id,{playerId:id,position:id==='wrong-slot'?'TE':'RB',status:id==='inactive'?'Inactive':'Active',injuryStatus:id==='inactive'||id==='questionable'?'Questionable':id==='out'?'Out':null}]));
+ const data={profiles,currentSnapshots:ids.map(id=>({playerId:id,projectedPoints:id==='missing'?null:id==='infinite'?Infinity:20}))};
+ assert.deepEqual(lineupCandidates({rosterPositions:['WRRB_FLEX','BN']},team,data),['healthy','questionable']);
+ assert.deepEqual(lineupCandidates({rosterPositions:['WRRB_FLEX','BN']},team,data,'WR'),[]);
+});
+test('waiver targets reject unavailable players even when injury and status disagree',()=>{
+ const {waiverCandidates}=load('lib/decision-tools.ts');
+ const profiles={healthy:{position:'RB',status:'Active'},inactive:{position:'RB',status:'Inactive',injuryStatus:'Questionable'},out:{position:'RB',status:'Active',injuryStatus:'Out'}};
+ const data={profiles,currentSnapshots:Object.keys(profiles).map((id,i)=>({playerId:id,position:'RB',projectedPoints:10+i*20}))};
+ const team={players:[],starters:[]};
+ assert.deepEqual(waiverCandidates({teams:[team],rosterPositions:['RB','BN']},team,data).map(c=>c.player.playerId),['healthy']);
+});
