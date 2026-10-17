@@ -150,11 +150,10 @@ function TradeSide({ title, subtitle, available, selected, onAdd, onRemove }: {
   const filtered = available
     .filter((asset) => assetFilter === "ALL" || (assetFilter === "PICK" ? asset.kind === "pick" : asset.kind === "player" && asset.position === assetFilter))
     .sort((a, b) => b.value - a.value || a.name.localeCompare(b.name));
-  const total = selected.reduce((sum, asset) => sum + asset.value, 0);
 
   return (
     <section className="trade-side">
-      <div className="trade-side-heading"><div><h2>{title}</h2><p>{subtitle}</p></div><span className="trade-total">{formatNumber(total)}</span></div>
+      <div className="trade-side-heading"><div><h2>{title}</h2><p>{subtitle}</p></div></div>
       <div className="trade-side-controls">
         <select aria-label={`Filter ${title} assets`} value={assetFilter} onChange={(event) => setAssetFilter(event.target.value)}>
           <option value="ALL">All assets</option>
@@ -163,7 +162,7 @@ function TradeSide({ title, subtitle, available, selected, onAdd, onRemove }: {
         </select>
         <select aria-label={`Add an asset to ${title}`} value="" onChange={(event) => { if (event.target.value) onAdd(event.target.value); }}>
           <option value="" disabled>Add an asset</option>
-          {filtered.map((asset) => <option key={asset.id} value={asset.id}>{asset.name} · {asset.kind === "pick" ? `${asset.tier} pick` : `${asset.position} #${asset.positionRank}`} · {formatNumber(asset.value)}</option>)}
+          {filtered.map((asset) => <option key={asset.id} value={asset.id}>{asset.name} · {asset.kind === "pick" ? "Draft pick" : asset.position}</option>)}
         </select>
       </div>
       <div className="trade-assets">
@@ -174,12 +173,12 @@ function TradeSide({ title, subtitle, available, selected, onAdd, onRemove }: {
               <b>{asset.name}</b>
               {asset.kind === "player" ? (
                 <>
-                  <small>{asset.position} · Overall #{asset.overallRank} · {asset.position}#{asset.positionRank} · {asset.tier}</small>
-                  <small>{asset.nflTeam || "FA"}{asset.starter ? " · Imported starter" : " · Imported bench"}{asset.projectedPoints !== null ? ` · ${asset.projectedPoints.toFixed(2)} projected` : ""}</small>
+                  <small>{asset.position}{asset.nflTeam ? ` · ${asset.nflTeam}` : ""}</small>
+                  <small>{asset.nflTeam || "FA"}{asset.starter ? " · Imported starter" : " · Imported bench"}{asset.projectedPoints !== null ? ` · ${asset.projectedPoints.toFixed(1)} projected` : ""}</small>
                 </>
               ) : <small>{asset.pick.draftSlot ? "Exact draft slot" : `Projected ${asset.tier}`} · originally {asset.pick.originalTeamName || "another roster"}</small>}
             </div>
-            <div className="asset-value" title={`${asset.confidence} model confidence`}><strong>{formatNumber(asset.value)}</strong><span>{formatNumber(asset.lowValue)}–{formatNumber(asset.highValue)}</span></div>
+
           </article>
         ))}
         {!selected.length && <div className="empty-slot"><strong>No assets added</strong><span>Select players{hasPicks ? " or draft picks" : ""} from the other roster.</span></div>}
@@ -209,13 +208,14 @@ function TradeLabWorkspace({selected}: {selected: ReturnType<typeof useSelectedL
   const playerError = intelligenceState.error;
   const [sideAIds, setSideAIds] = useState<string[]>([]);
   const [sideBIds, setSideBIds] = useState<string[]>([]);
+  const [analyzedKey, setAnalyzedKey] = useState("");
 
   useEffect(() => {
     if (source !== "demo") loadSavedLeaguesFromAccount().then(setSavedLeagues).catch(() => undefined);
   }, [source, league.leagueId]);
 
   useEffect(() => {
-    if (source === "demo") return;
+    if (source !== "sleeper") return;
     let canceled = false;
     const params = new URLSearchParams({
       format: importedFormat,
@@ -258,7 +258,7 @@ function TradeLabWorkspace({selected}: {selected: ReturnType<typeof useSelectedL
   const snapshotMap = useMemo(() => new Map((intelligenceState.data?.currentSnapshots || []).map((snapshot) => [snapshot.playerId, snapshot])), [intelligenceState.data?.currentSnapshots]);
 
   const assets = useMemo<Asset[]>(() => {
-    const unranked: UnrankedPlayerAsset[] = league.teams.flatMap((team) => team.players.map((playerId) => {
+    const unranked: UnrankedPlayerAsset[] = league.teams.flatMap((team) => team.players.filter(playerId => source === "demo" || Boolean(profiles[playerId]?.fullName)).map((playerId) => {
       const fallbackPosition = /^[A-Z]{2,3}$/.test(playerId) ? "DEF" : "—";
       const profile = profiles[playerId] || { playerId, fullName: playerId, position: fallbackPosition, team: null, status: null };
       const starter = team.starters.includes(playerId);
@@ -303,7 +303,7 @@ function TradeLabWorkspace({selected}: {selected: ReturnType<typeof useSelectedL
       };
     });
     return [...rankedPlayers, ...picks];
-  }, [format, league, marketValues, profiles, snapshotMap]);
+  }, [format, league, marketValues, profiles, snapshotMap, source]);
 
   const assetMap = useMemo(() => new Map(assets.map((asset) => [asset.id, asset])), [assets]);
   const sideA = sideAIds.map((id) => assetMap.get(id)).filter((asset): asset is Asset => Boolean(asset));
@@ -330,6 +330,8 @@ function TradeLabWorkspace({selected}: {selected: ReturnType<typeof useSelectedL
   const tradeSize = Math.max((adjustedA + adjustedB) / 2, 1);
   const tolerance = Math.max(250, Math.round(tradeSize * 0.07));
   const isComplete = sideA.length > 0 && sideB.length > 0;
+  const selectionKey = JSON.stringify([teamAId,teamBId,format,sideAIds,sideBIds,intelligenceState.data]);
+  const analyzed = isComplete && selectionKey === analyzedKey;
   const rosterImpact = evaluateRosterTrade(teamA, league, profiles, intelligenceState.data?.currentSnapshots || [], playerAssets(sideB).map(a=>a.playerId), playerAssets(sideA).map(a=>a.playerId));
   const marketVerdict = !sideA.length && !sideB.length ? "Build a trade" : !isComplete ? "Add the other side" : Math.abs(difference) <= tolerance ? "Fair trade" : difference > 0 ? `Slight edge: ${teamA.teamName}` : `Slight edge: ${teamB.teamName}`;
   const advantage = isComplete ? (Math.abs(difference) / tradeSize) * 100 : 0;
@@ -349,14 +351,15 @@ function TradeLabWorkspace({selected}: {selected: ReturnType<typeof useSelectedL
     }
   }
 
+  if (source === "yahoo") return <AppShell><section className="panel"><h1>Trade Lab</h1><p>Yahoo trade analysis needs verified independent player data. Your current roster is available in My Team; opponent rosters are not retrieved or saved.</p><a className="button" href="/team">Review My Team</a></section></AppShell>;
   if (!hydrated) return <AppShell><div className="panel empty-state"><strong>Loading your league…</strong></div></AppShell>;
 
   return (
-    <AppShell><EventTracker event="trade_lab_opened"/>{isComplete && <EventTracker event="trade_analyzed"/>}
+    <AppShell><EventTracker event="trade_lab_opened"/>{analyzed && <EventTracker event="trade_analyzed"/>}
       <div className="page-heading trade-page-heading"><div><span className="eyebrow">Does this trade make your team better?</span><h1>Trade Lab</h1><p>Choose what you send and receive. Start with lineup impact, then review depth and value.</p></div></div>
 
       <section className="panel trade-league-context">
-        <div><span className="eyebrow">Trade Lab for</span><h2>{league.name}</h2><p>{formatLabel(format)} · {league.totalRosters} teams · {scoringLabel(league.scoringSettings)} · {league.rosterPositions.join(" · ")}</p></div>
+        <div><span className="eyebrow">Trade Lab for</span><h2>{league.name}</h2><p>{formatLabel(format)} · {league.totalRosters} teams · {scoringLabel(league.scoringSettings)}</p></div>
         {savedLeagues.length > 1 && <label><span>Change league</span><select disabled={changingLeague} value={savedLeagues.find((item) => item.raw_data.leagueId === league.leagueId)?.id || ""} onChange={(event) => changeLeague(event.target.value)}>{savedLeagues.map((record) => <option key={record.id} value={record.id}>{record.name} · {formatLabel(leagueFormat(record.raw_data.leagueType))}</option>)}</select></label>}
       </section>
 
@@ -367,12 +370,12 @@ function TradeLabWorkspace({selected}: {selected: ReturnType<typeof useSelectedL
             {(["redraft", "keeper", "dynasty"] as TradeFormat[]).map((option) => <button key={option} className={manualFormat === option ? "active" : ""} onClick={() => { setManualFormat(option); resetTrade(); }}><strong>{formatLabel(option)}</strong><span>{option === "redraft" ? "Current season" : option === "keeper" ? "Limited retention" : "Long-term and picks"}</span></button>)}
           </div>
         </section>
-      ) : <div className="connection-message success"><strong>{formatLabel(format)} is locked from the imported league.</strong> Trade Lab will not let this league be evaluated under a conflicting format.</div>}
+      ) : null}
 
       <div className="team-pair-panel panel">
-        <label><span>Team A</span><select value={teamA.rosterId} onChange={(event) => { setTeamAId(Number(event.target.value)); resetTrade(); }}>{league.teams.filter((team) => team.rosterId !== teamBId).map((team) => <option value={team.rosterId} key={team.rosterId}>{team.teamName} · {team.ownerName}</option>)}</select></label>
+        <label><span>Your team</span><select value={teamA.rosterId} onChange={(event) => { setTeamAId(Number(event.target.value)); resetTrade(); }}>{league.teams.filter((team) => team.rosterId !== teamBId).map((team) => <option value={team.rosterId} key={team.rosterId}>{team.teamName} · {team.ownerName}</option>)}</select></label>
         <span className="trade-arrow">↔</span>
-        <label><span>Team B</span><select value={teamB.rosterId} onChange={(event) => { setTeamBId(Number(event.target.value)); resetTrade(); }}>{league.teams.filter((team) => team.rosterId !== teamAId).map((team) => <option value={team.rosterId} key={team.rosterId}>{team.teamName} · {team.ownerName}</option>)}</select></label>
+        <label><span>Trade partner</span><select value={teamB.rosterId} onChange={(event) => { setTeamBId(Number(event.target.value)); resetTrade(); }}>{league.teams.filter((team) => team.rosterId !== teamAId).map((team) => <option value={team.rosterId} key={team.rosterId}>{team.teamName} · {team.ownerName}</option>)}</select></label>
         {(sideA.length > 0 || sideB.length > 0) && <button className="text-button trade-reset" onClick={resetTrade}>Reset trade</button>}
       </div>
 
@@ -381,13 +384,13 @@ function TradeLabWorkspace({selected}: {selected: ReturnType<typeof useSelectedL
       {format !== "redraft" && !(league.draftPicks?.length) && <div className="connection-message dynasty-pick-note">No owned draft picks were supplied for this league. Player values remain active, but draft-pick analysis is incomplete.</div>}
 
       <div className="trade-grid trade-grid-clean">
-        <TradeSide title={`${teamA.teamName} receives`} subtitle={`Assets currently owned by ${teamB.teamName}`} available={availableForA} selected={sideA} onAdd={(id) => setSideAIds((current) => [...current, id])} onRemove={(id) => setSideAIds((current) => current.filter((assetId) => assetId !== id))} />
+        <TradeSide title="You receive" subtitle={`Assets currently owned by ${teamB.teamName}`} available={availableForA} selected={sideA} onAdd={(id) => setSideAIds((current) => [...current, id])} onRemove={(id) => setSideAIds((current) => current.filter((assetId) => assetId !== id))} />
         <div className={`trade-verdict ${isComplete && Math.abs(difference) > tolerance ? "has-advantage" : ""}`}>
-          <span>Your team impact</span><strong>{isComplete ? rosterImpact.verdict : "Build a trade"}</strong><p>{isComplete ? rosterImpact.reason : "Select players on both sides to compare the effect on your team."}</p>{isComplete && <small>{rosterImpact.confidence}</small>}{isComplete && rosterImpact.gain !== null && <p>Projected lineup change: {rosterImpact.gain > 0 ? "+" : ""}{rosterImpact.gain.toFixed(1)} points</p>}<details><summary>Supporting value comparison</summary><p>{marketVerdict}</p><div className="verdict-score"><b>{formatNumber(adjustedA)}</b><i>vs.</i><b>{formatNumber(adjustedB)}</b></div>
+          <span>Your team impact</span><strong>{analyzed ? rosterImpact.verdict : "Build a trade"}</strong><p>{analyzed ? rosterImpact.reason : "Select players on both sides to compare the effect on your team."}</p>{analyzed && <small>{rosterImpact.confidence}</small>}{analyzed && rosterImpact.gain !== null && <p>Projected lineup change: {rosterImpact.gain > 0 ? "+" : ""}{rosterImpact.gain.toFixed(1)} points</p>}<button className="button" disabled={!isComplete || loadingPlayers} onClick={()=>setAnalyzedKey(selectionKey)}>Analyze trade</button>{analyzed && <details><summary>Supporting value comparison</summary><p>{marketVerdict}</p><div className="verdict-score"><b>{formatNumber(adjustedA)}</b><i>vs.</i><b>{formatNumber(adjustedB)}</b></div>
           {isComplete ? <p>{Math.abs(difference) <= tolerance ? `Inside the ±${formatNumber(tolerance)} fair-market range.` : `${advantage.toFixed(1)}% modeled difference after roster fit and package value.`}</p> : <p>Add assets to both sides to complete the comparison.</p>}
-          <div className="verdict-breakdown"><span>Players {formatNumber(playerValueA)}–{formatNumber(playerValueB)}</span><span>Weekly projection {projectedA.toFixed(2)}–{projectedB.toFixed(2)}</span>{format !== "redraft" && <span>Picks {formatNumber(pickValueA)}–{formatNumber(pickValueB)}</span>}<span>Roster fit {fitDeltaA >= 0 ? "+" : ""}{formatNumber(fitDeltaA)} / {fitDeltaB >= 0 ? "+" : ""}{formatNumber(fitDeltaB)}</span><span>Package adjustment {packageA >= 0 ? "+" : ""}{formatNumber(packageA)} / {packageB >= 0 ? "+" : ""}{formatNumber(packageB)}</span></div>
-        </details></div>
-        <TradeSide title={`${teamB.teamName} receives`} subtitle={`Assets currently owned by ${teamA.teamName}`} available={availableForB} selected={sideB} onAdd={(id) => setSideBIds((current) => [...current, id])} onRemove={(id) => setSideBIds((current) => current.filter((assetId) => assetId !== id))} />
+          <div className="verdict-breakdown"><span>Players {formatNumber(playerValueA)}–{formatNumber(playerValueB)}</span><span>Weekly projection {projectedA.toFixed(1)}–{projectedB.toFixed(1)}</span>{format !== "redraft" && <span>Picks {formatNumber(pickValueA)}–{formatNumber(pickValueB)}</span>}<span>Roster fit {fitDeltaA >= 0 ? "+" : ""}{formatNumber(fitDeltaA)} / {fitDeltaB >= 0 ? "+" : ""}{formatNumber(fitDeltaB)}</span><span>Package adjustment {packageA >= 0 ? "+" : ""}{formatNumber(packageA)} / {packageB >= 0 ? "+" : ""}{formatNumber(packageB)}</span></div>
+        </details>}</div>
+        <TradeSide title="You send" subtitle={`Assets currently owned by ${teamA.teamName}`} available={availableForB} selected={sideB} onAdd={(id) => setSideBIds((current) => [...current, id])} onRemove={(id) => setSideBIds((current) => current.filter((assetId) => assetId !== id))} />
       </div>
 
       <details className="panel trade-method-panel"><summary>How this analysis works</summary>
