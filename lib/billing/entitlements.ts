@@ -40,8 +40,8 @@ export async function getUserEntitlement(supabase: SupabaseClient, userId: strin
       return {
         accessLevel: row.access_level as AccessLevel,
         accessSource: row.access_source,
-        tradeLabAccess: Boolean(row.trade_lab_access),
-        allAccess: Boolean(row.all_access),
+        tradeLabAccess: row.access_level === "admin" || Boolean(row.trade_lab_access),
+        allAccess: row.access_level === "admin" || Boolean(row.all_access),
         maxConnectedLeagues: Number(row.max_connected_leagues || 0),
         validUntil: row.valid_until,
         foundingMember: Boolean(row.founding_member)
