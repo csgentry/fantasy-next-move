@@ -25,6 +25,16 @@
     "location": "/login?next=%2Fteam"
   },
   {
+    "route": "/more",
+    "status": 307,
+    "location": "/login?next=%2Fmore"
+  },
+  {
+    "route": "/waivers",
+    "status": 307,
+    "location": "/login?next=%2Fwaivers"
+  },
+  {
     "route": "/api/account/leagues",
     "status": 401,
     "location": null
