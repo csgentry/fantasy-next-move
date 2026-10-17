@@ -1,4 +1,11 @@
 import {test,expect} from "@playwright/test";
+test.beforeEach(async({page,baseURL})=>{
+ const secret=process.env.FNM_PREVIEW_AUTOMATION_SECRET;
+ if(!secret || !baseURL)return;
+ const origin=new URL(baseURL).origin;
+ await page.route(url=>url.origin===origin,route=>route.continue({headers:{...route.request().headers(),"x-vercel-protection-bypass":secret}}));
+});
+
 test("public pages have clear navigation and no horizontal overflow",async({page},testInfo)=>{
  for(const route of ["/","/pricing","/demo","/login","/signup","/privacy","/terms","/forgot-password"]){
   await page.goto(route);

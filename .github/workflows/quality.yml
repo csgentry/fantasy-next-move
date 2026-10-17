@@ -26,6 +26,7 @@ jobs:
       - name: Test deployed Preview
         run: npx playwright test
         env:
+          FNM_PREVIEW_AUTOMATION_SECRET: ${{ secrets.FNM_PREVIEW_AUTOMATION_SECRET }}
           PLAYWRIGHT_BASE_URL: https://fantasy-next-move-git-simplify-next-move-team-gentry1.vercel.app
       - uses: actions/upload-artifact@v4
         if: always()
