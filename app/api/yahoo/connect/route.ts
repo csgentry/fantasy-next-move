@@ -28,14 +28,7 @@ export async function GET(request: NextRequest) {
     authorizationUrl.searchParams.set("state", state);
     authorizationUrl.searchParams.set("language", "en-us");
     return NextResponse.redirect(authorizationUrl);
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Yahoo is not configured.";
-    return NextResponse.redirect(
-      new URL(
-        `/connect?yahoo_error=${encodeURIComponent(message)}`,
-        request.nextUrl.origin
-      )
-    );
+  } catch {
+    return NextResponse.redirect(new URL("/connect?yahoo_error=Yahoo%20connection%20is%20unavailable.%20Try%20again.", request.nextUrl.origin));
   }
 }
