@@ -5,16 +5,11 @@ import { yahooConnectionEnabled } from "@/lib/yahoo/availability";
 import { callbackUrl, setYahooState, yahooConfig } from "@/lib/yahoo/auth";
 
 export async function GET(request: NextRequest) {
-  if (!yahooConnectionEnabled()) {
-    return NextResponse.redirect(
-      new URL("/connect?provider=yahoo-coming-soon", request.nextUrl.origin)
-    );
-  }
-
   try {
     const supabase = await createClient();
     const {data} = await supabase.auth.getUser();
     if (!data.user) return NextResponse.redirect(new URL("/login?next=/connect", request.nextUrl.origin));
+    if (!yahooConnectionEnabled(data.user.id)) return NextResponse.redirect(new URL("/connect?provider=yahoo-coming-soon", request.nextUrl.origin));
     const { clientId } = yahooConfig();
     const state = randomBytes(24).toString("hex");
     await setYahooState(`${data.user.id}:${state}`);

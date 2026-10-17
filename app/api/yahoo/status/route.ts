@@ -7,7 +7,7 @@ export async function GET() {
     const supabase = await createClient();
     const {data} = await supabase.auth.getUser();
     if (!data.user) return NextResponse.json({connected: false, error: "Sign in required."}, {status: 401});
-    const enabled = yahooConnectionEnabled();
+    const enabled = yahooConnectionEnabled(data.user.id);
     return NextResponse.json({enabled, connected: enabled && Boolean(await getValidYahooToken(data.user.id))});
   } catch {
     return NextResponse.json({connected: false, error: "Unable to verify Yahoo. Try again."}, {status: 503});

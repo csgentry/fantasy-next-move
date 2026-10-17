@@ -8,12 +8,6 @@ import {
 } from "@/lib/yahoo/auth";
 
 export async function GET(request: NextRequest) {
-  if (!yahooConnectionEnabled()) {
-    return NextResponse.redirect(
-      new URL("/connect?provider=yahoo-coming-soon", request.nextUrl.origin)
-    );
-  }
-
   const code = request.nextUrl.searchParams.get("code");
   const state = request.nextUrl.searchParams.get("state");
   const error = request.nextUrl.searchParams.get("error");
@@ -45,6 +39,8 @@ export async function GET(request: NextRequest) {
         new URL("/login?next=/connect", request.nextUrl.origin)
       );
     }
+
+    if (!yahooConnectionEnabled(data.user.id)) return NextResponse.redirect(new URL("/connect?provider=yahoo-coming-soon", request.nextUrl.origin));
 
     if (expectedState !== `${data.user.id}:${state}`) return NextResponse.redirect(new URL("/connect?yahoo_error=Account%20changed.%20Reconnect%20Yahoo.", request.nextUrl.origin));
 

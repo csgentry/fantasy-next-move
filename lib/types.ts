@@ -8,6 +8,7 @@ export type PlayerProfile = {
   team: string | null;
   status: string | null;
   selectedPosition?: string | null;
+  eligiblePositions?: string[];
   age?: number | null;
   yearsExperience?: number | null;
   searchRank?: number | null;
@@ -64,6 +65,13 @@ export type ImportedLeague = {
   totalRosters: number;
   scoringSettings: Record<string, number>;
   rosterPositions: string[];
+  providerContext?: {
+    provider: "yahoo";
+    syncedAt: string;
+    currentWeek: number | null;
+    scoringModifiers: Record<string, number>;
+    warnings: string[];
+  };
   previousLeagueId: string | null;
   userRosterId: number | null;
   leagueType?: LeagueType;

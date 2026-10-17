@@ -24,7 +24,7 @@ export default function ConnectPage() {
   useEffect(() => {let active = true; fetch("/api/yahoo/status", {cache: "no-store"}).then(r => r.json()).then(data => {if (active) setYahooStatus({enabled: Boolean(data.enabled), connected: Boolean(data.connected)});}).catch(() => {}); return () => {active = false;};}, []);
   async function loadYahoo() {
     setYahooLoading(true); setError("");
-    try {const response = await fetch("/api/yahoo/import", {cache: "no-store"}); const payload = await response.json(); if (!response.ok) throw new Error(payload.error); setYahooChoices(payload.leagues || []); if (!payload.leagues?.length) setError("No current-season NFL teams were found for this Yahoo account.");}
+    try {const response = await fetch("/api/yahoo/import", {cache: "no-store"}); const payload = await response.json(); if (!response.ok) throw new Error(payload.error); setYahooChoices(payload.leagues || []); if (payload.warnings?.length) setError(payload.warnings.join(" ")); if (!payload.leagues?.length) setError("No current-season NFL teams were found for this Yahoo account.");}
     catch (error) {setError(error instanceof Error ? error.message : "Unable to load Yahoo leagues.");}
     finally {setYahooLoading(false);}
   }
