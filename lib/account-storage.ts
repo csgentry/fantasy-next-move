@@ -1,6 +1,7 @@
 import type { ImportedLeague, LeagueHistoryPayload } from "./types";
 
 export async function saveLeagueToAccount(league: ImportedLeague, selectedRosterId: number | null) {
+  if (league.provider === "yahoo") throw new Error("Yahoo information cannot be saved.");
   const response = await fetch("/api/account/leagues", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

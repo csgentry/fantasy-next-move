@@ -6,7 +6,7 @@ export function evaluateRosterTrade(team:LeagueTeam,league:ImportedLeague,profil
  const relevant=[...new Set([...team.players,...received])];
  const covered=new Set(snapshots.filter(s=>s.projectedPoints!==null && Number.isFinite(s.projectedPoints)).map(s=>s.playerId));
  const hasCoverage=relevant.length>0 && relevant.every(id=>covered.has(id));
- if(!hasCoverage) return {verdict:"Fair / Situational",gain:null,reason:"Some weekly projections are missing. Review roster balance and the players involved before deciding; we cannot reliably estimate starting-lineup improvement.",confidence:"Low confidence"};
+ if(!hasCoverage) return {verdict:"Not enough data",gain:null,reason:"Some weekly projections are missing. Review roster balance and the players involved before deciding; we cannot reliably estimate starting-lineup improvement.",confidence:"Low confidence"};
  const beforeLineup=optimizeProjectedLineup(team,league,profiles,snapshots);
  const afterLineup=optimizeProjectedLineup(after,league,profiles,snapshots);
  const gain=Math.round((afterLineup.total-beforeLineup.total)*10)/10;
