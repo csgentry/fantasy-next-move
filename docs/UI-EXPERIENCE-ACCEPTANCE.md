@@ -31,8 +31,8 @@ Fresh no-store roster ownership is checked against the complete known roster set
 - PASS: repeated tool navigation reused loaded analysis; returning to My Team showed 24 rows without another analysis loading state. Cold synchronization still depends on provider/database latency; no performance SLA or broad benchmark claimed.
 - PASS: desktop screenshots inspected for dashboard, light roster and shared tools; no horizontal overflow observed. Private league/account screenshots are internal only.
 - PASS: controlled fictional shared-tool demo: roster/player details, Escape/return, RB filtering, waiver addition and WR empty state. These are demonstration fixtures, not live provider acceptance.
-- CI initially found an exact filter-label targeting defect on all four browser projects. Explicit accessible filter names added; failures were not disabled. Corrected source checkpoint 57620ca1f18dfd2fcbb48b8c391dcdd97a99fba6 passed push CI 39009532284: 12 local browser checks (4 deployment-only checks skipped locally) and all 16 deployed Preview checks across four browser projects. Final report/test-only updates still require final-head CI confirmation.
-- Visual inspection of the passing WebKit screenshot found a native white selector with unreadable light text. Explicit native-control appearance and color-scheme styling added; corrected Safari screenshot requires reinspection.
+- CI initially found an exact filter-label targeting defect on all four browser projects. Explicit accessible filter names added; failures were not disabled. Corrected source checkpoint 57620ca1f18dfd2fcbb48b8c391dcdd97a99fba6 passed push CI 39009532284: 12 local browser checks (4 deployment-only checks skipped locally) and all 16 deployed Preview checks across four browser projects. The final application source a9f6bbf67bad13bc044f7e67337c8aa5526b992d passed push CI 39010076072 and PR CI 39010079661, including 42 regression tests, 12 local browser checks and 16 deployed Preview checks.
+- Visual inspection of the passing WebKit screenshot found a native white selector with unreadable light text. Explicit native-control appearance and color-scheme styling added; corrected Safari screenshot was reinspected and is readable.
 - BLOCKED locally: Playwright browser binaries absent. Existing remote CI installs Chromium/WebKit and runs desktop, iPhone-sized Chromium, Android-sized Chrome and Safari-compatible WebKit. Do not equate public/demo browser checks with authenticated mobile acceptance.
 
 ## Remaining incomplete or external gates
@@ -44,3 +44,11 @@ Fresh no-store roster ownership is checked against the complete known roster set
 - INCOMPLETE: verified NFL opponent/kickoff/bye feed, independent player news and licensed imagery, exact original vector-asset review, reliable independent quick calculator. No fabricated substitutes. Decorative animation and elaborate charts deferred.
 
 See PRIORITY-RESET-ACCEPTANCE.md for prior billing/configuration evidence and COMPETITIVE-NOTES.md for the focused FantasyPros comparison. This file supersedes older interface descriptions where navigation or screen behavior differs.
+
+## Final verified application publication
+
+Application commit a9f6bbf67bad13bc044f7e67337c8aa5526b992d has tree 2b6748e8cd5922225d4487787622177110e7fddf, exactly matching the locally validated tree. Ready Preview: dpl_8RctM8TeEt8uEaFasp9oD8EnVcji at https://fantasy-next-move-3iibpirqo-team-gentry1.vercel.app. PR #1 remains open/unmerged and its title/description reflect the final scope. The final change after that application checkpoint updates this acceptance report only.
+
+Authentication/marketing screens now use the shared brand; public logo links return to the homepage. Corrected WebKit screenshot inspected: dark roster-slot control and selected text are readable. Mobile evidence uses the controlled fictional demo, not an authenticated iPhone session. Safe screenshots saved; private league screenshots were not published. Heuristic credential-pattern scan: no matches across 179 tracked files. Production deployment dpl_8Z8SnLHSoQj42HuD4dF7nMcGiYfa still references unchanged main commit 97d86b042d2a0e04344e28d301363ce7c8d5d34f.
+
+P0/P1 gates above remain open. Release recommendation remains NOT READY.
