@@ -132,7 +132,7 @@ export function RosterSnapshot({
   return (
     <section className="panel roster-panel vertical-lineup-panel">
       <div className="panel-heading">
-        <div><span className="eyebrow">Your lineup</span><h2>{team.teamName}</h2><p>Imported lineup order with starters, bench, taxi squad, and injured reserve separated.</p></div>
+        <div><h2>Roster</h2></div>
         <span className="pill">{totalPlayers} rostered</span>
       </div>
 
