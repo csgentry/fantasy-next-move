@@ -25,7 +25,7 @@ function appendParams(target: URLSearchParams, value: unknown, prefix = "") {
 
 export async function stripeRequest<T>(
   path: string,
-  options: { method?: "GET" | "POST" | "DELETE"; params?: StripeParams } = {}
+  options: { method?: "GET" | "POST" | "DELETE"; params?: StripeParams; idempotencyKey?: string } = {}
 ): Promise<T> {
   const secret = process.env.STRIPE_SECRET_KEY;
   if (!secret) throw new Error("Stripe is not configured.");
@@ -39,6 +39,7 @@ export async function stripeRequest<T>(
     method,
     headers: {
       Authorization: `Bearer ${secret}`,
+      ...(options.idempotencyKey ? { "Idempotency-Key": options.idempotencyKey } : {}),
       ...(method === "GET" ? {} : { "Content-Type": "application/x-www-form-urlencoded" })
     },
     body: method === "GET" ? undefined : encoded,
@@ -46,7 +47,7 @@ export async function stripeRequest<T>(
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const message = payload?.error?.message || payload?.message || `Stripe request failed (${response.status}).`;
+    const message = `Stripe request failed (${response.status}; ${String(payload?.error?.code || "upstream_error")}).`;
     throw new Error(message);
   }
   return payload as T;
