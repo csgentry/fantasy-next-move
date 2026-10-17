@@ -1,5 +1,6 @@
 "use client";
 
+import {PlayerDetails} from "./PlayerDetails";
 import {lineupEligibility} from "@/lib/player-intelligence";
 import { useEffect, useMemo, useState } from "react";
 import { demoPlayerPositions } from "@/lib/demo-data";
@@ -26,12 +27,14 @@ export function RosterSnapshot({
   team,
   league,
   source,
-  intelligence
+  intelligence,
+  view="roster"
 }: {
   team: LeagueTeam;
   league: ImportedLeague;
   source: LeagueProvider;
   intelligence?: PlayerIntelligencePayload | null;
+  view?: "roster"|"projections"|"stats";
 }) {
   const requestKey = `${source}:${team.rosterId}:${team.players.join(",")}`;
   const [remote, setRemote] = useState<{key:string;players:Record<string,PlayerProfile>;error:string}|null>(null);
@@ -108,14 +111,14 @@ export function RosterSnapshot({
               <article className={`lineup-row ${player.group}${possibleUpgrade ? " possible-upgrade" : ""}`} key={`${player.group}-${player.playerId}`}>
                 <span className="lineup-slot">{player.lineupSlot}</span>
                 <div className="lineup-player-main">
-                  <strong>{player.fullName}</strong>
+                  <PlayerDetails profile={playersById[player.playerId] || {playerId:player.playerId,fullName:player.fullName,position:player.position,team:player.nflTeam,status:player.status}} snapshot={snapshotMap.get(player.playerId)} source={source}/>
                   <small>{player.position}{player.nflTeam ? ` · ${player.nflTeam}` : ""}{player.status ? ` · ${player.status}` : ""}</small>
                   {possibleUpgrade && <em>Review start/sit: projects above a position-eligible starter.</em>}
                 </div>
 
                 <div className="lineup-projection">
-                  <strong>{player.projectedPoints === null ? "—" : player.projectedPoints.toFixed(1)}</strong>
-                  <span>projected</span>
+                  <strong>{view === "stats" ? (player.previousActualPoints == null ? "—" : player.previousActualPoints.toFixed(1)) : player.projectedPoints === null ? "—" : player.projectedPoints.toFixed(1)}</strong>
+                  <span>{view === "stats" ? "last scored week" : "projected"}</span>
 
                 </div>
 
@@ -132,7 +135,7 @@ export function RosterSnapshot({
   return (
     <section className="panel roster-panel vertical-lineup-panel">
       <div className="panel-heading">
-        <div><h2>Roster</h2></div>
+        <div><h2>{view === "stats" ? "Recent fantasy points" : view === "projections" ? `Week ${intelligence?.projectionWeek || "—"} projections` : "Roster"}</h2></div>
         <span className="pill">{totalPlayers} rostered</span>
       </div>
 
